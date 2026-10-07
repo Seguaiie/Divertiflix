@@ -28,6 +28,14 @@
 - React : `npm run web` (port 5173, proxy `/api` vers 5080). Tests : `npm test -w web-react`.
 - Piège shell : `pkill -f` avec le nom du process tue aussi la commande bash qui le contient (même avec `[D]`, si le nom apparaît dans la commande). Utiliser `pgrep` puis `kill PID`.
 
+## Active Directory (décision de l'utilisateur)
+- Ne PAS écrire les endpoints admin (utilisateurs, rôles, stats) tout de suite : ils seront conçus avec l'Active Directory quand il sera prêt. Un `AdminController` fait puis annulé a été retiré (17 tests → 13).
+- Le back-office Angular suppose les rôles Admin/Support du JWT actuel.
+
+## Angular
+- `npm start -w admin-angular` (4200). Angular utilise `HttpClient` + les types de `@divertiflix/api-client` (pas son runtime openapi-fetch).
+- Material 22 : thème via `mat.theme` → `styles.scss` (pas css).
+
 ## Règles
 - Demander l'autorisation avant toute interaction avec GitHub.
 - Tout logiciel installé est listé dans `logiciels.md`.
@@ -38,4 +46,4 @@
 - [x] Tests xUnit (13, `dotnet test` dans apps/api)
 - [x] Migrations EF + docker-compose
 - [x] Front React (apps/web-react)
-- [ ] Angular, SignalR + MQTT, Docker.
+- [x] Angular back-office (branche etape-3-angular) ; gestion des utilisateurs reportée, SignalR + MQTT, Docker.

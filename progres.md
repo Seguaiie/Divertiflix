@@ -24,7 +24,15 @@ Dernière mise à jour : 2026-10-07
 - [x] `apps/web-react` (Vite, React 19, TS, TanStack Query, React Router) : connexion/inscription, choix de profil, catalogue (recherche anti-rebond, genre, pagination), fiche + lecteur HLS (hls.js chargé à la demande), liste de lecture
 - [x] 5 tests Vitest (connexion, erreurs, catalogue, recherche) ; build OK ; vérifié via proxy Vite → API → PostgreSQL
 - [ ] Non testé dans un vrai navigateur (Playwright prévu à l'étape 5)
-## Étape 3 — Back-office Angular : à faire
+## Étape 3 — Back-office Angular : terminé (hors gestion des utilisateurs) — branche `etape-3-angular`
+- [x] `apps/admin-angular` : Angular 22 (zoneless, Signals), Material, RxJS ; proxy `/api` → 5080 (`npm start -w admin-angular`, port 4200)
+- [x] Auth : `AuthService` (signals), intercepteur avec refresh unique partagé (RxJS `shareReplay`), `staffGuard` (Admin/Support seulement)
+- [x] Pages : connexion, mise en page (toolbar + sidenav), tableau de bord (stats calculées depuis le catalogue), catalogue (recherche avec délai, pagination, création/modification/suppression pour Admin ; Support en lecture seule)
+- [x] Types partagés avec React via `@divertiflix/api-client`
+- [x] 6 tests (`ng test`) ; build OK ; proxy vérifié
+- [ ] **Gestion des utilisateurs / rôles : reportée** — l'utilisateur veut la faire avec l'Active Directory (pas d'endpoints admin dans l'API pour l'instant)
+- [ ] Supervision en direct : étape 4
+- [ ] Non testé dans un vrai navigateur (Playwright, étape 5)
 ## Étape 4 — SignalR et pont MQTT/ESP32 : à faire
 ## Étape 5 — Docker, tests, documentation : à faire
 

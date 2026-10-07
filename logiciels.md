@@ -45,3 +45,4 @@ Lancer `sudo ./install-serveur.sh` sur le serveur (Ubuntu 22.04/24.04, idempoten
 | @tanstack/react-query, react-router-dom, hls.js | web-react |
 | vitest, jsdom, @testing-library/{react,dom,jest-dom,user-event} | web-react (tests) |
 | openapi-fetch, openapi-typescript | packages/api-client |
+| @angular/{core,common,forms,router,build,cli} 22.2, @angular/material + cdk 22.2, rxjs 7.8, vitest 5 | admin-angular |
