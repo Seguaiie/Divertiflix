@@ -1,0 +1,27 @@
+# Services d'infrastructure pour le dev (l'API et les fronts tournent sur l'hôte).
+# Usage : docker compose up -d
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: divertiflix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-divertiflix-dev}
+      POSTGRES_DB: divertiflix
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U divertiflix"]
+      interval: 5s
+      retries: 10
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquittodata:/mosquitto/data
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+volumes:
+  pgdata:
+  mosquittodata:

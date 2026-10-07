@@ -1,0 +1,9 @@
+{
+  "name": "divertiflix",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "api:types": "npm run generate -w @divertiflix/api-client",
+    "web": "npm run dev -w web-react"
+  }
+}
