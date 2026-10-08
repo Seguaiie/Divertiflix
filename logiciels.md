@@ -32,11 +32,13 @@ Lancer `./install-sudo.sh` (ou `! ./install-sudo.sh` dans Claude Code) :
 - Serveur PostgreSQL local : optionnel, `INSTALL_POSTGRES_SERVER=1 ./install-sudo.sh` (inutile avec Docker)
 
 ## Serveur Ubuntu (production)
-Lancer `sudo ./install-serveur.sh` sur le serveur (Ubuntu 22.04/24.04, idempotent) :
-- Docker Engine + Compose, git, ufw (SSH/80/443), unattended-upgrades, `postgresql-client`, `mosquitto-clients`
-- nginx + certbot (désactivable : `INSTALL_NGINX=0`)
-- Optionnels : `.NET 9 SDK` (`INSTALL_DOTNET=1`), Node 22 (`INSTALL_NODE=1`)
-- Crée l'utilisateur `divertiflix` et `/opt/divertiflix`. Port MQTT 1883 fermé par défaut (à ouvrir pour le VLAN 10.10.4.0/24).
+`sudo ./install-serveur.sh` depuis le dépôt, sur Ubuntu 22.04/24.04 (idempotent, relancer = redéployer) :
+- Installe Docker + Compose, nginx, certbot, ufw, .NET 9 SDK, Node 22, git, rsync, clients psql/mosquitto
+- Copie le dépôt dans `/opt/divertiflix` (utilisateur `divertiflix`), génère `/opt/divertiflix/.env` (mot de passe BD, clé JWT, mot de passe admin)
+- PostgreSQL/Mosquitto/Redis via `docker-compose.prod.yml` (ports sur 127.0.0.1)
+- Build API (service systemd `divertiflix-api`), React sur `/`, Angular sur `/admin/`, API sur `/api` (nginx)
+- `DOMAIN=... CERTBOT_EMAIL=... sudo -E ./install-serveur.sh` pour HTTPS Let's Encrypt
+- Port MQTT 1883 fermé par défaut (`MQTT_BIND=0.0.0.0` pour les ESP32 du VLAN 10.10.4.0/24)
 
 ## Paquets npm
 | Paquet | Où |
