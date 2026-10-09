@@ -1,0 +1,24 @@
+@layer components {
+  .dock {
+    position: fixed; z-index: var(--z-dock); left: 0; right: 0; bottom: 0; height: 84px; display: grid; align-items: center; gap: 16px;
+    grid-template-columns: 52px minmax(120px, 1fr) auto minmax(200px, 2fr) auto auto; padding: 0 var(--gutter);
+    border-width: 1px 0 0; background: var(--glass-strong); animation: rise-in var(--dur-3) var(--ease);
+  }
+  .dock-art { position: relative; width: 52px; height: 52px; border-radius: var(--radius-xs); overflow: hidden; box-shadow: 0 0 0 1px var(--line-strong); }
+  .dock-info { display: grid; min-width: 0; }
+  .dock-info strong { font-size: 1.15rem; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dock-info span { font-size: 0.75rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dock-controls { display: flex; align-items: center; gap: 6px; }
+  .dock-play { width: 46px; height: 46px; background: var(--text); color: var(--bg-0); border-color: var(--text); }
+  .dock-play:hover:not(:disabled) { background: #fff7e8; color: var(--bg-0); }
+  .dock-play svg { width: 20px; height: 20px; }
+  .dock-seek { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: var(--text-2); }
+  .dock-seek input { flex: 1; -webkit-appearance: none; appearance: none; height: 22px; background: linear-gradient(90deg, var(--accent) var(--p), rgb(255 240 215 / 0.2) var(--p)) center / 100% 4px no-repeat; border-radius: 2px; cursor: pointer; }
+  .dock-seek input::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent-hi); }
+  .dock-seek input::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent-hi); border: 0; }
+  .dock-rate { min-width: 52px; }
+  @media (max-width: 720px) {
+    .dock { bottom: 64px; height: 76px; grid-template-columns: 52px 1fr auto auto; gap: 10px; }
+    .dock-seek, .dock-rate { display: none; }
+  }
+}

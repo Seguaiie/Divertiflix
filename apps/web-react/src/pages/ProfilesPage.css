@@ -1,0 +1,22 @@
+@layer components {
+  .who { min-height: 100dvh; display: grid; align-content: center; justify-items: center; gap: 34px; padding: 40px var(--gutter); position: relative; z-index: 2; background: radial-gradient(ellipse at 50% 30%, #1a1612, var(--bg-0) 70%); }
+  .who .logo { font-size: 2.4rem; }
+  .who h1 { font-size: clamp(2.4rem, 5vw, 4.2rem); line-height: 1; letter-spacing: -0.025em; }
+  .who-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(18px, 3vw, 36px); }
+  .who-item { display: grid; justify-items: center; }
+  .who-tile { display: grid; justify-items: center; gap: 10px; }
+  .who-pick { display: grid; justify-items: center; gap: 14px; width: 128px; color: var(--text-3); transition: color var(--dur-1); }
+  .who-avatar { position: relative; border-radius: 50%; display: block; transition: transform var(--dur-3) var(--ease), box-shadow var(--dur-3) var(--ease); }
+  .who-pick:hover { color: var(--text); }
+  .who-pick:hover .who-avatar { transform: scale(1.06); box-shadow: 0 0 0 3px var(--text), 0 20px 50px rgb(0 0 0 / 0.5); }
+  .who-pick:focus-visible { outline-offset: 8px; border-radius: 12px; }
+  .who-name { font-size: 1.05rem; font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .who-overlay { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; background: rgb(10 9 8 / 0.62); color: var(--text); }
+  .who-overlay svg { width: 30px; height: 30px; }
+  .who-add-icon { display: grid; place-items: center; width: 112px; height: 112px; border-radius: 50%; border: 1.5px dashed var(--line-strong); color: var(--text-3); transition: border-color var(--dur-1), color var(--dur-1); }
+  .who-pick:hover .who-add-icon { border-color: var(--text-2); color: var(--text); }
+  .who-add-icon svg { width: 34px; height: 34px; }
+  .who-edit { display: grid; justify-items: center; gap: 12px; width: 168px; }
+  .who-confirm { display: grid; justify-items: center; gap: 6px; font-size: 0.8125rem; color: var(--text-2); }
+  .who-confirm { grid-auto-flow: column; }
+}

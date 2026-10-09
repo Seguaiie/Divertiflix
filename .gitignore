@@ -9,3 +9,7 @@ dist/
 .env
 *.log
 .logs/
+
+# Résultats Playwright
+e2e/test-results/
+e2e/playwright-report/

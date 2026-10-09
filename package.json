@@ -1,9 +1,15 @@
 {
   "name": "divertiflix",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "e2e"
+  ],
   "scripts": {
     "api:types": "npm run generate -w @divertiflix/api-client",
-    "web": "npm run dev -w web-react"
+    "web": "npm run dev -w web-react",
+    "test": "npm test -w web-react",
+    "e2e": "npm test -w e2e"
   }
 }

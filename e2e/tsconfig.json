@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "target": "es2023", "module": "esnext", "moduleResolution": "bundler", "strict": true, "noEmit": true, "skipLibCheck": true, "types": ["node"], "lib": ["ES2023", "DOM"] },
+  "include": ["*.ts", "tests"]
+}

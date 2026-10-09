@@ -1,0 +1,27 @@
+@layer components {
+  .row { position: relative; margin-top: clamp(28px, 4vw, 52px); }
+  .row-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding-inline: var(--gutter); margin-bottom: 4px; }
+  .row-head h2 { font-size: clamp(1.45rem, 2.1vw, 2.05rem); line-height: 1.1; }
+  .row-frame { position: relative; }
+  /* La marge négative laisse la place au zoom des cartes au survol sans les rogner. */
+  .row-scroller {
+    overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter);
+    padding: 22px var(--gutter); margin-block: -8px; scrollbar-width: none; overscroll-behavior-x: contain;
+  }
+  .row-scroller::-webkit-scrollbar { display: none; }
+  .row-list { display: flex; gap: clamp(8px, 1vw, 14px); align-items: flex-start; width: max-content; min-width: 100%; }
+  .row-arrow {
+    position: absolute; z-index: 5; top: 22px; bottom: 22px; width: clamp(40px, 4.5vw, 64px); display: grid; place-items: center; color: var(--text);
+    opacity: 0; transition: opacity var(--dur-2) var(--ease);
+  }
+  .row-arrow svg { width: 30px; height: 30px; filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.7)); transition: scale var(--dur-2) var(--ease); }
+  .row-arrow:hover svg { scale: 1.2; }
+  .row-arrow.prev { left: 0; background: linear-gradient(90deg, rgb(10 9 8 / 0.92), transparent); }
+  .row-arrow.next { right: 0; background: linear-gradient(270deg, rgb(10 9 8 / 0.92), transparent); }
+  .row-arrow:disabled { visibility: hidden; }
+  @media (hover: hover) { .row-frame:hover .row-arrow:not(:disabled), .row-arrow:focus-visible { opacity: 1; } }
+  @media (hover: none) { .row-arrow { display: none; } }
+
+  .row-skeleton { display: flex; gap: 12px; padding: 22px var(--gutter); overflow: hidden; }
+  .row-skeleton .skeleton { flex: none; width: clamp(148px, 13.2vw, 232px); aspect-ratio: 2 / 3; border-radius: var(--radius-sm); }
+}

@@ -1,0 +1,10 @@
+@layer components {
+  .home-rows { margin-top: -64px; position: relative; z-index: 3; padding-bottom: 24px; }
+  @media (max-width: 720px) { .home-rows { margin-top: -8px; } }
+  .row-error { margin: 28px var(--gutter) 0; padding: 18px 20px; border-radius: var(--radius-md); border: 1px dashed var(--line-strong); color: var(--text-3); display: flex; gap: 16px; align-items: center; }
+  .rq-card { flex: none; width: clamp(200px, 17vw, 270px); min-height: 150px; display: grid; align-content: space-between; gap: 6px; padding: 18px; border-radius: var(--radius-md); background: var(--bg-2); border: 1px solid var(--line); transition: border-color var(--dur-2), transform var(--dur-2) var(--ease); }
+  a.rq-card:hover { border-color: var(--line-strong); transform: translateY(-3px); }
+  .rq-card strong { font-size: 1.55rem; line-height: 1.05; }
+  .rq-status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8125rem; font-weight: 600; }
+  .rq-meta { font-size: 0.75rem; color: var(--text-3); }
+}

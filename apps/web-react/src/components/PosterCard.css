@@ -1,0 +1,40 @@
+@layer components {
+  .card { --card-w: clamp(148px, 13.2vw, 232px); position: relative; width: var(--card-w); flex: none; scroll-snap-align: start; transition: opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease); }
+  .grid .card { width: auto; }
+  .card-link { display: block; border-radius: var(--radius-sm); }
+  .card-frame { position: relative; border-radius: var(--radius-sm); transition: transform var(--dur-3) var(--ease), box-shadow var(--dur-3) var(--ease); }
+  .card-art {
+    position: relative; overflow: hidden; border-radius: var(--radius-sm); background: var(--bg-2); isolation: isolate;
+    aspect-ratio: 2 / 3; box-shadow: 0 0 0 1px var(--line);
+  }
+  .card[data-kind='book'] .card-art { aspect-ratio: 1; }
+  .card-art .art { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .card-shade { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 38%, rgb(8 7 6 / 0.55) 68%, rgb(8 7 6 / 0.92)); }
+  /* La légende est un calque non interactif : les clics traversent jusqu'au lien de l'affiche. */
+  .card-overlay { position: absolute; z-index: 2; inset: auto 0 0 0; padding: 14px 12px 12px; pointer-events: none; display: grid; }
+  .card-caption { display: grid; gap: 2px; }
+  .card-caption strong { font-size: clamp(1.05rem, 1.25vw, 1.3rem); line-height: 1.08; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 12px rgb(0 0 0 / 0.5); }
+  .card-caption span { font-size: 0.6875rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-match { position: absolute; z-index: 2; left: 8px; top: 8px; padding: 2px 7px; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; color: var(--accent-hi); background: rgb(10 9 8 / 0.72); backdrop-filter: blur(8px); border: 1px solid color-mix(in oklab, var(--accent) 50%, transparent); }
+  .card-flag { position: absolute; z-index: 2; right: 8px; top: 8px; padding: 3px 8px; border-radius: 999px; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); background: rgb(10 9 8 / 0.72); backdrop-filter: blur(8px); border: 1px solid var(--line-strong); }
+  .card-kind { position: absolute; z-index: 2; right: 8px; top: 8px; width: 18px; height: 18px; color: var(--text); filter: drop-shadow(0 1px 6px rgb(0 0 0 / 0.7)); }
+  .card[data-available='false'] .card-art { filter: saturate(0.55) brightness(0.82); }
+  .card-progress { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 3px; background: rgb(255 240 215 / 0.22); }
+  .card-progress i { display: block; height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; }
+
+  /* Réveillées au survol : la rangée d'actions passe de 0 à sa hauteur, ce qui pousse la légende vers le haut. */
+  .card-actions { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--dur-3) var(--ease), opacity var(--dur-2) var(--ease); pointer-events: none; }
+  .card-actions > div { overflow: hidden; display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; padding-top: 0; }
+  .card-actions .icon-btn.accent { background: var(--text); color: var(--bg-0); border-color: var(--text); }
+  .card-reason { margin-top: 10px; font-size: 0.75rem; line-height: 1.4; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  @media (hover: hover) {
+    .card:hover, .card:focus-within { z-index: 3; }
+    .card:hover .card-frame, .card:focus-within .card-frame { transform: scale(1.055); box-shadow: 0 0 0 1px var(--line-strong), 0 24px 60px rgb(0 0 0 / 0.6), 0 0 40px color-mix(in oklab, var(--accent) 12%, transparent); }
+    .card:hover .card-actions, .card:focus-within .card-actions { grid-template-rows: 1fr; opacity: 1; pointer-events: auto; }
+    .card:hover .card-actions > div, .card:focus-within .card-actions > div { padding-top: 10px; }
+    .row-list:has(.card:hover) .card:not(:hover), .row-list:has(.card:focus-within) .card:not(:focus-within) { opacity: 0.5; }
+  }
+  /* Tactile : pas de survol, les actions passent par la fiche. */
+  @media (hover: none) { .card-overlay .card-actions { display: none; } }
+}

@@ -1,0 +1,61 @@
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  img, svg, video, canvas { display: block; max-width: 100%; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; background: none; border: 0; padding: 0; }
+  a { color: inherit; text-decoration: none; }
+  ul, ol { list-style: none; padding: 0; }
+  h1, h2, h3, h4 { font-weight: inherit; text-wrap: balance; }
+  p { text-wrap: pretty; }
+  [hidden] { display: none !important; }
+}
+
+@layer base {
+  html { background: var(--bg-0); scroll-padding-top: calc(var(--nav-h) + 16px); }
+  body {
+    min-height: 100dvh;
+    background: var(--bg-0);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    font-feature-settings: 'cv11', 'ss03';
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-bottom: var(--dock-h);
+    transition: padding-bottom var(--dur-2) var(--ease);
+  }
+  ::selection { background: var(--accent); color: var(--on-accent); }
+
+  /* Grain de pellicule fixe, très léger : donne de la matière aux aplats sombres sans coût d'animation. */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.045; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  :focus { outline: none; }
+  :focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 3px; border-radius: var(--radius-xs); }
+
+  /* Barres de défilement discrètes. */
+  * { scrollbar-width: thin; scrollbar-color: var(--bg-4) transparent; }
+
+  .serif { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.012em; }
+  .eyebrow { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .visually-hidden {
+    position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .skip-link {
+    position: fixed; left: 16px; top: -64px; z-index: 200; padding: 10px 16px; border-radius: var(--radius-sm);
+    background: var(--text); color: var(--bg-0); font-weight: 600; transition: top var(--dur-1) var(--ease);
+  }
+  .skip-link:focus { top: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

@@ -1,0 +1,17 @@
+@layer components {
+  .bf { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; }
+  .bf-search { position: relative; flex: 1; min-width: min(100%, 280px); max-width: 520px; }
+  .bf-search > svg { position: absolute; left: 14px; top: 50%; translate: 0 -50%; width: 18px; height: 18px; color: var(--text-3); pointer-events: none; }
+  .bf-search .input { padding-left: 44px; padding-right: 44px; }
+  .bf-search .icon-btn { position: absolute; right: 6px; top: 50%; translate: 0 -50%; }
+  .bf-sort .select { width: auto; min-width: 190px; }
+  .bf-toggle { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; font-size: 0.875rem; color: var(--text-2); user-select: none; }
+  .bf-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .bf-switch { position: relative; width: 40px; height: 24px; border-radius: 999px; background: var(--bg-4); border: 1px solid var(--line-strong); transition: background-color var(--dur-2); flex: none; }
+  .bf-switch::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-2); transition: translate var(--dur-2) var(--ease), background-color var(--dur-2); }
+  .bf-toggle input:checked + .bf-switch { background: var(--accent); border-color: var(--accent); }
+  .bf-toggle input:checked + .bf-switch::after { translate: 16px 0; background: var(--on-accent); }
+  .bf-toggle input:focus-visible + .bf-switch { outline: 2px solid var(--accent-hi); outline-offset: 3px; }
+  .bf-genres { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .bf-count { margin: 10px 0 22px; font-size: 0.8125rem; color: var(--text-3); min-height: 1.4em; }
+}
