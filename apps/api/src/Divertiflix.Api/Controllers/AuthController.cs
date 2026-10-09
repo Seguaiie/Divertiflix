@@ -30,7 +30,7 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens) : Cont
     {
         var email = req.Email.Trim().ToLowerInvariant();
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user is null || _hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password) == PasswordVerificationResult.Failed)
+        if (user is null || !user.IsActive || _hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { error = "Identifiants invalides." });
         return await IssueAsync(user);
     }
@@ -44,7 +44,7 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens) : Cont
             return Unauthorized(new { error = "Jeton de rafraîchissement invalide." });
         stored.RevokedAt = DateTime.UtcNow; // rotation : un refresh token ne sert qu'une fois
         var user = await db.Users.FindAsync(stored.UserId);
-        return user is null ? Unauthorized() : await IssueAsync(user);
+        return user is null || !user.IsActive ? Unauthorized() : await IssueAsync(user);
     }
 
     private async Task<ActionResult<AuthResponse>> IssueAsync(User user)

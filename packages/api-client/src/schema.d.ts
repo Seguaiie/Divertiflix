@@ -4,6 +4,49 @@
  */
 
 export interface paths {
+    "/api/admin/audiobookshelf-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AudiobookshelfSyncRequest"];
+                    "text/json": components["schemas"]["AudiobookshelfSyncRequest"];
+                    "application/*+json": components["schemas"]["AudiobookshelfSyncRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AudiobookshelfSyncResult"];
+                        "application/json": components["schemas"]["AudiobookshelfSyncResult"];
+                        "text/json": components["schemas"]["AudiobookshelfSyncResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/register": {
         parameters: {
             query?: never;
@@ -123,6 +166,49 @@ export interface paths {
                         "text/plain": components["schemas"]["AuthResponse"];
                         "application/json": components["schemas"]["AuthResponse"];
                         "text/json": components["schemas"]["AuthResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/directory-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DirectorySyncRequest"];
+                    "text/json": components["schemas"]["DirectorySyncRequest"];
+                    "application/*+json": components["schemas"]["DirectorySyncRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["DirectorySyncResult"];
+                        "application/json": components["schemas"]["DirectorySyncResult"];
+                        "text/json": components["schemas"]["DirectorySyncResult"];
                     };
                 };
             };
@@ -368,6 +454,7 @@ export interface paths {
                 query?: {
                     q?: string;
                     genre?: string;
+                    kind?: string;
                     page?: number;
                     pageSize?: number;
                 };
@@ -516,10 +603,47 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AudiobookItemDto: {
+            externalId: string;
+            name: string;
+            synopsis: string | null;
+            author: string | null;
+            narrator: string | null;
+            /** Format: int32 */
+            durationMinutes: number;
+            coverUrl: string | null;
+            streamUrl: string;
+            genre: string | null;
+        };
+        AudiobookshelfSyncRequest: {
+            items: components["schemas"]["AudiobookItemDto"][];
+        };
+        AudiobookshelfSyncResult: {
+            /** Format: int32 */
+            created: number;
+            /** Format: int32 */
+            updated: number;
+        };
         AuthResponse: {
             accessToken: string;
             refreshToken: string;
             user: components["schemas"]["UserDto"];
+        };
+        DirectoryAccountDto: {
+            email: string;
+            displayName: string;
+            groups: string[];
+        };
+        DirectorySyncRequest: {
+            accounts: components["schemas"]["DirectoryAccountDto"][];
+        };
+        DirectorySyncResult: {
+            /** Format: int32 */
+            created: number;
+            /** Format: int32 */
+            updated: number;
+            /** Format: int32 */
+            deactivated: number;
         };
         LoginRequest: {
             email: string;
@@ -565,9 +689,12 @@ export interface components {
             durationMinutes: number;
             posterUrl: string | null;
             streamUrl: string | null;
+            author: string | null;
+            narrator: string | null;
+            externalSource: string | null;
         };
         /** @enum {unknown} */
-        TitleKind: "Movie" | "Series";
+        TitleKind: "Movie" | "Series" | "Audiobook";
         TitleUpsert: {
             name: string;
             synopsis: string;
@@ -579,6 +706,10 @@ export interface components {
             durationMinutes: number;
             posterUrl: string | null;
             streamUrl: string | null;
+            /** @default null */
+            author: string | null;
+            /** @default null */
+            narrator: string | null;
         };
         UserDto: {
             /** Format: uuid */

@@ -1,23 +1,26 @@
 using Divertiflix.Api.Dtos;
+using Divertiflix.Api.Hubs;
 using Divertiflix.Domain;
 using Divertiflix.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/titles")]
-public class TitlesController(DivertiflixDbContext db) : ControllerBase
+public class TitlesController(DivertiflixDbContext db, IHubContext<NotificationsHub> hub) : ControllerBase
 {
     [HttpGet, Authorize]
-    public async Task<PagedResult<TitleDto>> List([FromQuery] string? q, [FromQuery] string? genre, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<PagedResult<TitleDto>> List([FromQuery] string? q, [FromQuery] string? genre, [FromQuery] TitleKind? kind, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
         var query = db.Titles.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(q)) query = query.Where(t => EF.Functions.ILike(t.Name, $"%{q}%"));
         if (!string.IsNullOrWhiteSpace(genre)) query = query.Where(t => t.Genre == genre);
+        if (kind is not null) query = query.Where(t => t.Kind == kind);
         var total = await query.CountAsync();
         var items = await query.OrderBy(t => t.Name).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return new PagedResult<TitleDto>(items.Select(ToDto).ToList(), total, page, pageSize);
@@ -36,6 +39,7 @@ public class TitlesController(DivertiflixDbContext db) : ControllerBase
         var t = Apply(new Title(), req);
         db.Titles.Add(t);
         await db.SaveChangesAsync();
+        await hub.Clients.All.SendAsync("titleAdded", ToDto(t));
         return CreatedAtAction(nameof(Get), new { id = t.Id }, ToDto(t));
     }
 
@@ -63,8 +67,9 @@ public class TitlesController(DivertiflixDbContext db) : ControllerBase
     {
         t.Name = r.Name; t.Synopsis = r.Synopsis; t.Year = r.Year; t.Kind = r.Kind; t.Genre = r.Genre;
         t.DurationMinutes = r.DurationMinutes; t.PosterUrl = r.PosterUrl; t.StreamUrl = r.StreamUrl;
+        t.Author = r.Author; t.Narrator = r.Narrator;
         return t;
     }
 
-    private static TitleDto ToDto(Title t) => new(t.Id, t.Name, t.Synopsis, t.Year, t.Kind, t.Genre, t.DurationMinutes, t.PosterUrl, t.StreamUrl);
+    internal static TitleDto ToDto(Title t) => new(t.Id, t.Name, t.Synopsis, t.Year, t.Kind, t.Genre, t.DurationMinutes, t.PosterUrl, t.StreamUrl, t.Author, t.Narrator, t.ExternalSource);
 }

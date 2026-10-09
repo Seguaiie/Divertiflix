@@ -6,10 +6,59 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5080/"
+      "url": "http://localhost:5090/"
     }
   ],
   "paths": {
+    "/api/admin/audiobookshelf-sync": {
+      "post": {
+        "tags": [
+          "AudiobookshelfSync"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudiobookshelfSyncRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudiobookshelfSyncRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudiobookshelfSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookshelfSyncResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookshelfSyncResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookshelfSyncResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -150,6 +199,55 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/directory-sync": {
+      "post": {
+        "tags": [
+          "DirectorySync"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySyncRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySyncRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySyncResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySyncResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySyncResult"
                 }
               }
             }
@@ -455,6 +553,13 @@
             }
           },
           {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -666,6 +771,86 @@
   },
   "components": {
     "schemas": {
+      "AudiobookItemDto": {
+        "required": [
+          "externalId",
+          "name",
+          "synopsis",
+          "author",
+          "narrator",
+          "durationMinutes",
+          "coverUrl",
+          "streamUrl",
+          "genre"
+        ],
+        "type": "object",
+        "properties": {
+          "externalId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "synopsis": {
+            "type": "string",
+            "nullable": true
+          },
+          "author": {
+            "type": "string",
+            "nullable": true
+          },
+          "narrator": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "coverUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "streamUrl": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AudiobookshelfSyncRequest": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudiobookItemDto"
+            }
+          }
+        }
+      },
+      "AudiobookshelfSyncResult": {
+        "required": [
+          "created",
+          "updated"
+        ],
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "AuthResponse": {
         "required": [
           "accessToken",
@@ -682,6 +867,64 @@
           },
           "user": {
             "$ref": "#/components/schemas/UserDto"
+          }
+        }
+      },
+      "DirectoryAccountDto": {
+        "required": [
+          "email",
+          "displayName",
+          "groups"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DirectorySyncRequest": {
+        "required": [
+          "accounts"
+        ],
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryAccountDto"
+            }
+          }
+        }
+      },
+      "DirectorySyncResult": {
+        "required": [
+          "created",
+          "updated",
+          "deactivated"
+        ],
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "deactivated": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -803,7 +1046,10 @@
           "genre",
           "durationMinutes",
           "posterUrl",
-          "streamUrl"
+          "streamUrl",
+          "author",
+          "narrator",
+          "externalSource"
         ],
         "type": "object",
         "properties": {
@@ -838,13 +1084,26 @@
           "streamUrl": {
             "type": "string",
             "nullable": true
+          },
+          "author": {
+            "type": "string",
+            "nullable": true
+          },
+          "narrator": {
+            "type": "string",
+            "nullable": true
+          },
+          "externalSource": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
       "TitleKind": {
         "enum": [
           "Movie",
-          "Series"
+          "Series",
+          "Audiobook"
         ]
       },
       "TitleUpsert": {
@@ -887,6 +1146,16 @@
           "streamUrl": {
             "type": "string",
             "nullable": true
+          },
+          "author": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          },
+          "narrator": {
+            "type": "string",
+            "default": null,
+            "nullable": true
           }
         }
       },
@@ -914,7 +1183,13 @@
   },
   "tags": [
     {
+      "name": "AudiobookshelfSync"
+    },
+    {
       "name": "Auth"
+    },
+    {
+      "name": "DirectorySync"
     },
     {
       "name": "Profiles"
