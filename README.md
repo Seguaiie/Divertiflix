@@ -63,6 +63,7 @@ apps/web-react/      portail abonné
 apps/admin-angular/  back-office
 packages/api-client/ types et client générés depuis l'OpenAPI, partagés par les deux fronts
 packages/brand/      logo (SVG) et jetons de design partagés
+packages/demo/       faux serveur en TypeScript pour la démo hébergée (sans API)
 tools/demo-media/    génération des médias de démonstration (ffmpeg)
 tools/brand/         génération du logo et des icônes
 tools/recsys-eval/   évaluation du moteur sur MovieLens
@@ -77,6 +78,7 @@ docs/                architecture, sécurité, recommandation, démonstration, c
 - [Sécurité](docs/securite.md) : ce qui est protégé, comment, et ce qui reste à faire.
 - [Recommandation](docs/recommandation.md) : le moteur, l'assistant, et son [évaluation sur MovieLens](docs/evaluation-movielens.md).
 - [Démonstration](docs/demo.md) : déroulé de 7 minutes.
+- [Démo hébergée](docs/demo-hebergee.md) : portail et back-office jouables dans le navigateur, sans serveur.
 - `memoire.md` : décisions et pièges rencontrés. `logiciels.md` : tout ce qui est installé. `progres.md` : avancement.
 
 ## Déploiement

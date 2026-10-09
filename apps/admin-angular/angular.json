@@ -50,6 +50,27 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "demo": {
+              "browser": "../../packages/demo/angular/main.demo.ts",
+              "tsConfig": "../../packages/demo/angular/tsconfig.demo.json",
+              "outputPath": "../../packages/demo/dist/admin-ng",
+              "baseHref": "./",
+              "styles": [
+                "@divertiflix/brand/tokens.css",
+                "../../packages/demo/angular/generated/fonts.css",
+                "src/styles.scss",
+                "../../packages/demo/angular/demo.css"
+              ],
+              "optimization": { "scripts": true, "styles": { "minify": true, "inlineCritical": false }, "fonts": false },
+              "outputHashing": "all",
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"

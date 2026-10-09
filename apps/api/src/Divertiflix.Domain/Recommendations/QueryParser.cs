@@ -73,7 +73,7 @@ public sealed class QueryParser
         "plus","moins","mais","vraiment","un peu","genre","style","esprit","comme","like","similar","similaire","semblable","aime","aimes","regarde","vu","deja",
         "bonjour","bonsoir","salut","hello","hey","coucou","merci","thanks","aide","aider","help","peux","peut","pouvez","puis","vous","hi","sil","tout","toi",
     ];
-    private static readonly HashSet<string> SurprisePhrases = ["surprends moi", "surprend moi", "surprise me", "au hasard", "random", "n importe quoi", "peu importe", "choisis pour moi", "pick for me", "choose for me"];
+    private static readonly HashSet<string> SurprisePhrases = ["surprends moi", "surprend moi", "surprise moi", "surprise me", "au hasard", "random", "n importe quoi", "peu importe", "choisis pour moi", "pick for me", "choose for me"];
 
     private readonly IReadOnlyList<CatalogItem> _catalog;
     private readonly Dictionary<string, string> _genreByKey;     // clé normalisée -> libellé du catalogue

@@ -207,7 +207,8 @@ public sealed class RecommendationEngine
         var qvec = ToVec(qFeats);
         var seedIdx = spec.SimilarTo is { } sid && _index.TryGetValue(sid, out var si) ? si : -1;
         // Un mot libre que le catalogue ne connaît pas est une demande sans réponse, pas « tout le catalogue ».
-        var intent = boostTags.Count > 0 || boostGenres.Count > 0 || Text.Tokens(spec.Text).Any();
+        // « Surprends-moi » porte son propre texte (la formule elle-même) : seuls les genres et mots-clés demandés cadrent la recherche.
+        var intent = boostTags.Count > 0 || boostGenres.Count > 0 || (!spec.Surprise && Text.Tokens(spec.Text).Any());
 
         var rows = new List<(int I, double Score, Reason Reason)>();
         for (var i = 0; i < _items.Length; i++)

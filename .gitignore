@@ -16,3 +16,7 @@ e2e/playwright-report/
 
 # Données MovieLens téléchargées par tools/recsys-eval
 tools/recsys-eval/data/
+
+# Mode démonstration (fichiers générés)
+packages/demo/dist/
+packages/demo/angular/generated/

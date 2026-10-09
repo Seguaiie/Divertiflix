@@ -28,6 +28,20 @@ public class AssistantTests(ApiFactory f) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Surprise_me_always_finds_something_and_says_why()
+    {
+        var (c, _) = await f.RegisterAsync();
+        var pid = await ApiFactory.ProfileIdAsync(c);
+        foreach (var msg in new[] { "surprends-moi", "Surprends moi !", "surprends-moi avec de la science-fiction" })
+        {
+            var r = await AskAsync(c, pid, msg);
+            Assert.Equal("surprise", r.Reply);
+            Assert.NotEmpty(r.Cards);
+            Assert.All(r.Cards, k => Assert.Equal("surprise", k.Reason!.Type));
+        }
+    }
+
+    [Fact]
     public async Task Only_catalog_titles_are_ever_returned_and_all_are_playable()
     {
         var (c, _) = await f.RegisterAsync();

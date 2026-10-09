@@ -1,0 +1,27 @@
+{
+  "extends": "../../../apps/admin-angular/tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@microsoft/signalr": [
+        "../src/realtime.ts"
+      ]
+    },
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitReturns": false
+  },
+  "files": [
+    "main.demo.ts"
+  ],
+  "include": [
+    "../../../apps/admin-angular/src/**/*.ts",
+    "../src/**/*.ts"
+  ],
+  "exclude": [
+    "../../../apps/admin-angular/src/**/*.spec.ts",
+    "../src/**/*.test.ts",
+    "../../../apps/admin-angular/src/main.ts"
+  ]
+}
