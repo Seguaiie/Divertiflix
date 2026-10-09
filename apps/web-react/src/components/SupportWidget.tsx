@@ -34,7 +34,7 @@ function Thread({ id, onBack }: { id: string; onBack(): void }) {
       <button className="btn btn-ghost btn-sm" onClick={onBack}><ArrowLeft aria-hidden />{t('support.back')}</button>
       {ticket.data && (
         <>
-          <div className="sp-ticket-head"><h3 className="serif">{ticket.data.ticket.subject}</h3><StatusBadge status={ticket.data.ticket.status} /></div>
+          <div className="sp-ticket-head"><h3 className="display">{ticket.data.ticket.subject}</h3><StatusBadge status={ticket.data.ticket.status} /></div>
           <ul className="sp-msgs" aria-live="polite">
             {ticket.data.messages.map(m => (
               <li key={m.id} data-staff={m.fromStaff}>
@@ -101,7 +101,7 @@ export function SupportWidget() {
       {support.open && (
         <aside className="sp glass-panel" ref={panel} aria-label={t('support.title')}>
           <header className="sp-head">
-            <div className="grow"><p className="eyebrow">{t('support.eyebrow')}</p><h2 className="serif">{t('support.title')}</h2></div>
+            <div className="grow"><p className="eyebrow">{t('support.eyebrow')}</p><h2 className="display">{t('support.title')}</h2></div>
             <button className="icon-btn plain sm" onClick={closeSupport} aria-label={t('common.close')}><X /></button>
           </header>
           <div className="sp-body">

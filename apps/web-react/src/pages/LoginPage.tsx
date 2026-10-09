@@ -5,7 +5,7 @@ import { ApiError } from '../lib/api'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../state/auth'
 import { GeneratedArt } from '../components/Art'
-import { Logo } from '../components/Nav'
+import { LogoFull } from '../components/Logo'
 import './LoginPage.css'
 
 export function LoginPage() {
@@ -46,14 +46,14 @@ export function LoginPage() {
         <div className="login-art-scrim" />
         <div className="login-art-copy">
           <p className="eyebrow">{t('auth.eyebrow')}</p>
-          <h2 className="serif">{t('auth.headline')}</h2>
+          <h2 className="display">{t('auth.headline')}</h2>
           <p>{t('auth.sub')}</p>
         </div>
       </div>
 
       <div className="login-panel">
         <div className="login-card">
-          <Logo />
+          <LogoFull width={300} />
           <div className="login-tabs" role="tablist" aria-label={t('auth.mode')}>
             <button role="tab" aria-selected={mode === 'login'} onClick={() => { setMode('login'); setError(null) }}>{t('auth.login')}</button>
             <button role="tab" aria-selected={mode === 'register'} onClick={() => { setMode('register'); setError(null) }}>{t('auth.register')}</button>

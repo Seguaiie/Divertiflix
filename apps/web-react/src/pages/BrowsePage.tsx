@@ -64,7 +64,7 @@ export function BrowsePage({ kind }: { kind: 'Movie' | 'Audiobook' }) {
     <div className="page">
       <header className="page-head">
         <p className="eyebrow">{isBook ? t('browse.booksEyebrow') : t('browse.filmsEyebrow')}</p>
-        <h1 className="serif">{isBook ? t('nav.audiobooks') : t('nav.films')}</h1>
+        <h1 className="display">{isBook ? t('nav.audiobooks') : t('nav.films')}</h1>
         <p>{isBook ? t('browse.booksHelp') : t('browse.filmsHelp')}</p>
       </header>
 

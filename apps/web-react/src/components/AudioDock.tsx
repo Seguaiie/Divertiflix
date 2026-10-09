@@ -18,7 +18,7 @@ export function AudioDock() {
     <section className="dock glass-panel" aria-label={t('dock.label')}>
       <div className="dock-art"><Artwork src={d.current.poster} seed={d.current.titleId} genre="Poésie" ratio="square" /></div>
       <div className="dock-info">
-        <strong className="serif">{d.current.name}</strong>
+        <strong className="display">{d.current.name}</strong>
         <span>{d.current.author}</span>
       </div>
       <div className="dock-controls">

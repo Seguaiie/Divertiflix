@@ -1,49 +1,10 @@
 @layer reset, tokens, base, components, layout, utilities;
 
+/* Palette, polices, rayons et mouvements : définis une seule fois dans le paquet de marque (partagé avec le back-office). */
+@import '@divertiflix/brand/tokens.css' layer(tokens);
+
 @layer tokens {
   :root {
-    color-scheme: dark;
-
-    /* Surfaces : noir chaud, jamais de gris froid ni de noir pur. */
-    --bg-0: #0a0908;
-    --bg-1: #100f0d;
-    --bg-2: #171512;
-    --bg-3: #1f1c18;
-    --bg-4: #2a261f;
-    --glass: rgb(14 13 11 / 0.72);
-    --glass-strong: rgb(14 13 11 / 0.88);
-    --line: rgb(255 240 215 / 0.085);
-    --line-strong: rgb(255 240 215 / 0.17);
-    --veil: rgb(255 240 215 / 0.07);
-
-    /* Texte (contrastes mesurés : 15:1, 8:1, 5:1 sur --bg-0). */
-    --text: #f1ebe0;
-    --text-2: #bab1a1;
-    --text-3: #8b8374;
-
-    /* Un seul accent de marque : l'ambre. */
-    --accent: #dba84e;
-    --accent-hi: #f2c872;
-    --accent-lo: #8b6a2c;
-    --on-accent: #1b1306;
-    --danger: #e8786a;
-    --ok: #8cc093;
-    --info: #9bbfd2;
-
-    --font-display: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-    --font-ui: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-
-    --radius-xs: 3px;
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
-
-    --ease: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
-    --dur-1: 140ms;
-    --dur-2: 260ms;
-    --dur-3: 520ms;
-
     --nav-h: 64px;
     --gutter: clamp(16px, 4vw, 56px);
     --content-max: 1760px;

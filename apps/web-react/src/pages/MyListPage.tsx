@@ -13,7 +13,7 @@ export function MyListPage() {
     <div className="page">
       <header className="page-head">
         <p className="eyebrow">{t('list.eyebrow')}</p>
-        <h1 className="serif">{t('nav.myList')}</h1>
+        <h1 className="display">{t('nav.myList')}</h1>
         {list.data && list.data.length > 0 && <p className="tnum">{plural('browse.count', list.data.length)}</p>}
       </header>
       {list.isPending && <GridSkeleton n={6} />}

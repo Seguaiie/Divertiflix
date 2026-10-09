@@ -42,7 +42,7 @@ export function PosterCard({ card, showReason = false, rated = true }: { card: C
         {/* Légende et actions partagent le même flux : au survol, les boutons poussent le titre vers le haut au lieu de le recouvrir. */}
         <div className="card-overlay">
           <div className="card-caption" aria-hidden>
-            <strong className="serif">{title.name}</strong>
+            <strong className="display">{title.name}</strong>
             <span>{meta.filter(Boolean).join(' · ')}</span>
           </div>
           <div className="card-actions">

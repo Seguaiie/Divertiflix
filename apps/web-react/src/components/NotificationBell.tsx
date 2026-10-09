@@ -32,7 +32,7 @@ export function NotificationBell() {
       {pop.open && (
         <div className="popover glass-panel notif" role="dialog" aria-label={t('notif.title')}>
           <header>
-            <h2 className="serif">{t('notif.title')}</h2>
+            <h2 className="display">{t('notif.title')}</h2>
             {unread > 0 && <button className="link" onClick={() => read.mutate(null)}>{t('notif.markAll')}</button>}
           </header>
           {list.data && list.data.items.length === 0 && <p className="notif-empty">{t('notif.empty')}</p>}

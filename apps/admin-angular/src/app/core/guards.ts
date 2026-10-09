@@ -7,3 +7,9 @@ export const staffGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   return auth.isStaff() ? true : inject(Router).createUrlTree(['/login']);
 };
+
+/** Pages réservées aux administrateurs (comptes) : le rôle Support est renvoyé au tableau de bord. */
+export const adminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.isAdmin() ? true : inject(Router).createUrlTree(['/dashboard']);
+};

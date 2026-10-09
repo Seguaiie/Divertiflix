@@ -25,6 +25,8 @@
               }
             ],
             "styles": [
+              "@divertiflix/brand/tokens.css",
+              "src/fonts.css",
               "src/styles.scss"
             ]
           },

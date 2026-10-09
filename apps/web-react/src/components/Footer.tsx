@@ -4,7 +4,7 @@ import { useI18n } from '../i18n'
 import { usePopover } from '../hooks/usePopover'
 import { keys } from '../state/queries'
 import { useUI } from '../state/ui'
-import { Logo } from './Nav'
+import { Logo } from './Logo'
 
 /** Badge d'état : chaque voyant vient d'une mesure faite par l'API (base de données, liaison capteurs), aucun n'est décoratif. */
 function StatusBadge() {

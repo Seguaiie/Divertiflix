@@ -1,11 +1,105 @@
 @use '@angular/material' as mat;
 
+// Même famille visuelle que le portail React : jetons partagés (packages/brand/tokens.css), encre indigo, accent violet.
+// Le back-office est un outil d'exploitation : plus dense, mais avec les mêmes teintes, les mêmes polices et la même rigueur.
 html {
   color-scheme: dark;
   @include mat.theme((
-    color: (primary: mat.$red-palette, theme-type: dark),
-    typography: Roboto,
-    density: 0,
+    color: (primary: mat.$violet-palette, theme-type: dark),
+    typography: (plain-family: 'Inter Variable, ui-sans-serif, system-ui, sans-serif', brand-family: 'Sora Variable, Inter Variable, sans-serif', bold-weight: 600, medium-weight: 500, regular-weight: 400),
+    density: -1,
   ));
+
+  // Les couleurs de marque posées par-dessus le thème Material : tous les composants en héritent.
+  --mat-sys-surface: var(--bg-0);
+  --mat-sys-background: var(--bg-0);
+  --mat-sys-surface-dim: var(--bg-0);
+  --mat-sys-surface-bright: var(--bg-3);
+  --mat-sys-surface-container-lowest: var(--bg-0);
+  --mat-sys-surface-container-low: var(--bg-1);
+  --mat-sys-surface-container: var(--bg-2);
+  --mat-sys-surface-container-high: var(--bg-3);
+  --mat-sys-surface-container-highest: var(--bg-4);
+  --mat-sys-on-surface: var(--text);
+  --mat-sys-on-background: var(--text);
+  --mat-sys-surface-variant: var(--bg-3);
+  --mat-select-trigger-text-size: 14px;
+  --mat-form-field-container-text-size: 14px;
+  --mat-sys-on-surface-variant: var(--text-2);
+  --mat-sys-outline: var(--line-strong);
+  --mat-sys-outline-variant: var(--line);
+  --mat-sys-primary: var(--accent);
+  --mat-sys-on-primary: var(--on-accent);
+  --mat-sys-primary-container: #2c1a63;
+  --mat-sys-on-primary-container: var(--accent-hi);
+  --mat-sys-secondary-container: var(--bg-4);
+  --mat-sys-on-secondary-container: var(--text);
+  --mat-sys-error: var(--danger);
+  --mat-sys-on-error: #2a0710;
+  --mat-sys-inverse-surface: var(--text);
+  --mat-sys-inverse-on-surface: var(--bg-0);
+  --mat-sys-inverse-primary: var(--accent-lo);
+  --mat-sys-scrim: #000;
+  // Bouton plein : le dégradé de marque, comme les appels à l'action du portail.
+  --mat-button-filled-container-color: transparent;
+  --mat-button-filled-label-text-color: var(--on-brand);
 }
-body { margin: 0; background: var(--mat-sys-surface); color: var(--mat-sys-on-surface); font-family: Roboto, system-ui, sans-serif; }
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(900px 460px at 8% -120px, rgb(var(--accent-rgb) / 0.10), transparent 70%) no-repeat, var(--bg-0); color: var(--text); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.03em; margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+.tnum { font-variant-numeric: tabular-nums; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+// ------------------------------------------------------------------ Gabarit de page (partagé : les styles de composants restent petits)
+
+.page { padding: clamp(16px, 3vw, 40px); max-width: 1400px; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.page-head h1 { font-size: clamp(1.7rem, 2.6vw, 2.3rem); font-weight: 700; line-height: 1.08; }
+.page-head p { margin: 6px 0 0; color: var(--text-3); max-width: 62ch; }
+.eyebrow { font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 6px; }
+
+.toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.toolbar .grow { flex: 1 1 260px; }
+.toolbar mat-form-field { min-width: 0; }
+
+.panel { background: var(--bg-1); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px 0; }
+.panel-head h2 { font-size: 1.1rem; }
+.panel-body { padding: 16px 20px 20px; }
+.scroll-x { overflow-x: auto; }
+
+// Tableaux : en-têtes discrets, lignes aérées, survol léger.
+.panel table.mat-mdc-table { width: 100%; background: transparent; }
+.mat-mdc-header-cell { color: var(--text-3) !important; font-size: 0.6875rem !important; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600 !important; }
+.mat-mdc-row { transition: background 140ms var(--ease); }
+.mat-mdc-row:hover { background: var(--bg-2); }
+.cell-main { font-weight: 500; color: var(--text); }
+.cell-sub { display: block; color: var(--text-3); font-size: 0.75rem; }
+.empty { padding: 48px 20px; text-align: center; color: var(--text-3); }
+.empty strong { display: block; font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; color: var(--text-2); margin-bottom: 4px; }
+
+// Pastilles d'état.
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+.chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip[data-tone='ok'] { color: var(--ok); background: color-mix(in oklab, var(--ok) 14%, transparent); }
+.chip[data-tone='warn'] { color: var(--warn); background: color-mix(in oklab, var(--warn) 14%, transparent); }
+.chip[data-tone='bad'] { color: var(--danger); background: color-mix(in oklab, var(--danger) 14%, transparent); }
+.chip[data-tone='info'] { color: var(--info); background: color-mix(in oklab, var(--info) 13%, transparent); }
+.chip[data-tone='muted'] { color: var(--text-3); background: var(--veil); }
+
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
+.mdc-button__label { display: inline-flex; align-items: center; gap: 8px; }
+.error-text { color: var(--danger); margin: 0; }
+.note { color: var(--text-3); font-size: 0.8125rem; }
+code { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 0.85em; background: var(--bg-3); padding: 1px 6px; border-radius: 4px; }
+
+// Boutons de dialogue/formulaire : accent plein pour l'action principale.
+// Bouton plein : dégradé de marque, texte blanc (contraste AA), léger relief.
+.mat-mdc-unelevated-button:not(:disabled), .mat-mdc-unelevated-button.mat-mdc-button-base:not(:disabled) { background: var(--brand-gradient) !important; color: var(--on-brand) !important; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 6px 22px -10px rgb(138 77 255 / 0.7); transition: box-shadow 160ms var(--ease), filter 160ms var(--ease); }
+.mat-mdc-unelevated-button:not(:disabled):hover { background: var(--brand-gradient-hover) !important; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), var(--glow-brand); }
+.mat-mdc-unelevated-button:disabled { opacity: 0.45; }
+.cdk-overlay-dark-backdrop { backdrop-filter: blur(6px); }

@@ -48,7 +48,7 @@ export function RequestDialog() {
     <div className="overlay" style={{ display: 'grid', placeItems: 'center', padding: 16, overflowY: 'auto' }} onMouseDown={e => { if (e.target === e.currentTarget) closeRequest() }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="rq-title" ref={ref} style={{ width: 'min(560px, 100%)', padding: 'clamp(20px, 4vw, 32px)', display: 'grid', gap: 22 }}>
         <header className="row-flex">
-          <div className="grow"><p className="eyebrow" style={{ color: 'var(--accent-hi)' }}>{t('request.eyebrow')}</p><h2 id="rq-title" className="serif" style={{ fontSize: '2.2rem', lineHeight: 1 }}>{t('request.title')}</h2></div>
+          <div className="grow"><p className="eyebrow" style={{ color: 'var(--accent-hi)' }}>{t('request.eyebrow')}</p><h2 id="rq-title" className="display" style={{ fontSize: '2.2rem', lineHeight: 1 }}>{t('request.title')}</h2></div>
           <button className="icon-btn plain" onClick={closeRequest} aria-label={t('common.close')}><X /></button>
         </header>
         <p style={{ color: 'var(--text-2)' }}>{t('request.help')}</p>

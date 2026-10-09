@@ -240,7 +240,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
 
       <div className="pl-top">
         <button className="icon-btn" onClick={onBack} aria-label={t('player.back')}><ArrowLeft /></button>
-        <h1 className="serif">{title.name}</h1>
+        <h1 className="display">{title.name}</h1>
       </div>
 
       {buffering && !error && !ended && <div className="pl-center" role="status"><span className="spinner" /><span className="visually-hidden">{t('common.loading')}</span></div>}
@@ -312,7 +312,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
       {ended && (
         <div className="pl-end" role="dialog" aria-label={t('player.endTitle')}>
           <p className="eyebrow">{t('player.endEyebrow')}</p>
-          <h2 className="serif">{title.name}</h2>
+          <h2 className="display">{title.name}</h2>
           <div className="pl-end-actions">
             <button className="btn btn-primary" onClick={() => { seekTo(0); void video.current?.play() }} data-autofocus><RotateCcw aria-hidden />{t('player.replay')}</button>
             <button className="btn btn-glass" onClick={onBack}>{t('player.backToCatalog')}</button>
@@ -325,7 +325,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
                   <li key={c.title.id}>
                     <Link to={`/titres/${c.title.id}`} replace>
                       <span className="pl-end-art"><Artwork src={c.title.posterUrl} seed={c.title.id} genre={c.title.genre} ratio={c.title.kind === 'Audiobook' ? 'square' : 'poster'} /></span>
-                      <span className="serif">{c.title.name}</span>
+                      <span className="display">{c.title.name}</span>
                     </Link>
                   </li>
                 ))}
@@ -337,7 +337,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
 
       {error && (
         <div className="pl-end" role="alert">
-          <h2 className="serif">{t('player.errorTitle')}</h2>
+          <h2 className="display">{t('player.errorTitle')}</h2>
           <p>{t('player.errorHelp')}</p>
           <div className="pl-end-actions">
             <button className="btn btn-primary" onClick={onRetry} data-autofocus><RotateCcw aria-hidden />{t('common.retry')}</button>

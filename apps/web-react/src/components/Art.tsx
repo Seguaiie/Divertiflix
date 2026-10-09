@@ -12,16 +12,16 @@ function rng(seed: number) {
 }
 
 interface Palette { sky: [string, string]; ridges: string[]; glow: string }
-const WARM: Palette = { sky: ['#3a2a18', '#d8b57a'], ridges: ['#b8935a', '#8c6b3a', '#5f4726', '#38280f', '#1b1208'], glow: '#fff1cf' }
-const COOL: Palette = { sky: ['#0e2230', '#9fc3c7'], ridges: ['#6b98a1', '#3f6f7c', '#254b58', '#122c38', '#08161d'], glow: '#e8f6f3' }
-const MOSS: Palette = { sky: ['#13281d', '#b9c98f'], ridges: ['#7e9a68', '#55774c', '#33553a', '#1b3524', '#0a1a10'], glow: '#f1f7d8' }
-const ROSE: Palette = { sky: ['#2c1319', '#e4b09c'], ridges: ['#b8737e', '#8a4658', '#5f2b3d', '#391624', '#1a0a12'], glow: '#ffe6d9' }
-const BLOOD: Palette = { sky: ['#1e0709', '#b9695a'], ridges: ['#8a3a38', '#5f2124', '#3d1216', '#240a0d', '#120507'], glow: '#ffd9c9' }
-const NIGHT: Palette = { sky: ['#070a18', '#4a5c8a'], ridges: ['#3a4a73', '#26335a', '#161f3e', '#0b1126', '#04060f'], glow: '#dbe4ff' }
+const DUSK: Palette = { sky: ['#140a2e', '#c46ad8'], ridges: ['#8a4dd0', '#5f2fa8', '#3d1d78', '#221050', '#0e0724'], glow: '#ffd6f4' }
+const AURORA: Palette = { sky: ['#061a2e', '#58d0e8'], ridges: ['#2f9bc4', '#1f6f9c', '#154a74', '#0b2a4a', '#050f22'], glow: '#d9fbff' }
+const EMBER: Palette = { sky: ['#240a22', '#ff9a5c'], ridges: ['#d2507a', '#9a2f6a', '#64184f', '#3a0c33', '#190517'], glow: '#fff0d0' }
+const ORCHID: Palette = { sky: ['#2a0d28', '#f08ad0'], ridges: ['#c0509e', '#8f3478', '#5f2058', '#391238', '#1b081c'], glow: '#ffe3f6' }
+const CRIMSON: Palette = { sky: ['#1d0614', '#d0406a'], ridges: ['#a02855', '#6f1840', '#44102c', '#26081a', '#12040c'], glow: '#ffc9d8' }
+const NIGHT: Palette = { sky: ['#050816', '#4a56c8'], ridges: ['#3a44a8', '#262e7a', '#161b52', '#0b0f30', '#04061a'], glow: '#dfe4ff' }
 
 const BY_GENRE: Record<string, Palette> = {
-  'Science-fiction': COOL, Thriller: NIGHT, Gothique: NIGHT, Horreur: BLOOD, Animation: MOSS, Fantastique: MOSS,
-  Comédie: ROSE, Romance: ROSE, Drame: WARM, Documentaire: WARM, Aventure: COOL, Satire: WARM, Poésie: NIGHT,
+  'Science-fiction': AURORA, Thriller: NIGHT, Gothique: NIGHT, Horreur: CRIMSON, Animation: EMBER, Fantastique: DUSK,
+  Comédie: EMBER, Romance: ORCHID, Drame: DUSK, Documentaire: AURORA, Aventure: AURORA, Satire: EMBER, Poésie: NIGHT,
 }
 
 /**
@@ -32,7 +32,7 @@ export function GeneratedArt({ seed, genre, ratio = 'poster' }: { seed: string; 
   const [w, h] = ratio === 'backdrop' ? [1600, 900] : ratio === 'square' ? [600, 600] : [400, 600]
   const svg = useMemo(() => {
     const r = rng(hash(seed))
-    const pal = (genre && BY_GENRE[genre]) || [WARM, COOL, MOSS, ROSE, NIGHT][hash(seed) % 5]!
+    const pal = (genre && BY_GENRE[genre]) || [DUSK, AURORA, EMBER, ORCHID, NIGHT][hash(seed) % 5]!
     const moon = r() > 0.45 ? { x: w * (0.2 + r() * 0.6), y: h * (0.14 + r() * 0.16), r: w * (0.03 + r() * 0.025) } : null
     const layers = pal.ridges.map((fill, k) => {
       const base = h * (0.42 + 0.1 * k), amp = h * (0.045 + 0.012 * k)

@@ -6,7 +6,7 @@
   .tm-hero { position: relative; aspect-ratio: 16 / 8.2; min-height: 300px; overflow: hidden; isolation: isolate; background: var(--bg-2); }
   .tm-scrim { position: absolute; inset: 0; z-index: 1; background: linear-gradient(0deg, var(--bg-1) 0%, rgb(16 15 13 / 0.55) 34%, transparent 70%), linear-gradient(90deg, rgb(16 15 13 / 0.55), transparent 55%); }
   .tm-hero-body { position: absolute; z-index: 2; inset: auto 0 0 0; padding: 0 clamp(20px, 4vw, 44px) clamp(18px, 3vw, 30px); display: grid; gap: 10px; }
-  .tm-hero h2 { font-size: clamp(2rem, 5vw, 3.9rem); line-height: 0.98; letter-spacing: -0.025em; text-shadow: 0 2px 30px rgb(0 0 0 / 0.5); max-width: 20ch; }
+  .tm-hero h2 { font-size: clamp(1.8rem, 4vw, 3.1rem); font-weight: 700; line-height: 1.04; letter-spacing: -0.035em; text-shadow: 0 2px 30px rgb(0 0 0 / 0.5); max-width: 20ch; }
   .tm-hero .eyebrow { color: var(--accent-hi); }
   .tm-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
 

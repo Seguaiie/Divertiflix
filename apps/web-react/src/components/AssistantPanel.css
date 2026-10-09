@@ -38,7 +38,7 @@
   .as-suggest .chip { height: auto; min-height: 34px; padding: 6px 14px; white-space: normal; text-align: left; }
   .as-form { display: flex; gap: 10px; align-items: flex-end; }
   .as-form .textarea { min-height: 46px; max-height: 120px; resize: none; padding-top: 12px; field-sizing: content; }
-  .as-form .icon-btn.accent { width: 46px; height: 46px; background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .as-form .icon-btn.accent { width: 46px; height: 46px; background: var(--brand-gradient); color: var(--on-brand); border-color: transparent; }
   .as-form .icon-btn.accent:disabled { background: var(--bg-3); color: var(--text-3); border-color: var(--line); }
   .as-note { font-size: 0.6875rem; color: var(--text-3); line-height: 1.4; }
   @media (max-width: 720px) { .assistant { width: 100vw; border-width: 0; } }

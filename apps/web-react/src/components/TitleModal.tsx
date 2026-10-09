@@ -83,7 +83,7 @@ export function TitleModal({ id, onClose }: { id: string; onClose(): void }) {
               <div className="tm-scrim" aria-hidden />
               <div className="tm-hero-body">
                 <p className="eyebrow">{title.kind === 'Audiobook' ? t('title.kindBook') : title.kind === 'Series' ? t('title.kindSeries') : t('title.kindFilm')}</p>
-                <h2 id={labelId} className="serif">{title.name}</h2>
+                <h2 id={labelId} className="display">{title.name}</h2>
                 <div className="tm-actions">
                   <PrimaryAction card={card} onPlay={() => play(title)} />
                   <button className="icon-btn" aria-pressed={card.inWatchlist} onClick={() => toggle.mutate({ titleId: title.id, add: !card.inWatchlist })}
@@ -121,7 +121,7 @@ export function TitleModal({ id, onClose }: { id: string; onClose(): void }) {
 
             {detail.data!.similar.length > 0 && (
               <section className="tm-similar" aria-label={t('title.similar')}>
-                <h3 className="serif">{t('title.similar')}</h3>
+                <h3 className="display">{t('title.similar')}</h3>
                 <div className="tm-grid">{detail.data!.similar.map(c => <PosterCard key={c.title.id} card={c} rated={false} />)}</div>
               </section>
             )}

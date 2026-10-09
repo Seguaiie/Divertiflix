@@ -44,7 +44,10 @@ export class AuthService {
     return this.refreshing$;
   }
 
+  /** Révoque la session côté serveur (sans attendre), puis oublie les jetons : « se déconnecter » coupe réellement la session. */
   logout(): void {
+    const s = this.session();
+    if (s) this.http.post('/api/auth/logout', { refreshToken: s.refreshToken }).subscribe({ error: () => undefined });
     localStorage.removeItem(SESSION);
     this.session.set(null);
     void this.router.navigate(['/login']);

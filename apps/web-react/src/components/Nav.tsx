@@ -8,12 +8,9 @@ import { useUI } from '../state/ui'
 import { useQuery } from '@tanstack/react-query'
 import { api, call } from '../lib/api'
 import { Avatar } from './Avatar'
+import { Logo } from './Logo'
 import { NotificationBell } from './NotificationBell'
 import './Shell.css'
-
-export function Logo() {
-  return <span className="logo serif" aria-label="Divertiflix">Divertiflix<i aria-hidden /></span>
-}
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform)
 

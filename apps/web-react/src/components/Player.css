@@ -10,16 +10,16 @@
   .pl-bottom { bottom: 0; padding: 70px var(--gutter) max(18px, env(safe-area-inset-bottom)); background: linear-gradient(0deg, rgb(0 0 0 / 0.85), transparent); }
   .pl-center { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; pointer-events: none; }
   .pl-center .spinner { width: 46px; height: 46px; border-width: 3px; }
-  .pl-bigplay { position: absolute; z-index: 2; inset: 50% auto auto 50%; translate: -50% -50%; width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; background: rgb(10 9 8 / 0.55); backdrop-filter: blur(14px); border: 1px solid var(--line-strong); transition: scale var(--dur-2) var(--ease), background-color var(--dur-1); }
-  .pl-bigplay:hover { scale: 1.08; background: rgb(10 9 8 / 0.75); }
+  .pl-bigplay { position: absolute; z-index: 2; inset: 50% auto auto 50%; translate: -50% -50%; width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; background: rgb(var(--ink) / 0.55); backdrop-filter: blur(14px); border: 1px solid var(--line-strong); transition: scale var(--dur-2) var(--ease), background-color var(--dur-1); }
+  .pl-bigplay:hover { scale: 1.08; background: rgb(var(--ink) / 0.75); }
   .pl-bigplay svg { width: 34px; height: 34px; margin-left: 5px; }
 
   .pl-seek { position: relative; height: 22px; display: grid; align-items: center; margin-bottom: 4px; }
-  .pl-track { position: absolute; left: 0; right: 0; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px; background: rgb(255 240 215 / 0.2); overflow: hidden; transition: height var(--dur-1); }
+  .pl-track { position: absolute; left: 0; right: 0; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px; background: rgb(var(--tint) / 0.2); overflow: hidden; transition: height var(--dur-1); }
   .pl-seek:hover .pl-track, .pl-seek:focus-within .pl-track { height: 7px; }
   .pl-track i { position: absolute; inset: 0 auto 0 0; display: block; }
-  .pl-track .buf { background: rgb(255 240 215 / 0.28); }
-  .pl-track .played { background: var(--accent); }
+  .pl-track .buf { background: rgb(var(--tint) / 0.28); }
+  .pl-track .played { background: var(--brand-gradient-vivid); }
   .pl-seek input[type='range'], .pl-volume input[type='range'] { -webkit-appearance: none; appearance: none; position: relative; width: 100%; height: 22px; background: transparent; cursor: pointer; margin: 0; }
   .pl-seek input::-webkit-slider-runnable-track, .pl-volume input::-webkit-slider-runnable-track { background: transparent; height: 22px; }
   .pl-seek input::-moz-range-track, .pl-volume input::-moz-range-track { background: transparent; }
@@ -28,7 +28,7 @@
   .pl-seek:hover input::-webkit-slider-thumb, .pl-seek input:focus-visible::-webkit-slider-thumb { scale: 1; }
   .pl-seek:hover input::-moz-range-thumb, .pl-seek input:focus-visible::-moz-range-thumb { scale: 1; }
   .pl-seek input:focus-visible, .pl-volume input:focus-visible { outline-offset: 0; }
-  .pl-tip { position: absolute; bottom: 30px; translate: -50% 0; padding: 3px 8px; border-radius: var(--radius-xs); background: rgb(10 9 8 / 0.9); border: 1px solid var(--line-strong); font-size: 0.75rem; pointer-events: none; }
+  .pl-tip { position: absolute; bottom: 30px; translate: -50% 0; padding: 3px 8px; border-radius: var(--radius-xs); background: rgb(var(--ink) / 0.9); border: 1px solid var(--line-strong); font-size: 0.75rem; pointer-events: none; }
 
   .pl-bar { display: flex; align-items: center; gap: 4px; }
   .pl-bar .icon-btn { width: 44px; height: 44px; color: var(--text); }
@@ -36,7 +36,7 @@
   .pl-time { font-size: 0.8125rem; margin-left: 10px; white-space: nowrap; }
   .pl-time em { font-style: normal; color: var(--text-3); }
   .pl-volume { display: flex; align-items: center; }
-  .pl-volume input { width: 0; opacity: 0; transition: width var(--dur-2) var(--ease), opacity var(--dur-2); background: linear-gradient(90deg, var(--text) var(--p), rgb(255 240 215 / 0.25) var(--p)) center / 100% 3px no-repeat; border-radius: 2px; }
+  .pl-volume input { width: 0; opacity: 0; transition: width var(--dur-2) var(--ease), opacity var(--dur-2); background: linear-gradient(90deg, var(--text) var(--p), rgb(var(--tint) / 0.25) var(--p)) center / 100% 3px no-repeat; border-radius: 2px; }
   .pl-volume:hover input, .pl-volume:focus-within input { width: 84px; opacity: 1; margin-right: 8px; }
   .pl-volume input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--text); margin-top: 5px; }
   .pl-volume input::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--text); border: 0; }
@@ -47,7 +47,7 @@
   .pl-menu button[aria-checked='true'] { color: var(--text); }
   .pl-menu button[aria-checked='true']::before { content: ''; position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
-  .pl-end { position: absolute; z-index: 5; inset: 0; display: grid; align-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; background: radial-gradient(ellipse at center, rgb(10 9 8 / 0.78), rgb(0 0 0 / 0.94)); animation: fade-in var(--dur-3) var(--ease); }
+  .pl-end { position: absolute; z-index: 5; inset: 0; display: grid; align-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; background: radial-gradient(ellipse at center, rgb(var(--ink) / 0.78), rgb(0 0 0 / 0.94)); animation: fade-in var(--dur-3) var(--ease); }
   .pl-end h2 { font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1; }
   .pl-end p:not(.eyebrow) { color: var(--text-2); max-width: 44ch; }
   .pl-end .eyebrow { color: var(--accent-hi); }

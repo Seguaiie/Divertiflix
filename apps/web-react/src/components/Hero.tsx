@@ -73,7 +73,7 @@ export function Hero({ items }: { items: Home['hero'] }) {
 
       <div className="hero-body" key={title.id}>
         <p className="eyebrow hero-eyebrow">{eyebrow}</p>
-        <h1 className="serif hero-title">{title.name}</h1>
+        <h1 className="display hero-title">{title.name}</h1>
         <p className="hero-meta tnum">{meta.join('  ·  ')}</p>
         <p className="hero-synopsis">{title.synopsis}</p>
         {why && <p className="hero-why"><Sparkles aria-hidden /> {why}</p>}

@@ -1,0 +1,72 @@
+/*
+ * Jetons de design Divertiflix : une seule source pour le portail (React) et le back-office (Angular).
+ * La palette vient du logo officiel : encre indigo profonde, violet électrique, magenta, orange de la pellicule, cyan.
+ *
+ * Règle d'usage : le dégradé de marque ne sert qu'aux appels à l'action, aux barres de progression et au logo.
+ * Partout ailleurs, l'accent est une couleur unie. Le reste de l'interface reste neutre pour laisser la place aux affiches.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces : encre indigo, jamais de noir pur ni de gris froid. */
+  --bg-0: #07060d;
+  --bg-1: #0d0b16;
+  --bg-2: #141122;
+  --bg-3: #1c182e;
+  --bg-4: #272140;
+  /* Canaux « r g b » : permettent rgb(var(--ink) / .5) partout sans recopier de littéraux. */
+  --ink: 7 6 13;
+  --tint: 205 190 255;
+  --glass: rgb(var(--ink) / 0.72);
+  --glass-strong: rgb(var(--ink) / 0.88);
+  --line: rgb(var(--tint) / 0.09);
+  --line-strong: rgb(var(--tint) / 0.18);
+  --veil: rgb(var(--tint) / 0.07);
+
+  /* Texte (contrastes mesurés sur --bg-0 : 16:1, 9:1, 5.4:1). */
+  --text: #f2eefc;
+  --text-2: #b9b2d0;
+  --text-3: #8d86a9;
+
+  /* Couleurs du logo. */
+  --brand-blue: #4f6bff;
+  --brand-violet: #8a4dff;
+  --brand-magenta: #e440a4;
+  --brand-orange: #ff8f3a;
+  --brand-cyan: #38c8ff;
+  /* Boutons : blanc sur ce dégradé reste au-dessus de 4.5:1. */
+  --brand-gradient: linear-gradient(120deg, #6a4cff 0%, #a53fe0 55%, #c4308d 100%);
+  --brand-gradient-hover: linear-gradient(120deg, #7b61ff 0%, #b552ee 55%, #d93da0 100%);
+  /* Décor : filets, progression, anneau de focus. Jamais derrière du texte. */
+  --brand-gradient-vivid: linear-gradient(100deg, #5b6bff 0%, #9b4dff 34%, #e440a4 68%, #ff8f3a 100%);
+
+  /* Accent uni : liens, icônes actives, focus. */
+  --accent: #a66bff;
+  --accent-hi: #d2b3ff;
+  --accent-lo: #5a35b8;
+  --accent-rgb: 166 107 255;
+  --on-accent: #12081f;
+  --on-brand: #ffffff;
+
+  /* Sémantique : tirée de la même famille de couleurs. */
+  --danger: #ff6b7d;
+  --ok: #5fd6a0;
+  --warn: #ffa24a;
+  --info: #5cc8ff;
+
+  --font-display: 'Sora Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-ui: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 140ms;
+  --dur-2: 260ms;
+  --dur-3: 520ms;
+
+  --glow-brand: 0 10px 40px -12px rgb(138 77 255 / 0.55), 0 2px 10px -2px rgb(228 64 164 / 0.35);
+}

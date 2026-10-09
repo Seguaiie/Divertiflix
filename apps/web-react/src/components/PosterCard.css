@@ -15,17 +15,17 @@
   .card-caption { display: grid; gap: 2px; }
   .card-caption strong { font-size: clamp(1.05rem, 1.25vw, 1.3rem); line-height: 1.08; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 12px rgb(0 0 0 / 0.5); }
   .card-caption span { font-size: 0.6875rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card-match { position: absolute; z-index: 2; left: 8px; top: 8px; padding: 2px 7px; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; color: var(--accent-hi); background: rgb(10 9 8 / 0.72); backdrop-filter: blur(8px); border: 1px solid color-mix(in oklab, var(--accent) 50%, transparent); }
-  .card-flag { position: absolute; z-index: 2; right: 8px; top: 8px; padding: 3px 8px; border-radius: 999px; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); background: rgb(10 9 8 / 0.72); backdrop-filter: blur(8px); border: 1px solid var(--line-strong); }
+  .card-match { position: absolute; z-index: 2; left: 8px; top: 8px; padding: 2px 7px; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; color: var(--accent-hi); background: rgb(var(--ink) / 0.72); backdrop-filter: blur(8px); border: 1px solid color-mix(in oklab, var(--accent) 50%, transparent); }
+  .card-flag { position: absolute; z-index: 2; right: 8px; top: 8px; padding: 3px 8px; border-radius: 999px; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); background: rgb(var(--ink) / 0.72); backdrop-filter: blur(8px); border: 1px solid var(--line-strong); }
   .card-kind { position: absolute; z-index: 2; right: 8px; top: 8px; width: 18px; height: 18px; color: var(--text); filter: drop-shadow(0 1px 6px rgb(0 0 0 / 0.7)); }
   .card[data-available='false'] .card-art { filter: saturate(0.55) brightness(0.82); }
-  .card-progress { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 3px; background: rgb(255 240 215 / 0.22); }
-  .card-progress i { display: block; height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; }
+  .card-progress { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 3px; background: rgb(var(--tint) / 0.22); }
+  .card-progress i { display: block; height: 100%; background: var(--brand-gradient-vivid); border-radius: 0 2px 2px 0; }
 
   /* Réveillées au survol : la rangée d'actions passe de 0 à sa hauteur, ce qui pousse la légende vers le haut. */
   .card-actions { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--dur-3) var(--ease), opacity var(--dur-2) var(--ease); pointer-events: none; }
   .card-actions > div { overflow: hidden; display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; padding-top: 0; }
-  .card-actions .icon-btn.accent { background: var(--text); color: var(--bg-0); border-color: var(--text); }
+  .card-actions .icon-btn.accent { background: var(--brand-gradient); color: var(--on-brand); border-color: transparent; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25); }
   .card-reason { margin-top: 10px; font-size: 0.75rem; line-height: 1.4; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   @media (hover: hover) {

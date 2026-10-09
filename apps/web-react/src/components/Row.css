@@ -16,8 +16,8 @@
   }
   .row-arrow svg { width: 30px; height: 30px; filter: drop-shadow(0 2px 8px rgb(0 0 0 / 0.7)); transition: scale var(--dur-2) var(--ease); }
   .row-arrow:hover svg { scale: 1.2; }
-  .row-arrow.prev { left: 0; background: linear-gradient(90deg, rgb(10 9 8 / 0.92), transparent); }
-  .row-arrow.next { right: 0; background: linear-gradient(270deg, rgb(10 9 8 / 0.92), transparent); }
+  .row-arrow.prev { left: 0; background: linear-gradient(90deg, rgb(var(--ink) / 0.92), transparent); }
+  .row-arrow.next { right: 0; background: linear-gradient(270deg, rgb(var(--ink) / 0.92), transparent); }
   .row-arrow:disabled { visibility: hidden; }
   @media (hover: hover) { .row-frame:hover .row-arrow:not(:disabled), .row-arrow:focus-visible { opacity: 1; } }
   @media (hover: none) { .row-arrow { display: none; } }

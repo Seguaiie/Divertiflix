@@ -30,7 +30,7 @@ function AssistantCard({ card }: { card: Card }) {
         <Artwork src={title.posterUrl} seed={title.id} genre={title.genre} ratio={book ? 'square' : 'poster'} />
       </Link>
       <div className="ac-body">
-        <strong className="serif">{title.name}</strong>
+        <strong className="display">{title.name}</strong>
         <span className="ac-meta tnum">{[book ? title.author : String(title.year), genre(title.genre), duration(title.durationMinutes)].filter(Boolean).join(' · ')}</span>
         {why && <span className="ac-why">{why}</span>}
         <div className="ac-actions">
@@ -146,7 +146,7 @@ export function AssistantPanel() {
       <header className="as-head">
         <div>
           <p className="eyebrow">{t('assistant.eyebrow')}</p>
-          <h2 className="serif">{t('assistant.title')}</h2>
+          <h2 className="display">{t('assistant.title')}</h2>
         </div>
         {msgs.length > 0 && <button className="icon-btn plain sm" onClick={() => setMsgs([])} aria-label={t('assistant.clear')} title={t('assistant.clear')}><RotateCcw /></button>}
         <button className="icon-btn plain sm" onClick={() => setAssistantOpen(false)} aria-label={t('common.close')}><X /></button>
@@ -156,7 +156,7 @@ export function AssistantPanel() {
         {msgs.length === 0 && (
           <div className="as-intro">
             <Sparkles aria-hidden />
-            <h3 className="serif">{t('assistant.hello')}</h3>
+            <h3 className="display">{t('assistant.hello')}</h3>
             <p>{t('assistant.helloHelp')}</p>
           </div>
         )}

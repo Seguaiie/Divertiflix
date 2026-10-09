@@ -23,7 +23,7 @@ function RequestsRow({ row }: { row: HomeRow }) {
         const inner = (
           <>
             <span className="rq-kind eyebrow">{r.kind === 'Audiobook' ? t('title.kindBook') : t('title.kindFilm')}{r.year ? ` · ${r.year}` : ''}</span>
-            <strong className="serif">{r.name}</strong>
+            <strong className="display">{r.name}</strong>
             <span className="rq-status"><span className={`dot ${r.status === 'Available' ? 'up' : r.status === 'Pending' ? '' : 'degraded'}`} aria-hidden />{t(`request.status.${r.status}` as never)}</span>
             <span className="rq-meta">{r.mine ? t('request.mineBadge') : t('request.community')} · <time dateTime={r.updatedAt}>{ago(r.updatedAt)}</time></span>
           </>

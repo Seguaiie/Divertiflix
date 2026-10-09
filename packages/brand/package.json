@@ -1,0 +1,11 @@
+{
+  "name": "@divertiflix/brand",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Identité visuelle Divertiflix : logo (SVG), jetons de design partagés par le portail React et le back-office Angular.",
+  "files": ["assets", "tokens.css"],
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./assets/*": "./assets/*"
+  }
+}

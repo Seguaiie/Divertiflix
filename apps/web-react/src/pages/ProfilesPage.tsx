@@ -7,7 +7,7 @@ import { api, call } from '../lib/api'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../state/auth'
 import { Avatar } from '../components/Avatar'
-import { Logo } from '../components/Nav'
+import { Logo } from '../components/Logo'
 import './ProfilesPage.css'
 
 const MAX = 5
@@ -40,7 +40,7 @@ export function ProfilesPage() {
   return (
     <main className="who">
       <Logo />
-      <h1 className="serif">{managing ? t('profiles.manage') : t('profiles.title')}</h1>
+      <h1 className="display">{managing ? t('profiles.manage') : t('profiles.title')}</h1>
       <ul className="who-grid">
         {profiles.isPending && Array.from({ length: 2 }, (_, i) => <li key={i} className="skeleton" style={{ width: 128, height: 168, borderRadius: 12 }} />)}
         {profiles.data?.map(p => (

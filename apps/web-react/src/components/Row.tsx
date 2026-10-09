@@ -46,7 +46,7 @@ export function Row({ title, eyebrow, action, children, label }: { title: string
       <header className="row-head">
         <div>
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h2 className="serif">{title}</h2>
+          <h2 className="display">{title}</h2>
         </div>
         {action}
       </header>
