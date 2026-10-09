@@ -40,6 +40,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
             e.Property(t => t.Synopsis).HasMaxLength(4000);
             e.Property(t => t.Kind).HasConversion<string>();
             e.Property(t => t.Maturity).HasMaxLength(10);
+            e.Property(t => t.Credits).HasMaxLength(300);
             e.Property(t => t.ExternalId).HasMaxLength(200);
             e.Property(t => t.ExternalSource).HasMaxLength(60);
             e.Ignore(t => t.IsPlayable);

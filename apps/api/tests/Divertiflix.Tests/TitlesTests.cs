@@ -155,7 +155,7 @@ public class TitlesTests(ApiFactory f) : IClassFixture<ApiFactory>
         var sintel = await ApiFactory.TitleAsync(c, "Sintel");
         Assert.Equal(HttpStatusCode.Conflict, (await c.GetAsync($"/api/titles/{sintel.Id}/playback")).StatusCode);
 
-        var tears = await ApiFactory.TitleAsync(c, "Tears of Steel");
+        var tears = await ApiFactory.TitleAsync(c, "Big Buck Bunny");
         await c.PutAsync($"/api/profiles/{pid}/progress/{tears.Id}", new ProgressUpsert(300, 720));
         var pb = (await c.GetAsync<PlaybackDto>($"/api/titles/{tears.Id}/playback?profileId={pid}"))!;
         Assert.Equal(300, pb.StartSeconds);

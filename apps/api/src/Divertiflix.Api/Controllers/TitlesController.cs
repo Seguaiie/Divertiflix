@@ -34,8 +34,12 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
         if (!string.IsNullOrWhiteSpace(genre)) query = query.Where(t => t.Genre == genre);
         if (kind is not null) query = query.Where(t => t.Kind == kind);
         if (available is true) query = query.Where(t => t.StreamUrl != null && t.StreamUrl != "");
+        // Recherche : les titres dont le NOM commence par la requête passent avant les correspondances ailleurs (réalisateur, mots-clés).
+        var prefix = Text.Normalize(q);
+        var ranked = prefix.Length > 0 && sort is null or "" or "name";
         query = sort switch
         {
+            _ when ranked => query.OrderByDescending(t => t.SearchText.StartsWith(prefix)).ThenBy(t => t.Name),
             "recent" => query.OrderByDescending(t => t.AddedAt).ThenBy(t => t.Name),
             "rating" => query.OrderByDescending(t => t.Rating ?? 0).ThenBy(t => t.Name),
             "year" => query.OrderByDescending(t => t.Year).ThenBy(t => t.Name),

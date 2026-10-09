@@ -70,6 +70,8 @@ public class Title
     /// <summary>Classification d'âge : "TP", "8+", "13+", "16+", "18+".</summary>
     public string? Maturity { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>Attribution et licence (obligatoires pour les contenus CC BY : « © Blender Foundation, CC BY 3.0 »).</summary>
+    public string? Credits { get; set; }
     /// <summary>Texte normalisé (minuscules, sans accents) pour la recherche ; recalculé par <see cref="RefreshSearchText"/>.</summary>
     public string SearchText { get; set; } = "";
 

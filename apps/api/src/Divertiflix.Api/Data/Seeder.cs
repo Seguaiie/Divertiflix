@@ -57,7 +57,14 @@ public static class Seeder
         var tag = $"v{DemoCatalog.Version}";
         if (await db.AuditLogs.AnyAsync(a => a.Action == "seed.demo" && a.Detail == tag)) return;
 
-        var art = Path.Combine(MediaEndpoints.Root(config), "art");
+        var mediaRoot = MediaEndpoints.Root(config);
+        var art = Path.Combine(mediaRoot, "art");
+        // Durées réelles des médias générés (tools/demo-media) : la fiche ne ment pas sur la durée.
+        var manifest = new Dictionary<string, double>();
+        var manifestPath = Path.Combine(mediaRoot, "manifest.json");
+        if (File.Exists(manifestPath))
+            foreach (var (slug, node) in System.Text.Json.JsonDocument.Parse(File.ReadAllText(manifestPath)).RootElement.EnumerateObject().Select(p => (p.Name, p.Value)))
+                if (node.TryGetProperty("seconds", out var sec) && sec.TryGetDouble(out var d)) manifest[slug] = d;
         var existing = await db.Titles.ToListAsync();
         var now = DateTime.UtcNow;
         var i = 0;
@@ -69,7 +76,9 @@ public static class Seeder
             if (t is null) { t = new Title(); db.Titles.Add(t); existing.Add(t); }
 
             t.ExternalSource = "demo"; t.ExternalId = e.Slug;
-            t.Name = e.Name; t.Synopsis = e.Synopsis; t.Year = e.Year; t.Kind = e.Kind; t.Genre = e.Genre; t.DurationMinutes = e.Minutes;
+            t.Name = e.Name; t.Synopsis = e.Synopsis; t.Year = e.Year; t.Kind = e.Kind; t.Genre = e.Genre;
+            t.DurationMinutes = e.Stream?.StartsWith("media:", StringComparison.Ordinal) == true && manifest.TryGetValue(e.Slug, out var secs) ? Math.Max(1, (int)Math.Ceiling(secs / 60)) : e.Minutes;
+            t.Credits = e.Credits;
             t.Maturity = e.Maturity; t.Rating = e.Rating; t.Director = e.Director; t.Cast = [.. e.Cast]; t.Keywords = [.. e.Keywords];
             t.Author = e.Author; t.Narrator = e.Narrator; t.StreamUrl = e.Stream;
             t.PosterUrl = e.Art && File.Exists(Path.Combine(art, e.Slug, "poster.webp")) ? $"/api/media/art/{e.Slug}/poster.webp" : null;

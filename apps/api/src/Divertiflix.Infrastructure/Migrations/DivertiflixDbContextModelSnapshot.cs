@@ -329,6 +329,10 @@ namespace Divertiflix.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text[]");
 
+                    b.Property<string>("Credits")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("Director")
                         .HasColumnType("text");
 

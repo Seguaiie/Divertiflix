@@ -18,6 +18,7 @@
 
   <!-- Médias de démonstration générés par tools/demo-media : copiés avec l'application, servis par /api/media. -->
   <ItemGroup>
+    <Content Remove="media\**" />
     <Content Include="media\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

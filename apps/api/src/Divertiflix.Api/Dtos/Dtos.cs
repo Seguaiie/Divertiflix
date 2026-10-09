@@ -22,14 +22,14 @@ public record TitleDto(
     Guid Id, string Name, string Synopsis, int Year, TitleKind Kind, string Genre, int DurationMinutes,
     string? PosterUrl, string? BackdropUrl, string? Author, string? Narrator, string? ExternalSource,
     IReadOnlyList<string> Keywords, IReadOnlyList<string> Cast, string? Director, double? Rating, string? Maturity,
-    DateTime AddedAt, bool IsPlayable, StreamKind? StreamKind);
+    DateTime AddedAt, bool IsPlayable, StreamKind? StreamKind, string? Credits);
 
 /// <summary>Vue d'administration : ajoute la source de lecture brute (réservé Admin/Support).</summary>
 public record AdminTitleDto(
     Guid Id, string Name, string Synopsis, int Year, TitleKind Kind, string Genre, int DurationMinutes,
     string? PosterUrl, string? BackdropUrl, string? StreamUrl, string? Author, string? Narrator, string? ExternalSource,
     IReadOnlyList<string> Keywords, IReadOnlyList<string> Cast, string? Director, double? Rating, string? Maturity,
-    DateTime AddedAt, bool IsPlayable, StreamKind? StreamKind);
+    DateTime AddedAt, bool IsPlayable, StreamKind? StreamKind, string? Credits);
 
 public record TitleUpsert(
     [Required, MaxLength(200)] string Name,
@@ -47,7 +47,8 @@ public record TitleUpsert(
     List<string>? Cast = null,
     [MaxLength(200)] string? Director = null,
     [Range(0, 10)] double? Rating = null,
-    [MaxLength(10)] string? Maturity = null);
+    [MaxLength(10)] string? Maturity = null,
+    [MaxLength(300)] string? Credits = null);
 
 public record PagedResult<T>(IReadOnlyList<T> Items, int Total, int Page, int PageSize);
 public record GenreCount(string Genre, int Count);

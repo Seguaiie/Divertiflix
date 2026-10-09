@@ -22,11 +22,11 @@ public static class TitleMapper
 
     public static TitleDto ToDto(Title t) => new(
         t.Id, t.Name, t.Synopsis, t.Year, t.Kind, t.Genre, t.DurationMinutes, t.PosterUrl, t.BackdropUrl, t.Author, t.Narrator,
-        t.ExternalSource, t.Keywords, t.Cast, t.Director, t.Rating, t.Maturity, t.AddedAt, t.IsPlayable, KindOf(t.StreamUrl));
+        t.ExternalSource, t.Keywords, t.Cast, t.Director, t.Rating, t.Maturity, t.AddedAt, t.IsPlayable, KindOf(t.StreamUrl), t.Credits);
 
     public static AdminTitleDto ToAdmin(Title t) => new(
         t.Id, t.Name, t.Synopsis, t.Year, t.Kind, t.Genre, t.DurationMinutes, t.PosterUrl, t.BackdropUrl, t.StreamUrl, t.Author, t.Narrator,
-        t.ExternalSource, t.Keywords, t.Cast, t.Director, t.Rating, t.Maturity, t.AddedAt, t.IsPlayable, KindOf(t.StreamUrl));
+        t.ExternalSource, t.Keywords, t.Cast, t.Director, t.Rating, t.Maturity, t.AddedAt, t.IsPlayable, KindOf(t.StreamUrl), t.Credits);
 
     /// <summary>Applique une fiche d'édition à un titre et recalcule le texte de recherche.</summary>
     public static Title Apply(Title t, TitleUpsert r)
@@ -34,7 +34,7 @@ public static class TitleMapper
         t.Name = r.Name.Trim(); t.Synopsis = r.Synopsis ?? ""; t.Year = r.Year; t.Kind = r.Kind; t.Genre = r.Genre.Trim();
         t.DurationMinutes = r.DurationMinutes;
         t.PosterUrl = Clean(r.PosterUrl); t.BackdropUrl = Clean(r.BackdropUrl); t.StreamUrl = Clean(r.StreamUrl);
-        t.Author = Clean(r.Author); t.Narrator = Clean(r.Narrator); t.Director = Clean(r.Director); t.Maturity = Clean(r.Maturity);
+        t.Author = Clean(r.Author); t.Narrator = Clean(r.Narrator); t.Director = Clean(r.Director); t.Maturity = Clean(r.Maturity); t.Credits = Clean(r.Credits);
         t.Rating = r.Rating;
         t.Keywords = (r.Keywords ?? []).Select(k => k.Trim()).Where(k => k.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         t.Cast = (r.Cast ?? []).Select(k => k.Trim()).Where(k => k.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();

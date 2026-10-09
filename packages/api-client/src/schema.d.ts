@@ -4,6 +4,489 @@
  */
 
 export interface paths {
+    "/api/media/stream/{token}/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                    path: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StatsDto"];
+                        "application/json": components["schemas"]["StatsDto"];
+                        "text/json": components["schemas"]["StatsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PagedResultOfAdminUserDto"];
+                        "application/json": components["schemas"]["PagedResultOfAdminUserDto"];
+                        "text/json": components["schemas"]["PagedResultOfAdminUserDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminUserUpdate"];
+                    "text/json": components["schemas"]["AdminUserUpdate"];
+                    "application/*+json": components["schemas"]["AdminUserUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminUserDto"];
+                        "application/json": components["schemas"]["AdminUserDto"];
+                        "text/json": components["schemas"]["AdminUserDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    status?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminRequestDto"][];
+                        "application/json": components["schemas"]["AdminRequestDto"][];
+                        "text/json": components["schemas"]["AdminRequestDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RequestStatusUpdate"];
+                    "text/json": components["schemas"]["RequestStatusUpdate"];
+                    "application/*+json": components["schemas"]["RequestStatusUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminRequestDto"];
+                        "application/json": components["schemas"]["AdminRequestDto"];
+                        "text/json": components["schemas"]["AdminRequestDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    status?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminTicketDto"][];
+                        "application/json": components["schemas"]["AdminTicketDto"][];
+                        "text/json": components["schemas"]["AdminTicketDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/tickets/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TicketStatusUpdate"];
+                    "text/json": components["schemas"]["TicketStatusUpdate"];
+                    "application/*+json": components["schemas"]["TicketStatusUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TicketSummaryDto"];
+                        "application/json": components["schemas"]["TicketSummaryDto"];
+                        "text/json": components["schemas"]["TicketSummaryDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/titles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    kind?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PagedResultOfAdminTitleDto"];
+                        "application/json": components["schemas"]["PagedResultOfAdminTitleDto"];
+                        "text/json": components["schemas"]["PagedResultOfAdminTitleDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TitleUpsert"];
+                    "text/json": components["schemas"]["TitleUpsert"];
+                    "application/*+json": components["schemas"]["TitleUpsert"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminTitleDto"];
+                        "application/json": components["schemas"]["AdminTitleDto"];
+                        "text/json": components["schemas"]["AdminTitleDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/titles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminTitleDto"];
+                        "application/json": components["schemas"]["AdminTitleDto"];
+                        "text/json": components["schemas"]["AdminTitleDto"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TitleUpsert"];
+                    "text/json": components["schemas"]["TitleUpsert"];
+                    "application/*+json": components["schemas"]["TitleUpsert"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AdminTitleDto"];
+                        "application/json": components["schemas"]["AdminTitleDto"];
+                        "text/json": components["schemas"]["AdminTitleDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/audiobookshelf-sync": {
         parameters: {
             query?: never;
@@ -176,7 +659,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/directory-sync": {
+    "/api/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -188,6 +671,47 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LogoutRequest"];
+                    "text/json": components["schemas"]["LogoutRequest"];
+                    "application/*+json": components["schemas"]["LogoutRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/directory-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: {
+                    force?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -210,6 +734,164 @@ export interface paths {
                         "application/json": components["schemas"]["DirectorySyncResult"];
                         "text/json": components["schemas"]["DirectorySyncResult"];
                     };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    profileId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HomeDto"];
+                        "application/json": components["schemas"]["HomeDto"];
+                        "text/json": components["schemas"]["HomeDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChatRequest"];
+                    "text/json": components["schemas"]["ChatRequest"];
+                    "application/*+json": components["schemas"]["ChatRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ChatResponse"];
+                        "application/json": components["schemas"]["ChatResponse"];
+                        "text/json": components["schemas"]["ChatResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["NotificationsDto"];
+                        "application/json": components["schemas"]["NotificationsDto"];
+                        "text/json": components["schemas"]["NotificationsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MarkReadRequest"];
+                    "text/json": components["schemas"]["MarkReadRequest"];
+                    "application/*+json": components["schemas"]["MarkReadRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -371,9 +1053,9 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["TitleDto"][];
-                        "application/json": components["schemas"]["TitleDto"][];
-                        "text/json": components["schemas"]["TitleDto"][];
+                        "text/plain": components["schemas"]["CardDto"][];
+                        "application/json": components["schemas"]["CardDto"][];
+                        "text/json": components["schemas"]["CardDto"][];
                     };
                 };
             };
@@ -442,6 +1124,443 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/profiles/{id}/progress/{titleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    titleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProgressUpsert"];
+                    "text/json": components["schemas"]["ProgressUpsert"];
+                    "application/*+json": components["schemas"]["ProgressUpsert"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    titleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profiles/{id}/ratings/{titleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    titleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RatingUpsert"];
+                    "text/json": components["schemas"]["RatingUpsert"];
+                    "application/*+json": components["schemas"]["RatingUpsert"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["RequestCardDto"][];
+                        "application/json": components["schemas"]["RequestCardDto"][];
+                        "text/json": components["schemas"]["RequestCardDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RequestCreate"];
+                    "text/json": components["schemas"]["RequestCreate"];
+                    "application/*+json": components["schemas"]["RequestCreate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["RequestCardDto"];
+                        "application/json": components["schemas"]["RequestCardDto"];
+                        "text/json": components["schemas"]["RequestCardDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["StatusDto"];
+                        "application/json": components["schemas"]["StatusDto"];
+                        "text/json": components["schemas"]["StatusDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TicketSummaryDto"][];
+                        "application/json": components["schemas"]["TicketSummaryDto"][];
+                        "text/json": components["schemas"]["TicketSummaryDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TicketCreate"];
+                    "text/json": components["schemas"]["TicketCreate"];
+                    "application/*+json": components["schemas"]["TicketCreate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TicketDetailDto"];
+                        "application/json": components["schemas"]["TicketDetailDto"];
+                        "text/json": components["schemas"]["TicketDetailDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/tickets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TicketDetailDto"];
+                        "application/json": components["schemas"]["TicketDetailDto"];
+                        "text/json": components["schemas"]["TicketDetailDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/support/tickets/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TicketReply"];
+                    "text/json": components["schemas"]["TicketReply"];
+                    "application/*+json": components["schemas"]["TicketReply"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["TicketMessageDto"];
+                        "application/json": components["schemas"]["TicketMessageDto"];
+                        "text/json": components["schemas"]["TicketMessageDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/titles": {
         parameters: {
             query?: never;
@@ -455,6 +1574,8 @@ export interface paths {
                     q?: string;
                     genre?: string;
                     kind?: string;
+                    available?: boolean;
+                    sort?: string;
                     page?: number;
                     pageSize?: number;
                 };
@@ -478,20 +1599,30 @@ export interface paths {
             };
         };
         put?: never;
-        post: {
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/titles/genres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
             parameters: {
-                query?: never;
+                query?: {
+                    kind?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["TitleUpsert"];
-                    "text/json": components["schemas"]["TitleUpsert"];
-                    "application/*+json": components["schemas"]["TitleUpsert"];
-                };
-            };
+            requestBody?: never;
             responses: {
                 /** @description OK */
                 200: {
@@ -499,13 +1630,15 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "text/plain": components["schemas"]["TitleDto"];
-                        "application/json": components["schemas"]["TitleDto"];
-                        "text/json": components["schemas"]["TitleDto"];
+                        "text/plain": components["schemas"]["GenreCount"][];
+                        "application/json": components["schemas"]["GenreCount"][];
+                        "text/json": components["schemas"]["GenreCount"][];
                     };
                 };
             };
         };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -543,40 +1676,26 @@ export interface paths {
                 };
             };
         };
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["TitleUpsert"];
-                    "text/json": components["schemas"]["TitleUpsert"];
-                    "application/*+json": components["schemas"]["TitleUpsert"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["TitleDto"];
-                        "application/json": components["schemas"]["TitleDto"];
-                        "text/json": components["schemas"]["TitleDto"];
-                    };
-                };
-            };
-        };
+        put?: never;
         post?: never;
-        delete: {
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/titles/{id}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
             parameters: {
-                query?: never;
+                query?: {
+                    profileId?: string;
+                };
                 header?: never;
                 path: {
                     id: string;
@@ -590,10 +1709,58 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "text/plain": components["schemas"]["TitleDetailDto"];
+                        "application/json": components["schemas"]["TitleDetailDto"];
+                        "text/json": components["schemas"]["TitleDetailDto"];
+                    };
                 };
             };
         };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/titles/{id}/playback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    profileId?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PlaybackDto"];
+                        "application/json": components["schemas"]["PlaybackDto"];
+                        "text/json": components["schemas"]["PlaybackDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -603,6 +1770,76 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {unknown} */
+        AccountSource: "Local" | "ActiveDirectory";
+        AdminRequestDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: components["schemas"]["TitleKind"];
+            /** Format: int32 */
+            year: number | null;
+            note: string | null;
+            status: components["schemas"]["RequestStatus"];
+            /** Format: uuid */
+            titleId: string | null;
+            requestedBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AdminTicketDto: {
+            ticket: components["schemas"]["TicketSummaryDto"];
+            requester: string;
+            /** Format: int32 */
+            messages: number;
+        };
+        AdminTitleDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            synopsis: string;
+            /** Format: int32 */
+            year: number;
+            kind: components["schemas"]["TitleKind"];
+            genre: string;
+            /** Format: int32 */
+            durationMinutes: number;
+            posterUrl: string | null;
+            backdropUrl: string | null;
+            streamUrl: string | null;
+            author: string | null;
+            narrator: string | null;
+            externalSource: string | null;
+            keywords: string[];
+            cast: string[];
+            director: string | null;
+            /** Format: double */
+            rating: number | null;
+            maturity: string | null;
+            /** Format: date-time */
+            addedAt: string;
+            isPlayable: boolean;
+            streamKind: components["schemas"]["NullableOfStreamKind"];
+            credits: string | null;
+        };
+        AdminUserDto: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            role: components["schemas"]["Role"];
+            source: components["schemas"]["AccountSource"];
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int32 */
+            profiles: number;
+        };
+        AdminUserUpdate: {
+            role: components["schemas"]["NullableOfRole"];
+            isActive: boolean | null;
+        };
         AudiobookItemDto: {
             externalId: string;
             name: string;
@@ -629,6 +1866,39 @@ export interface components {
             refreshToken: string;
             user: components["schemas"]["UserDto"];
         };
+        CardDto: {
+            title: components["schemas"]["TitleDto"];
+            progress: components["schemas"]["ProgressDto"];
+            inWatchlist: boolean;
+            /** Format: int32 */
+            myRating: number;
+            reason: components["schemas"]["ReasonDto"];
+            /** Format: int32 */
+            match: number;
+        };
+        ChatRequest: {
+            /** Format: uuid */
+            profileId: string;
+            message: string;
+            locale: string | null;
+        };
+        ChatResponse: {
+            reply: string;
+            param: string | null;
+            unknownTitle: string | null;
+            understood: components["schemas"]["ChipDto"][];
+            steps: components["schemas"]["ChatStep"][];
+            cards: components["schemas"]["CardDto"][];
+        };
+        ChatStep: {
+            key: string;
+            /** Format: int32 */
+            count: number | null;
+        };
+        ChipDto: {
+            kind: string;
+            label: string;
+        };
         DirectoryAccountDto: {
             email: string;
             displayName: string;
@@ -644,10 +1914,72 @@ export interface components {
             updated: number;
             /** Format: int32 */
             deactivated: number;
+            /** Format: int32 */
+            conflicts: number;
+        };
+        GenreCount: {
+            genre: string;
+            /** Format: int32 */
+            count: number;
+        };
+        HeroDto: {
+            card: components["schemas"]["CardDto"];
+            mode: string;
+        };
+        HomeDto: {
+            hero: components["schemas"]["HeroDto"][];
+            rows: components["schemas"]["RowDto"][];
+            /** Format: date-time */
+            generatedAt: string;
+            hasTaste: boolean;
         };
         LoginRequest: {
             email: string;
             password: string;
+        };
+        LogoutRequest: {
+            refreshToken: string;
+        };
+        MarkReadRequest: {
+            ids: string[] | null;
+        };
+        NotificationDto: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            title: string;
+            body: string | null;
+            link: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            read: boolean;
+        };
+        NotificationsDto: {
+            items: components["schemas"]["NotificationDto"][];
+            /** Format: int32 */
+            unread: number;
+        };
+        /** @enum {unknown|null} */
+        NullableOfRole: "Subscriber" | "Support" | "Admin" | null;
+        /** @enum {unknown|null} */
+        NullableOfStreamKind: "Hls" | "Video" | "Audio" | "External" | null;
+        PagedResultOfAdminTitleDto: {
+            items: components["schemas"]["AdminTitleDto"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+        };
+        PagedResultOfAdminUserDto: {
+            items: components["schemas"]["AdminUserDto"][];
+            /** Format: int32 */
+            total: number;
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
         };
         PagedResultOfTitleDto: {
             items: components["schemas"]["TitleDto"][];
@@ -658,6 +1990,16 @@ export interface components {
             /** Format: int32 */
             pageSize: number;
         };
+        PlaybackDto: {
+            /** Format: uuid */
+            titleId: string;
+            url: string;
+            kind: components["schemas"]["StreamKind"];
+            /** Format: int32 */
+            startSeconds: number;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         ProfileDto: {
             /** Format: uuid */
             id: string;
@@ -666,6 +2008,34 @@ export interface components {
         ProfileUpsert: {
             name: string;
         };
+        ProgressDto: {
+            /** Format: int32 */
+            positionSeconds: number;
+            /** Format: int32 */
+            durationSeconds: number;
+            /** Format: double */
+            fraction: number;
+            /** Format: date-time */
+            updatedAt: string;
+        } | null;
+        ProgressUpsert: {
+            /** Format: int32 */
+            positionSeconds: number;
+            /** Format: int32 */
+            durationSeconds: number;
+        };
+        RatingUpsert: {
+            /** Format: int32 */
+            value: number;
+        };
+        ReasonDto: {
+            type: string;
+            /** Format: uuid */
+            titleId: string | null;
+            title: string | null;
+            genre: string | null;
+            tags: string[] | null;
+        } | null;
         RefreshRequest: {
             refreshToken: string;
         };
@@ -674,8 +2044,150 @@ export interface components {
             password: string;
             profileName: string;
         };
+        RequestCardDto: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: components["schemas"]["TitleKind"];
+            /** Format: int32 */
+            year: number | null;
+            status: components["schemas"]["RequestStatus"];
+            /** Format: date-time */
+            updatedAt: string;
+            mine: boolean;
+            /** Format: uuid */
+            titleId: string | null;
+        };
+        RequestCardDto2: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: components["schemas"]["TitleKind"];
+            /** Format: int32 */
+            year: number | null;
+            status: components["schemas"]["RequestStatus"];
+            /** Format: date-time */
+            updatedAt: string;
+            mine: boolean;
+            /** Format: uuid */
+            titleId: string | null;
+        } | null;
+        RequestCreate: {
+            name: string;
+            kind: components["schemas"]["TitleKind"];
+            /** Format: int32 */
+            year: number | null;
+            note: string | null;
+            /** Format: uuid */
+            titleId: string | null;
+        };
+        /** @enum {unknown} */
+        RequestStatus: "Pending" | "Approved" | "Downloading" | "Available" | "Declined";
+        RequestStatusUpdate: {
+            status: components["schemas"]["RequestStatus"];
+            /** Format: uuid */
+            titleId: string | null;
+            reason: string | null;
+        };
         /** @enum {unknown} */
         Role: "Subscriber" | "Support" | "Admin";
+        RowDto: {
+            id: string;
+            type: string;
+            seed: string | null;
+            /** Format: uuid */
+            seedTitleId: string | null;
+            items: components["schemas"]["CardDto"][];
+            /** @default null */
+            requests: components["schemas"]["RequestCardDto"][] | null;
+        };
+        ServiceStatus: {
+            id: string;
+            state: string;
+            /** Format: int32 */
+            latencyMs: number | null;
+        };
+        StatsDto: {
+            /** Format: int32 */
+            titles: number;
+            /** Format: int32 */
+            playable: number;
+            /** Format: int32 */
+            movies: number;
+            /** Format: int32 */
+            series: number;
+            /** Format: int32 */
+            audiobooks: number;
+            byGenre: components["schemas"]["GenreCount"][];
+            /** Format: int32 */
+            users: number;
+            /** Format: int32 */
+            activeUsers: number;
+            /** Format: int32 */
+            staff: number;
+            /** Format: int32 */
+            requestsPending: number;
+            /** Format: int32 */
+            requestsInProgress: number;
+            /** Format: int32 */
+            ticketsOpen: number;
+            /** Format: int32 */
+            activeProfiles7d: number;
+            /** Format: int32 */
+            plays24h: number;
+        };
+        StatusDto: {
+            version: string;
+            state: string;
+            services: components["schemas"]["ServiceStatus"][];
+            /** Format: date-time */
+            at: string;
+        };
+        /** @enum {unknown} */
+        StreamKind: "Hls" | "Video" | "Audio" | "External";
+        /** @enum {unknown} */
+        TicketCategory: "Playback" | "Account" | "Content" | "Other";
+        TicketCreate: {
+            subject: string;
+            category: components["schemas"]["TicketCategory"];
+            message: string;
+        };
+        TicketDetailDto: {
+            ticket: components["schemas"]["TicketSummaryDto"];
+            messages: components["schemas"]["TicketMessageDto"][];
+        };
+        TicketMessageDto: {
+            /** Format: uuid */
+            id: string;
+            fromStaff: boolean;
+            body: string;
+            /** Format: date-time */
+            at: string;
+        };
+        TicketReply: {
+            body: string;
+        };
+        /** @enum {unknown} */
+        TicketStatus: "Open" | "InProgress" | "Resolved";
+        TicketStatusUpdate: {
+            status: components["schemas"]["TicketStatus"];
+        };
+        TicketSummaryDto: {
+            /** Format: uuid */
+            id: string;
+            subject: string;
+            category: components["schemas"]["TicketCategory"];
+            status: components["schemas"]["TicketStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TitleDetailDto: {
+            card: components["schemas"]["CardDto"];
+            similar: components["schemas"]["CardDto"][];
+            request: components["schemas"]["RequestCardDto2"];
+        };
         TitleDto: {
             /** Format: uuid */
             id: string;
@@ -688,10 +2200,21 @@ export interface components {
             /** Format: int32 */
             durationMinutes: number;
             posterUrl: string | null;
-            streamUrl: string | null;
+            backdropUrl: string | null;
             author: string | null;
             narrator: string | null;
             externalSource: string | null;
+            keywords: string[];
+            cast: string[];
+            director: string | null;
+            /** Format: double */
+            rating: number | null;
+            maturity: string | null;
+            /** Format: date-time */
+            addedAt: string;
+            isPlayable: boolean;
+            streamKind: components["schemas"]["NullableOfStreamKind"];
+            credits: string | null;
         };
         /** @enum {unknown} */
         TitleKind: "Movie" | "Series" | "Audiobook";
@@ -710,6 +2233,23 @@ export interface components {
             author: string | null;
             /** @default null */
             narrator: string | null;
+            /** @default null */
+            backdropUrl: string | null;
+            /** @default null */
+            keywords: string[] | null;
+            /** @default null */
+            cast: string[] | null;
+            /** @default null */
+            director: string | null;
+            /**
+             * Format: double
+             * @default null
+             */
+            rating: number | null;
+            /** @default null */
+            maturity: string | null;
+            /** @default null */
+            credits: string | null;
         };
         UserDto: {
             /** Format: uuid */

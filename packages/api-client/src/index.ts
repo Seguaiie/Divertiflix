@@ -10,25 +10,37 @@ export interface AuthStore {
   refresh(): Promise<string | null>;
 }
 
-/** Client typé partagé par React et Angular : ajoute le jeton, et tente un refresh sur 401. */
+/**
+ * Client typé partagé par React et Angular : ajoute le jeton, et tente un refresh sur 401.
+ *
+ * Le corps d'une requête n'est lisible qu'une fois : fetch() le consomme, donc request.clone() après l'envoi lève
+ * « Request body is already used » pour les POST et PUT. On garde donc une copie prise AVANT l'envoi, et c'est elle
+ * qu'on rejoue avec le nouveau jeton.
+ */
 export function createApiClient(baseUrl: string, auth: AuthStore, fetchImpl: typeof fetch = (...a) => fetch(...a)) {
   // fetchImpl résolu à chaque appel (pas capturé à la création) : permet de mocker fetch dans les tests.
   const client = createClient<paths>({ baseUrl, fetch: fetchImpl });
+  const replayable = new Map<string, Request>();
 
   const middleware: Middleware = {
-    onRequest({ request }) {
+    onRequest({ request, id }) {
       const token = auth.getAccessToken();
       if (token) request.headers.set("Authorization", `Bearer ${token}`);
+      replayable.set(id, request.clone());
       return request;
     },
-    async onResponse({ request, response }) {
+    async onResponse({ request, response, id }) {
+      const copy = replayable.get(id);
+      replayable.delete(id);
       const isAuthCall = new URL(request.url).pathname.startsWith("/api/auth/");
-      if (response.status !== 401 || isAuthCall) return response;
+      if (response.status !== 401 || isAuthCall || !copy) return response;
       const token = await auth.refresh();
       if (!token) return response;
-      const retry = request.clone();
-      retry.headers.set("Authorization", `Bearer ${token}`);
-      return fetchImpl(retry);
+      copy.headers.set("Authorization", `Bearer ${token}`);
+      return fetchImpl(copy);
+    },
+    onError({ id }) {
+      replayable.delete(id);
     },
   };
   client.use(middleware);
