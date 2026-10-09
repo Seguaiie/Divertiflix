@@ -42,7 +42,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnMessageReceived = ctx =>
             {
                 var token = ctx.Request.Query["access_token"];
-                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/api/hubs"))
                     ctx.Token = token;
                 return Task.CompletedTask;
             },
@@ -65,7 +65,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHub<NotificationsHub>("/hubs/notifications");
+app.MapHub<NotificationsHub>("/api/hubs/notifications");
 app.Run();
 
 public partial class Program; // visibilité pour les tests d'intégration
