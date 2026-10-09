@@ -1,16 +1,46 @@
-# Pipeline de déploiement automatique de Divertiflix.
-# Déclenché à chaque mise à jour du miroir GitLab (qui sonde GitHub toutes les 15 min),
-# ou sur push direct si jamais le projet GitLab devient la source principale.
-# Le runner "divertiflix-local" tourne en root sur 192.168.8.115 (shell executor) :
-# install-serveur.sh est idempotent, il ne fait que rebuilder/redéployer ce qui a changé.
+# Pipeline de Divertiflix : tests, puis déploiement.
+# Déclenché à chaque mise à jour du miroir GitLab (qui sonde GitHub toutes les 15 min), ou sur push direct.
+# Le runner "divertiflix-local" tourne sur 192.168.8.115 (shell executor) : .NET, Node et Docker y sont installés par install-serveur.sh.
+#
+# Les tests tournent sur une base PostgreSQL jetable (conteneur éphémère, port 55432) : jamais sur la base de production.
+# Les parcours de bout en bout (Playwright) demandent un Chrome avec H.264 et un poste de travail : ils se lancent à la main (npm run e2e).
 stages:
+  - test
   - deploy
+
+variables:
+  CI_PG_NAME: divertiflix-ci-pg-$CI_PIPELINE_ID
+  CI_PG_PORT: "55432"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+.on_main_or_mr: &on_main_or_mr
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'
+
+test:
+  stage: test
+  tags: [divertiflix-local]
+  <<: *on_main_or_mr
+  before_script:
+    - docker rm -f "$CI_PG_NAME" >/dev/null 2>&1 || true
+    - docker run -d --name "$CI_PG_NAME" -p 127.0.0.1:$CI_PG_PORT:5432 -e POSTGRES_USER=divertiflix -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=divertiflix postgres:17 >/dev/null
+    - for i in $(seq 1 30); do docker exec "$CI_PG_NAME" pg_isready -U divertiflix >/dev/null 2>&1 && break; sleep 1; done
+    - npm ci
+  script:
+    - TEST_DB="Host=127.0.0.1;Port=$CI_PG_PORT;Username=divertiflix;Password=ci" dotnet test apps/api --nologo
+    - npm test -w web-react
+    - (cd apps/admin-angular && npx ng test --watch=false)
+    - npm run build -w web-react
+    - (cd apps/admin-angular && npx ng build --base-href /admin/)
+  after_script:
+    - docker rm -f "$CI_PG_NAME" >/dev/null 2>&1 || true
 
 deploy:
   stage: deploy
-  tags:
-    - divertiflix-local
+  tags: [divertiflix-local]
+  needs: [test]
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
+  # Aucun déploiement si un test échoue : la production ne reçoit que du code vérifié.
   script:
     - bash install-serveur.sh

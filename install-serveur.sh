@@ -73,15 +73,19 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 # Node 22 (compile React et Angular)
 # Purge d'abord le nodejs/libnode fourni par Ubuntu (ex. 10.x sur 20.04) : sinon le paquet nodesource
 # se pose "over" l'ancien et dpkg râle sur des dépendances cassées (inoffensif mais bruyant dans les logs).
-if ! node --version 2>/dev/null | grep -q '^v22\.'; then
+# Angular 22 exige Node >= 22.22 : on compare la version complete, pas seulement "v22".
+node_ok() { node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a===22&&b>=22?0:1)' 2>/dev/null; }
+if ! node_ok; then
   apt-get purge -y nodejs npm libnode-dev libnode64 nodejs-doc >/dev/null 2>&1 || true
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 fi
 
 # ---------------------------------------------------------------- 2. Utilisateur et code
-id "$APP_USER" >/dev/null 2>&1 || useradd -m -s /bin/bash "$APP_USER"
-usermod -aG docker "$APP_USER"
+# Compte systeme sans connexion. Il n'est volontairement PAS dans le groupe docker : cet acces equivaut a root, et ce compte
+# execute l'API exposee sur Internet. Le script (root) pilote Docker lui-meme.
+id "$APP_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$APP_USER"
+gpasswd -d "$APP_USER" docker >/dev/null 2>&1 || true   # retire l'acces laisse par une ancienne version du script
 install -d -o "$APP_USER" -g "$APP_USER" "$APP_DIR"
 rsync -a --delete \
   --exclude .git --exclude node_modules --exclude dist --exclude .angular --exclude .logs \
@@ -95,7 +99,7 @@ NEW_SECRETS=0
 if [ ! -f "$ENV_FILE" ]; then
   NEW_SECRETS=1
   PG_PASS=$(openssl rand -hex 24)
-  cat > "$ENV_FILE" <<EOF
+  ( umask 077; cat > "$ENV_FILE" <<EOF
 POSTGRES_PASSWORD=$PG_PASS
 MQTT_BIND=$MQTT_BIND
 ASPNETCORE_ENVIRONMENT=Production
@@ -104,6 +108,7 @@ Jwt__Key=$(openssl rand -hex 48)
 Seed__AdminLogin=$ADMIN_LOGIN
 Seed__AdminPassword=${ADMIN_PASSWORD:-$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)}
 EOF
+  )   # umask 077 : le fichier n'est jamais lisible par un autre compte, meme un instant
   chown "$APP_USER":"$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 fi
 # Origine autorisée (CORS) : mise à jour à chaque exécution
@@ -114,19 +119,15 @@ if [ -n "$DOMAIN" ]; then
 fi
 
 # ---------------------------------------------------------------- 4. Infrastructure Docker
-# docker-compose.yml publie les ports sur toutes les interfaces et Docker contourne ufw :
-# en production on les restreint à 127.0.0.1 (Mosquitto : MQTT_BIND).
+# docker-compose.yml publie déjà les ports sur 127.0.0.1 (Docker contourne ufw) ; Mosquitto suit MQTT_BIND.
 cat > "$APP_DIR/docker-compose.prod.yml" <<'EOF'
 services:
   postgres:
     restart: unless-stopped
-    ports: !override ["127.0.0.1:5432:5432"]
   mosquitto:
     restart: unless-stopped
-    ports: !override ["${MQTT_BIND:-127.0.0.1}:1883:1883"]
   redis:
     restart: unless-stopped
-    ports: !override ["127.0.0.1:6379:6379"]
 EOF
 chown "$APP_USER":"$APP_USER" "$APP_DIR/docker-compose.prod.yml"
 COMPOSE="docker compose --project-directory $APP_DIR --env-file $ENV_FILE -p divertiflix -f $APP_DIR/docker-compose.yml -f $APP_DIR/docker-compose.prod.yml"
@@ -175,15 +176,57 @@ Environment=DOTNET_ROOT=$(dirname "$(readlink -f "$(command -v dotnet)")")
 ExecStart=$(readlink -f "$(command -v dotnet)") Divertiflix.Api.dll --urls http://127.0.0.1:5080
 Restart=always
 RestartSec=3
+# Durcissement : l'API n'ecrit nulle part (sauf son etat), ne voit pas /home, n'a aucun privilege ni acces aux peripheriques.
+Environment=HOME=/var/lib/divertiflix
+StateDirectory=divertiflix
 NoNewPrivileges=true
-ProtectSystem=full
+ProtectSystem=strict
+ProtectHome=true
 PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable --now divertiflix-api
+
+# En-têtes de sécurité des pages statiques (l'API pose les siens). CSP stricte : scripts uniquement de notre origine ;
+# les styles en ligne restent permis (Angular Material et les attributs style de React) ; médias HLS de démonstration via Mux.
+install -d /etc/nginx/snippets
+{
+  cat <<'HDR'
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; media-src 'self' blob: https://*.mux.com; connect-src 'self' wss://$host ws://$host https://*.mux.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
+HDR
+  # HSTS seulement quand HTTPS est prévu : un navigateur retient l'engagement un an.
+  if [ -n "$DOMAIN" ] && [ -n "$CERTBOT_EMAIL" ]; then
+    echo 'add_header Strict-Transport-Security "max-age=31536000" always;'
+  fi
+} > /etc/nginx/snippets/divertiflix-security.conf
+
+cat > /etc/nginx/conf.d/divertiflix-http.conf <<'HTTPCONF'
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+limit_req_zone $binary_remote_addr zone=divertiflix_auth:10m rate=5r/s;
+gzip on;
+gzip_comp_level 5;
+gzip_min_length 1024;
+gzip_vary on;
+gzip_types text/css application/javascript application/json image/svg+xml application/manifest+json;
+server_tokens off;
+HTTPCONF
+rm -f /etc/nginx/conf.d/divertiflix-upgrade.conf
 
 cat > /etc/nginx/sites-available/divertiflix <<EOF
 server {
@@ -192,14 +235,50 @@ server {
     server_name ${DOMAIN:-_};
     client_max_body_size 10m;
 
-    location /api/ {
+    # Défense en profondeur : l'API limite aussi le débit, mais nginx coupe les rafales avant qu'elles n'arrivent jusqu'à elle.
+    location /api/auth/ {
+        limit_req zone=divertiflix_auth burst=20 nodelay;
+        limit_req_status 429;
         proxy_pass http://127.0.0.1:5080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        # SignalR / WebSocket (étape 4)
+    }
+
+    # Temps réel (SignalR, WebSocket) : connexions longues.
+    location /api/hubs/ {
+        proxy_pass http://127.0.0.1:5080;
         proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        proxy_buffering off;
+    }
+
+    # Médias : pas de tampon disque pour de gros fichiers, les requêtes Range passent telles quelles.
+    location /api/media/ {
+        proxy_pass http://127.0.0.1:5080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
+        proxy_read_timeout 120s;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:5080;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \$connection_upgrade;
     }
@@ -207,17 +286,24 @@ server {
     location /admin/ {
         alias $WWW/admin/;
         try_files \$uri \$uri/ /admin/index.html;
+        include /etc/nginx/snippets/divertiflix-security.conf;
+        add_header Cache-Control "no-cache" always;
+    }
+
+    # Fichiers à empreinte (Vite) : cache d'un an, jamais revalidés.
+    location /assets/ {
+        root $WWW/web;
+        include /etc/nginx/snippets/divertiflix-security.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
     }
 
     location / {
         root $WWW/web;
         try_files \$uri /index.html;
+        include /etc/nginx/snippets/divertiflix-security.conf;
+        add_header Cache-Control "no-cache" always;
     }
 }
-EOF
-# \$connection_upgrade doit être défini au niveau http
-cat > /etc/nginx/conf.d/divertiflix-upgrade.conf <<'EOF'
-map $http_upgrade $connection_upgrade { default upgrade; '' close; }
 EOF
 rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/divertiflix /etc/nginx/sites-enabled/divertiflix

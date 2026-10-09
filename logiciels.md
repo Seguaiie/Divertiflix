@@ -11,7 +11,7 @@
 
 Activation : `source env.sh`. **Après déploiement serveur** (`install-serveur.sh`), le PATH doit
 plutôt viser le .NET/Node système : `DOTNET_ROOT=/usr/share/dotnet`, `PATH=/usr/local/bin:...`
-(voir `memoire.md` § Environnement) — `~/.dotnet` n'a plus de runtime complet.
+(voir `memoire.md` § Environnement), `~/.dotnet` n'a plus de runtime complet.
 
 ## Images Docker (docker-compose.yml)
 `postgres:17`, `eclipse-mosquitto:2`, `redis:7-alpine`.
@@ -51,3 +51,26 @@ Lancer `./install-sudo.sh` (ou `! ./install-sudo.sh` dans Claude Code) :
 | openapi-fetch, openapi-typescript | packages/api-client |
 | @angular/{core,common,forms,router,build,cli} 22.2, @angular/material + cdk 22.2, rxjs 7.8, vitest 5 | admin-angular |
 | @microsoft/signalr 10.0.11 (client du hub temps réel, étape 4) | admin-angular |
+
+## Ajouts de la refonte (2026-10-09)
+| Outil | Usage |
+|---|---|
+| ffmpeg (libx264, libwebp), espeak-ng + MBROLA | Génération des médias de démonstration (`tools/demo-media`) |
+| Google Chrome (H.264) | Parcours Playwright et captures (le Chromium de Playwright ne lit pas le H.264) |
+| Playwright 1.56 (`e2e/`) | Tests de bout en bout |
+| fonttools, brotli (pip) | Conversion du texte du logo en tracés (`tools/brand`) |
+| Pillow (pip) | Export des icônes ICO et des captures |
+
+### Paquets npm ajoutés
+| Paquet | Où |
+|---|---|
+| @fontsource-variable/inter, @fontsource-variable/sora | Polices auto-hébergées (portail et back-office) |
+| lucide-react (ISC) | Icônes du portail ; leurs tracés sont aussi intégrés en SVG dans le back-office |
+| @playwright/test | e2e |
+| @divertiflix/brand (local) | Logo et jetons de design |
+
+### Polices
+Inter (OFL), Sora (OFL), Orbitron (OFL, tracés du logo seulement ; licence dans `tools/brand/OFL-Orbitron.txt`).
+
+### Données
+MovieLens `ml-latest-small` (GroupLens Research), téléchargé à la demande par `tools/recsys-eval`, non versionné.

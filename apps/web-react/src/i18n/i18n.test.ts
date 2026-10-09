@@ -18,7 +18,7 @@ describe('dictionnaires', () => {
   it('aucune valeur vide, aucun tiret cadratin', () => {
     for (const [k, v] of [...Object.entries(fr), ...Object.entries(en)]) {
       expect(v.trim(), k).not.toBe('')
-      expect(v, k).not.toContain('—')
+      expect(v, k).not.toContain('\u2014')
     }
   })
 

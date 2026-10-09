@@ -13,3 +13,6 @@ dist/
 # Résultats Playwright
 e2e/test-results/
 e2e/playwright-report/
+
+# Données MovieLens téléchargées par tools/recsys-eval
+tools/recsys-eval/data/

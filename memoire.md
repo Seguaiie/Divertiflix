@@ -39,7 +39,7 @@
 
 ## Active Directory (décision de l'utilisateur)
 - Pas de serveur Windows/LDAP ici. Préparation livrée (2026-10-09, branche `2026-10-09`) :
-  `POST /api/admin/directory-sync` (clé partagée `X-Sync-Key`, config `DirectorySync:ApiKey` —
+  `POST /api/admin/directory-sync` (clé partagée `X-Sync-Key`, config `DirectorySync:ApiKey`, 
   absente en dev, donc endpoint fermé tant qu'on ne la définit pas). Reçoit une liste de comptes
   AD (email, nom, groupes), upsert les `User` (rôle dérivé de `DirectorySync:AdminGroup` /
   `:SupportGroup`, par défaut `Divertiflix-Admins`/`Divertiflix-Support`), désactive (`IsActive`,
@@ -60,7 +60,7 @@
   vers Divertiflix). Non exécuté ici, à lancer là où Audiobookshelf tourne.
 
 ## Temps réel (étape 4, 2026-10-09)
-- SignalR : `NotificationsHub` sur `/api/hubs/notifications` — volontairement SOUS `/api/` pour
+- SignalR : `NotificationsHub` sur `/api/hubs/notifications`, volontairement SOUS `/api/` pour
   réutiliser le `location /api/` nginx déjà configuré (avec upgrade WebSocket) sans toucher à
   `install-serveur.sh` ni recharger nginx. JWT en query string (`?access_token=`), lu par
   `OnMessageReceived` dans `Program.cs` (un WebSocket ne peut pas poser d'en-tête Authorization).
@@ -90,3 +90,20 @@
 - [x] Préparation Active Directory et Audiobookshelf (ingestion, scripts Python, branche `2026-10-09`).
 - [x] Accès back-office en un clic depuis React (lien conditionné au rôle).
 - [x] Étape 4 (partielle) : SignalR + pont MQTT ; reste Docker/tests/doc (étape 5).
+
+## Refonte de la session du 2026-10-09
+- **Identité visuelle** : logo officiel fourni par l'utilisateur (D chromé violet/magenta, lecture, pellicule orbitale, mot DIVERTIFLIX chromé,
+  « STREAM WITHOUT LIMITS »). Le fichier d'origine n'était pas disponible dans l'environnement : le logo a été **recréé en SVG** par
+  `python3 tools/brand/build.py` (texte converti en tracés avec Orbitron, OFL). Pour utiliser le fichier du graphiste : remplacer les fichiers de
+  `packages/brand/assets/` en gardant les noms. `node tools/brand/render.mjs` rend les PNG/ICO et copie les icônes et logos dans les deux apps.
+- **Design** : `packages/brand/tokens.css` est la seule source (encre indigo, accent violet, dégradé de marque réservé aux appels à l'action et
+  aux progressions, Sora pour les titres, Inter pour l'interface). Portail et back-office l'importent. Ne pas recopier de couleurs en littéral : utiliser
+  `rgb(var(--tint) / x)` et `rgb(var(--ink) / x)`.
+- **Pièges rencontrés** : le proxy Vite doit avoir `ws: true` (sinon SignalR ne reçoit rien en dev) ; un bouton dans un `<label>` pollue le nom accessible
+  du champ ; les effets rejoués par StrictMode cassent un drapeau « premier rendu » (comparer au chemin précédent) ; Angular n'accepte que des fichiers
+  d'assets situés dans son espace de travail (les logos sont donc copiés) ; `*matCellDef="let x"` est `any` : passer par des fonctions typées plutôt
+  que des index de `Record`.
+- **Médias** : générés, jamais téléchargés, sauf « Big Buck Bunny » (flux Mux public, CC BY 3.0, crédit sur la fiche). Voir `tools/demo-media/build.py`.
+- **Tests de bout en bout** : `E2E_CHROME=/opt/google/chrome/chrome npm run e2e` (H.264 requis) ; API lancée avec `RateLimit__AuthPerMinute=100000`.
+- **Évaluation** : `dotnet run --project tools/recsys-eval -- --out docs/evaluation-movielens.md` (télécharge MovieLens dans un dossier ignoré par git).
+- **Mots de passe** : le compte `root` / `boom123$` n'existe qu'en développement.

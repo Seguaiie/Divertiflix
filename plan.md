@@ -1,4 +1,4 @@
-# Plan — Plateforme de streaming « Divertiflix »
+# Plan : Plateforme de streaming « Divertiflix »
 
 ## Contexte
 Le document `porjetdivertiflyx.docx` est le rapport de planification de l'implantation du réseau informatique de Divertiflix (VPN, Mailcow, pare-feu, FreePBX, GitLab CE, GLPI, sauvegardes, Mosquitto/ESP32, scripts POO, VLAN). Tout cela est considéré comme déjà fait ou en cours. Ce projet construit l'**application métier** : une plateforme de vidéo sur demande.
@@ -18,11 +18,12 @@ Le document `porjetdivertiflyx.docx` est le rapport de planification de l'implan
 | Tests | xUnit, Vitest, Playwright | |
 
 ## Étapes
-1. Squelette du monorepo, API, base de données, auth, `memoire.md`, `logiciels.md`.
-2. Catalogue et profils, puis le front React.
-3. Back-office Angular.
-4. SignalR et pont MQTT/ESP32.
-5. Docker, tests et documentation.
+1. Squelette du monorepo, API, base de données, auth, `memoire.md`, `logiciels.md`. (fait)
+2. Catalogue et profils, puis le front React. (fait)
+3. Back-office Angular. (fait)
+4. SignalR et pont MQTT/ESP32. (fait)
+5. Docker, tests et documentation. (fait : voir `progres.md`, `README.md` et `docs/`)
+6. Refonte complète : moteur de recommandation, médias générés, identité visuelle, back-office d'exploitation, tests de bout en bout. (fait)
 
 ## Règles (agent.md)
 - Consigner l'important dans `memoire.md`.

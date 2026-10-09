@@ -1,5 +1,9 @@
+# Divertiflix
 # Services d'infrastructure pour le dev (l'API et les fronts tournent sur l'hôte).
 # Usage : docker compose up -d
+# Les ports ne sont publiés que sur 127.0.0.1 : Docker contourne le pare-feu (ufw), donc rien ne doit écouter sur toutes les interfaces
+# par défaut. Pour joindre Mosquitto depuis un ESP32 du réseau local : MQTT_BIND=0.0.0.0 docker compose up -d
+name: divertiflix
 services:
   postgres:
     image: postgres:17
@@ -7,7 +11,7 @@ services:
       POSTGRES_USER: divertiflix
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-divertiflix-dev}
       POSTGRES_DB: divertiflix
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U divertiflix"]
@@ -15,13 +19,13 @@ services:
       retries: 10
   mosquitto:
     image: eclipse-mosquitto:2
-    ports: ["1883:1883"]
+    ports: ["${MQTT_BIND:-127.0.0.1}:1883:1883"]
     volumes:
       - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquittodata:/mosquitto/data
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["127.0.0.1:6379:6379"]
 volumes:
   pgdata:
   mosquittodata:
