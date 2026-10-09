@@ -9,7 +9,9 @@
 
 | dotnet-ef | 9.0.20 | `dotnet tool install --global` → `~/.dotnet/tools` | Migrations EF |
 
-Activation : `source env.sh`.
+Activation : `source env.sh`. **Après déploiement serveur** (`install-serveur.sh`), le PATH doit
+plutôt viser le .NET/Node système : `DOTNET_ROOT=/usr/share/dotnet`, `PATH=/usr/local/bin:...`
+(voir `memoire.md` § Environnement) — `~/.dotnet` n'a plus de runtime complet.
 
 ## Images Docker (docker-compose.yml)
 `postgres:17`, `eclipse-mosquitto:2`, `redis:7-alpine`.
@@ -48,3 +50,4 @@ Lancer `./install-sudo.sh` (ou `! ./install-sudo.sh` dans Claude Code) :
 | vitest, jsdom, @testing-library/{react,dom,jest-dom,user-event} | web-react (tests) |
 | openapi-fetch, openapi-typescript | packages/api-client |
 | @angular/{core,common,forms,router,build,cli} 22.2, @angular/material + cdk 22.2, rxjs 7.8, vitest 5 | admin-angular |
+| @microsoft/signalr 10.0.11 (client du hub temps réel, étape 4) | admin-angular |
