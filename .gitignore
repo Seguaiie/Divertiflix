@@ -20,3 +20,7 @@ tools/recsys-eval/data/
 # Mode démonstration (fichiers générés)
 packages/demo/dist/
 packages/demo/angular/generated/
+
+# Python
+__pycache__/
+*.pyc
