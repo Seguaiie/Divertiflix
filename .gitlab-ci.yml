@@ -1,0 +1,16 @@
+# Pipeline de déploiement automatique de Divertiflix.
+# Déclenché à chaque mise à jour du miroir GitLab (qui sonde GitHub toutes les 15 min),
+# ou sur push direct si jamais le projet GitLab devient la source principale.
+# Le runner "divertiflix-local" tourne en root sur 192.168.8.115 (shell executor) :
+# install-serveur.sh est idempotent, il ne fait que rebuilder/redéployer ce qui a changé.
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  tags:
+    - divertiflix-local
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - bash install-serveur.sh
