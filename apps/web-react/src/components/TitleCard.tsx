@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Schemas } from '@divertiflix/api-client'
 
 export function TitleCard({ title }: { title: Schemas['TitleDto'] }) {
+  const isAudiobook = title.kind === 'Audiobook'
   return (
     <Link to={`/titles/${title.id}`} className="card">
       <div className="poster" style={title.posterUrl ? { backgroundImage: `url(${title.posterUrl})` } : undefined}>
@@ -9,7 +10,9 @@ export function TitleCard({ title }: { title: Schemas['TitleDto'] }) {
       </div>
       <div className="card-body">
         <strong>{title.name}</strong>
-        <small>{title.year} · {title.genre} · {title.durationMinutes} min</small>
+        {isAudiobook
+          ? <small>{title.author ?? 'Auteur inconnu'} · Livre audio · {title.durationMinutes} min</small>
+          : <small>{title.year} · {title.genre} · {title.durationMinutes} min</small>}
       </div>
     </Link>
   )

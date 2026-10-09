@@ -60,7 +60,7 @@ public class ProfilesController(DivertiflixDbContext db) : ControllerBase
         if (!await Owns(id)) return NotFound();
         var items = await db.Watchlist.AsNoTracking().Where(w => w.ProfileId == id)
             .OrderByDescending(w => w.AddedAt).Select(w => w.Title!).ToListAsync();
-        return items.Select(t => new TitleDto(t.Id, t.Name, t.Synopsis, t.Year, t.Kind, t.Genre, t.DurationMinutes, t.PosterUrl, t.StreamUrl)).ToList();
+        return items.Select(TitlesController.ToDto).ToList();
     }
 
     [HttpPut("{id:guid}/watchlist/{titleId:guid}")]

@@ -13,11 +13,15 @@ function Shell() {
   const { user, profileId, selectProfile, logout } = useAuth()
   if (!user) return <LoginPage />
   if (!profileId) return <ProfilesPage />
+  const isStaff = user.role === 'Admin' || user.role === 'Support'
   return (
     <>
       <header className="nav">
         <Link to="/" className="logo">Divertiflix</Link>
         <Link to="/watchlist">Ma liste</Link>
+        {/* Accès en un clic au back-office : même origine, nginx sert /admin/ ; l'app Angular
+            redemande une connexion séparée (staffGuard), ce lien ne fait que raccourcir le trajet. */}
+        {isStaff && <a href="/admin/">Back-office</a>}
         <span className="spacer" />
         <button className="link" onClick={() => selectProfile(null)}>Changer de profil</button>
         <button className="link" onClick={() => { queryClient.clear(); logout() }}>Déconnexion</button>

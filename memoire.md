@@ -16,6 +16,15 @@
 
 ## Environnement
 - `source env.sh` active .NET 9 (`~/.dotnet`) et Node 22 (nvm). Node système = 18, trop vieux.
+  **Périmé depuis le déploiement serveur** (`install-serveur.sh` installe .NET/Node système) :
+  `~/.dotnet` ne contient plus de runtime, `dotnet-ef` échoue avec « Failed to resolve
+  libhostfxr.so ». Utiliser plutôt `export DOTNET_ROOT=/usr/share/dotnet; export PATH=/usr/local/bin:$HOME/.dotnet/tools:$PATH`.
+- `dotnet-ef` avait disparu de `~/.dotnet/tools` (réinstallé : `dotnet tool install --global dotnet-ef --version 9.0.20`).
+- Le rôle Postgres **dev** peut dériver de `divertiflix-dev` si le volume `pgdata` existait déjà
+  avec un autre mot de passe (même piège que celui déjà documenté dans `install-serveur.sh` pour
+  la prod). Resynchroniser au besoin : `docker compose exec -u postgres postgres psql -U divertiflix -d divertiflix -c "ALTER ROLE divertiflix WITH PASSWORD 'divertiflix-dev';"`.
+- Port 5080 : le service systemd `divertiflix-api` (prod) peut déjà l'occuper. Pour lancer une
+  instance de dev (ex. régénérer l'OpenAPI), utiliser un autre port (`--urls http://localhost:5090`).
 - `sudo` demande un mot de passe : toute installation système doit être faite par l'utilisateur (`install-sudo.sh`). Docker est installé ; ma session n'a pas le groupe `docker` → `sg docker -c "docker ..."`.
 - Infra : `sg docker -c "docker compose up -d"` (PostgreSQL 5432, Mosquitto 1883, Redis 6379).
 - Lancer l'API : `cd apps/api && ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Divertiflix.Api --urls http://localhost:5080`.
@@ -29,8 +38,39 @@
 - Piège shell : `pkill -f` avec le nom du process tue aussi la commande bash qui le contient (même avec `[D]`, si le nom apparaît dans la commande). Utiliser `pgrep` puis `kill PID`.
 
 ## Active Directory (décision de l'utilisateur)
-- Ne PAS écrire les endpoints admin (utilisateurs, rôles, stats) tout de suite : ils seront conçus avec l'Active Directory quand il sera prêt. Un `AdminController` fait puis annulé a été retiré (17 tests → 13).
+- Pas de serveur Windows/LDAP ici. Préparation livrée (2026-10-09, branche `2026-10-09`) :
+  `POST /api/admin/directory-sync` (clé partagée `X-Sync-Key`, config `DirectorySync:ApiKey` —
+  absente en dev, donc endpoint fermé tant qu'on ne la définit pas). Reçoit une liste de comptes
+  AD (email, nom, groupes), upsert les `User` (rôle dérivé de `DirectorySync:AdminGroup` /
+  `:SupportGroup`, par défaut `Divertiflix-Admins`/`Divertiflix-Support`), désactive (`IsActive`,
+  jamais supprimé) les comptes AD absents du dernier envoi. `AuthController` refuse login/refresh
+  si `!IsActive`.
+- Les comptes créés depuis l'AD n'ont PAS encore de vraie authentification (mot de passe aléatoire
+  inutilisable posé à la création) : le login réel par AD (Kerberos/LDAP) reste à brancher.
+- Gabarit de script côté machine du domaine : `scripts/ad_sync_example.py` (ldap3 + requests, non
+  exécuté ici, à adapter au schéma réel de l'AD).
 - Le back-office Angular suppose les rôles Admin/Support du JWT actuel.
+
+## Audiobookshelf (préparation, 2026-10-09)
+- Serveur Audiobookshelf non installé ici. `POST /api/admin/audiobookshelf-sync` (même principe de
+  clé partagée, `AudiobookshelfSync:ApiKey`) upsert les items dans `Titles` (`Kind=Audiobook`),
+  clé d'upsert = (`ExternalSource`, `ExternalId`). `TitleDto` a gagné `Author`/`Narrator`.
+- `GET /api/titles` accepte `?kind=` (Movie/Series/Audiobook) ; React a un sélecteur Type.
+- Gabarit : `scripts/audiobookshelf_sync_example.py` (appelle l'API Audiobookshelf réelle, pousse
+  vers Divertiflix). Non exécuté ici, à lancer là où Audiobookshelf tourne.
+
+## Temps réel (étape 4, 2026-10-09)
+- SignalR : `NotificationsHub` sur `/api/hubs/notifications` — volontairement SOUS `/api/` pour
+  réutiliser le `location /api/` nginx déjà configuré (avec upgrade WebSocket) sans toucher à
+  `install-serveur.sh` ni recharger nginx. JWT en query string (`?access_token=`), lu par
+  `OnMessageReceived` dans `Program.cs` (un WebSocket ne peut pas poser d'en-tête Authorization).
+- `MqttBridgeService` (`BackgroundService`) s'abonne à `divertiflix/capteurs/#` sur Mosquitto
+  (localhost:1883, celui du docker-compose) et republie vers SignalR (`sensorMessage`). Se
+  reconnecte seul (boucle + `try/catch`, 5s) ; ne bloque jamais le démarrage si Mosquitto est down.
+  Testé : se connecte bien au vrai Mosquitto, encaisse un message `mosquitto_pub` sans erreur.
+  Simuler un ESP32 : `mosquitto_pub -h localhost -t divertiflix/capteurs/temp1 -m '{"temp":21.5}'`.
+- Événements poussés : `titleAdded` (création catalogue), `directorySynced`, `audiobookshelfSynced`,
+  `sensorMessage`. Le dashboard Angular (`LiveService`) les affiche en direct.
 
 ## Angular
 - `npm start -w admin-angular` (4200). Angular utilise `HttpClient` + les types de `@divertiflix/api-client` (pas son runtime openapi-fetch).
@@ -43,7 +83,10 @@
 ## État d'avancement
 - [x] Étape 1 (partielle) : monorepo, API (auth JWT + refresh, catalogue CRUD, seed), Sqlite.
 - [x] Profils/liste de lecture (API)
-- [x] Tests xUnit (13, `dotnet test` dans apps/api)
+- [x] Tests xUnit (18, `dotnet test` dans apps/api)
 - [x] Migrations EF + docker-compose
 - [x] Front React (apps/web-react)
-- [x] Angular back-office (branche etape-3-angular) ; gestion des utilisateurs reportée, SignalR + MQTT, Docker.
+- [x] Angular back-office (branche etape-3-angular) ; gestion des utilisateurs reportée à l'AD.
+- [x] Préparation Active Directory et Audiobookshelf (ingestion, scripts Python, branche `2026-10-09`).
+- [x] Accès back-office en un clic depuis React (lien conditionné au rôle).
+- [x] Étape 4 (partielle) : SignalR + pont MQTT ; reste Docker/tests/doc (étape 5).

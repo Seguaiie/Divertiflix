@@ -1,6 +1,8 @@
 using System.Text;
 using Divertiflix.Api.Auth;
 using Divertiflix.Api.Data;
+using Divertiflix.Api.Hubs;
+using Divertiflix.Api.Realtime;
 using Divertiflix.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -17,15 +19,34 @@ builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Co
 // Le générateur OpenAPI lit les options HTTP (pas celles de MVC) : sans ceci, les enums sont décrits comme des entiers.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
+
+// Pont MQTT -> SignalR (étape 4) : capteurs ESP32 publiés sur Mosquitto (docker-compose).
+// Démarré en arrière-plan, se reconnecte seul ; n'empêche jamais l'API de démarrer si Mosquitto est down.
+builder.Services.AddHostedService<MqttBridgeService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(o => o.TokenValidationParameters = new TokenValidationParameters
+    .AddJwtBearer(o =>
     {
-        ValidIssuer = jwt.Issuer,
-        ValidAudience = jwt.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
-        ClockSkew = TimeSpan.FromSeconds(30),
-        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+            ClockSkew = TimeSpan.FromSeconds(30),
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        };
+        // SignalR sur WebSocket ne peut pas poser d'en-tête Authorization : le jeton voyage dans la query string.
+        o.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var token = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(token) && ctx.HttpContext.Request.Path.StartsWithSegments("/api/hubs"))
+                    ctx.Token = token;
+                return Task.CompletedTask;
+            },
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -44,6 +65,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationsHub>("/api/hubs/notifications");
 app.Run();
 
 public partial class Program; // visibilité pour les tests d'intégration

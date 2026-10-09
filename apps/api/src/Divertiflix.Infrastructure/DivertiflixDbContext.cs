@@ -18,6 +18,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
             e.HasIndex(u => u.Email).IsUnique();
             e.Property(u => u.Email).HasMaxLength(256);
             e.Property(u => u.Role).HasConversion<string>();
+            e.Property(u => u.Source).HasConversion<string>();
             e.HasMany(u => u.Profiles).WithOne().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<Profile>(e =>
@@ -30,6 +31,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
             e.Property(t => t.Name).HasMaxLength(200);
             e.Property(t => t.Kind).HasConversion<string>();
             e.HasIndex(t => t.Name);
+            e.HasIndex(t => new { t.ExternalSource, t.ExternalId });
         });
         b.Entity<WatchlistItem>(e =>
         {

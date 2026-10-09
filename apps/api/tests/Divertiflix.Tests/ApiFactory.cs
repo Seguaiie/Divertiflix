@@ -19,12 +19,15 @@ public class ApiFactory : WebApplicationFactory<Program>
     private bool _disposed;
     public const string AdminEmail = "root";
     public const string AdminPassword = "boom123$";
+    public const string SyncKey = "test-only-sync-key";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("Seed:AdminPassword", AdminPassword);
         builder.UseSetting("Jwt:Key", "test-only-secret-key-0123456789abcdef-xyz");
         builder.UseSetting("ConnectionStrings:Default", _cs);
+        builder.UseSetting("DirectorySync:ApiKey", SyncKey);
+        builder.UseSetting("AudiobookshelfSync:ApiKey", SyncKey);
     }
 
     protected override void Dispose(bool disposing)

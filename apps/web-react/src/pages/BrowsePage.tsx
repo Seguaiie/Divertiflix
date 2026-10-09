@@ -7,13 +7,14 @@ import { useDebounced } from '../useDebounced'
 export function BrowsePage() {
   const [q, setQ] = useState('')
   const [genre, setGenre] = useState('')
+  const [kind, setKind] = useState<'' | 'Movie' | 'Series' | 'Audiobook'>('')
   const [page, setPage] = useState(1)
   const dq = useDebounced(q, 300)
 
   const titles = useQuery({
-    queryKey: ['titles', dq, genre, page],
+    queryKey: ['titles', dq, genre, kind, page],
     queryFn: async () => {
-      const { data } = await api.GET('/api/titles', { params: { query: { q: dq || undefined, genre: genre || undefined, page, pageSize: 12 } } })
+      const { data } = await api.GET('/api/titles', { params: { query: { q: dq || undefined, genre: genre || undefined, kind: kind || undefined, page, pageSize: 12 } } })
       return data
     },
     placeholderData: keepPreviousData,
@@ -31,6 +32,12 @@ export function BrowsePage() {
     <>
       <div className="toolbar">
         <input type="search" placeholder="Rechercher un titre…" value={q} onChange={e => { setQ(e.target.value); setPage(1) }} />
+        <select value={kind} onChange={e => { setKind(e.target.value as typeof kind); setPage(1) }} aria-label="Type">
+          <option value="">Tout le catalogue</option>
+          <option value="Movie">Films</option>
+          <option value="Series">Séries</option>
+          <option value="Audiobook">Livres audio</option>
+        </select>
         <select value={genre} onChange={e => { setGenre(e.target.value); setPage(1) }} aria-label="Genre">
           <option value="">Tous les genres</option>
           {genres.map(g => <option key={g}>{g}</option>)}
