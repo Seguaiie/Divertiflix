@@ -25,8 +25,11 @@ start() {  # $1 = port, $2 = nom, $3 = log, reste = commande
 
 start 5080 "API .NET" api.log \
   env ASPNETCORE_ENVIRONMENT=Development dotnet run --project apps/api/src/Divertiflix.Api --urls http://localhost:5080
-start 5173 "Front React" react.log npm run web
-start 4200 "Back-office Angular" angular.log npm start -w admin-angular
+# --host 0.0.0.0 : Vite et ng serve n'écoutent que sur 127.0.0.1 par défaut, invisibles depuis
+# une autre machine même quand le pare-feu autorise le port (vérifié : ufw laissait passer, mais
+# rien n'écoutait sur l'interface externe).
+start 5173 "Front React" react.log npm run dev -w web-react -- --host 0.0.0.0
+start 4200 "Back-office Angular" angular.log npm start -w admin-angular -- --host 0.0.0.0
 
 echo ">> Attente des ports..."
 for p in 5080 5173 4200; do
@@ -34,9 +37,18 @@ for p in 5080 5173 4200; do
   port_used "$p" && echo "   $p OK" || echo "   $p PAS PRÊT (voir .logs/)"
 done
 
+# Identifiants admin : "boom123$" n'est utilisé par le Seeder que si Seed:AdminPassword n'est pas
+# configuré du tout. Si le port 5080 était déjà pris par le service de prod (cas le plus courant
+# ici), c'est LUI qui répond aux appels API, avec le mot de passe de /opt/divertiflix/.env.
+if grep -q '^Seed__AdminPassword=' /opt/divertiflix/.env 2>/dev/null; then
+  ADMIN_HINT="voir 'Seed__AdminPassword' dans /opt/divertiflix/.env (mot de passe aléatoire, pas boom123\$)"
+else
+  ADMIN_HINT="root / boom123\$"
+fi
+
 cat <<EOF
 
-React      : http://localhost:5173
-Angular    : http://localhost:4200   (root / boom123\$)
-API        : http://localhost:5080
+React      : http://$(hostname -I | awk '{print $1}'):5173
+Angular    : http://$(hostname -I | awk '{print $1}'):4200   ($ADMIN_HINT)
+API        : http://$(hostname -I | awk '{print $1}'):5080
 EOF

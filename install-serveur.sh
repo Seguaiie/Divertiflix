@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installe ET déploie Divertiflix sur un serveur Ubuntu 22.04/24.04.
+# Installe ET déploie Divertiflix sur un serveur Ubuntu (testé sur 20.04, 22.04 et 24.04).
 # Usage (sur le serveur, depuis une copie du dépôt) : sudo ./install-serveur.sh
 #
 # Ce que fait le script :
@@ -15,6 +15,7 @@
 #   DOMAIN=            nom de domaine du site (sinon accès par IP en HTTP)
 #   CERTBOT_EMAIL=     e-mail pour Let's Encrypt (avec DOMAIN → HTTPS automatique)
 #   ADMIN_LOGIN=root   login du compte administrateur créé au premier démarrage
+#   ADMIN_PASSWORD=    mot de passe du compte administrateur (sinon généré aléatoirement)
 #   ENABLE_FIREWALL=1  ufw : SSH, 80, 443 ouverts
 #   MQTT_BIND=127.0.0.1  adresse d'écoute de Mosquitto (mettre 0.0.0.0 pour les ESP32, voir note en bas)
 #   APP_USER=divertiflix
@@ -31,6 +32,7 @@ SRC_DIR=$(cd "$(dirname "$0")" && pwd)
 DOMAIN=${DOMAIN:-}
 CERTBOT_EMAIL=${CERTBOT_EMAIL:-}
 ADMIN_LOGIN=${ADMIN_LOGIN:-root}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
 ENABLE_FIREWALL=${ENABLE_FIREWALL:-1}
 MQTT_BIND=${MQTT_BIND:-127.0.0.1}
 APP_USER=${APP_USER:-divertiflix}
@@ -53,18 +55,26 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 systemctl enable --now docker
 
 # .NET 9 SDK (compile l'API ; contient aussi le runtime ASP.NET)
+# Microsoft ne publie plus dotnet-sdk-9.0 dans les dépôts apt d'Ubuntu (confirmé sur 20.04/22.04/24.04) :
+# on tente quand même au cas où une future version Ubuntu le réintroduirait, en silence, puis on bascule
+# sur dotnet-install.sh sans faire croire à une erreur dans les logs.
 if ! dotnet --list-sdks 2>/dev/null | grep -q '^9\.'; then
-  apt-get install -y dotnet-sdk-9.0 || {
-    echo "dotnet-sdk-9.0 absent des dépôts Ubuntu ; installation via dotnet-install.sh"
+  if apt-get install -y dotnet-sdk-9.0 >/tmp/dotnet-apt.log 2>&1; then
+    :
+  else
+    echo ">> dotnet-sdk-9.0 absent des dépôts Ubuntu (normal) ; installation via dotnet-install.sh"
     curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
     bash /tmp/dotnet-install.sh --channel 9.0 --install-dir /usr/share/dotnet
     ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet
-  }
+  fi
 fi
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 
 # Node 22 (compile React et Angular)
+# Purge d'abord le nodejs/libnode fourni par Ubuntu (ex. 10.x sur 20.04) : sinon le paquet nodesource
+# se pose "over" l'ancien et dpkg râle sur des dépendances cassées (inoffensif mais bruyant dans les logs).
 if ! node --version 2>/dev/null | grep -q '^v22\.'; then
+  apt-get purge -y nodejs npm libnode-dev libnode64 nodejs-doc >/dev/null 2>&1 || true
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
 fi
@@ -92,7 +102,7 @@ ASPNETCORE_ENVIRONMENT=Production
 ConnectionStrings__Default=Host=127.0.0.1;Port=5432;Database=divertiflix;Username=divertiflix;Password=$PG_PASS
 Jwt__Key=$(openssl rand -hex 48)
 Seed__AdminLogin=$ADMIN_LOGIN
-Seed__AdminPassword=$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)
+Seed__AdminPassword=${ADMIN_PASSWORD:-$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)}
 EOF
   chown "$APP_USER":"$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 fi
@@ -126,6 +136,15 @@ for _ in $(seq 1 60); do
   $COMPOSE exec -T postgres pg_isready -U divertiflix >/dev/null 2>&1 && break
   sleep 1
 done
+
+# Le mot de passe POSTGRES_PASSWORD n'est appliqué par l'image postgres qu'à la toute première
+# initialisation du volume ; si pgdata existait déjà (déploiement précédent, test manuel avant ce
+# script...) avec un autre mot de passe, l'API n'arrivera jamais à se connecter (28P01). On
+# resynchronise donc le rôle à chaque exécution via le socket local (auth "trust" du conteneur,
+# sans avoir besoin de connaître l'ancien mot de passe) : idempotent, ne touche pas aux données.
+CUR_PG_PASS=$(grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
+$COMPOSE exec -T -u postgres postgres psql -U divertiflix -d divertiflix \
+  -c "ALTER ROLE divertiflix WITH PASSWORD '$CUR_PG_PASS';" >/dev/null
 
 # ---------------------------------------------------------------- 5. Build
 as_app() { sudo -u "$APP_USER" -H env DOTNET_CLI_TELEMETRY_OPTOUT=1 bash -c "cd $APP_DIR && $1"; }
