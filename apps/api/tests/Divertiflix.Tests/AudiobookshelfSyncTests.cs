@@ -9,8 +9,7 @@ public class AudiobookshelfSyncTests(ApiFactory f) : IClassFixture<ApiFactory>
 {
     private static HttpRequestMessage Req(string key, AudiobookshelfSyncRequest body)
     {
-        var msg = new HttpRequestMessage(HttpMethod.Post, "/api/admin/audiobookshelf-sync")
-        { Content = JsonContent.Create(body, options: Json.Options) };
+        var msg = new HttpRequestMessage(HttpMethod.Post, "/api/admin/audiobookshelf-sync") { Content = JsonContent.Create(body, options: Json.Options) };
         if (key.Length > 0) msg.Headers.Add("X-Sync-Key", key);
         return msg;
     }
@@ -23,12 +22,13 @@ public class AudiobookshelfSyncTests(ApiFactory f) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Creates_then_updates_audiobook_title()
+    public async Task Creates_then_updates_audiobook_without_duplicates_and_external_pages_are_not_playable_as_audio()
     {
         var externalId = $"abs-{Guid.NewGuid():N}";
         var item = new AudiobookItemDto(externalId, "Le Petit Prince", "Un aviateur en panne dans le désert.", "Antoine de Saint-Exupéry", "Narrateur Test", 120, null, "https://audiobookshelf.local/item/abc", "Jeunesse");
 
-        var created = await f.CreateClient().SendAsync(Req(ApiFactory.SyncKey, new AudiobookshelfSyncRequest([item])));
+        // Le même identifiant deux fois dans un lot : une seule ligne.
+        var created = await f.CreateClient().SendAsync(Req(ApiFactory.SyncKey, new AudiobookshelfSyncRequest([item, item with { Name = "Le Petit Prince (v2)" }])));
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
         Assert.Equal(1, (await created.Content.ReadAsync<AudiobookshelfSyncResult>())!.Created);
 
@@ -37,13 +37,14 @@ public class AudiobookshelfSyncTests(ApiFactory f) : IClassFixture<ApiFactory>
         var dto = Assert.Single(list.Items);
         Assert.Equal(TitleKind.Audiobook, dto.Kind);
         Assert.Equal("Antoine de Saint-Exupéry", dto.Author);
+        // L'URL est une page web Audiobookshelf, pas un fichier audio : le client doit proposer un lien, pas un lecteur.
+        Assert.Equal(StreamKind.External, dto.StreamKind);
 
-        // Même externalId, nouveau titre -> upsert (pas de doublon).
         var renamed = item with { Name = "Le Petit Prince (édition révisée)" };
         var updated = await f.CreateClient().SendAsync(Req(ApiFactory.SyncKey, new AudiobookshelfSyncRequest([renamed])));
         Assert.Equal(1, (await updated.Content.ReadAsync<AudiobookshelfSyncResult>())!.Updated);
-
-        var listAfter = (await client.GetAsync<PagedResult<TitleDto>>("/api/titles?kind=Audiobook&pageSize=100"))!;
+        var listAfter = (await client.GetAsync<PagedResult<TitleDto>>("/api/titles?q=Petit Prince&kind=Audiobook&pageSize=100"))!;
         Assert.Single(listAfter.Items, t => t.Name == "Le Petit Prince (édition révisée)");
+        Assert.Single(listAfter.Items);   // pas de doublon
     }
 }

@@ -1,8 +1,8 @@
+using Divertiflix.Api.Media;
 using Divertiflix.Domain;
 using Divertiflix.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 
 namespace Divertiflix.Api.Data;
 
@@ -13,6 +13,18 @@ public static class Seeder
         var db = sp.GetRequiredService<DivertiflixDbContext>();
         await db.Database.MigrateAsync();
 
+        await SeedAdminAsync(db, sp, config);
+
+        // Titres antérieurs à la recherche normalisée : on remplit SearchText une fois.
+        var unindexed = await db.Titles.Where(t => t.SearchText == "").ToListAsync();
+        foreach (var t in unindexed) t.RefreshSearchText();
+
+        if (config.GetValue("Seed:DemoCatalog", true)) await SeedDemoCatalogAsync(db, config);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedAdminAsync(DivertiflixDbContext db, IServiceProvider sp, IConfiguration config)
+    {
         // Compte admin par défaut (dev). En dehors de Development, Seed:AdminPassword est obligatoire.
         var login = (config["Seed:AdminLogin"] ?? "root").Trim().ToLowerInvariant();
         var password = config["Seed:AdminPassword"];
@@ -34,15 +46,37 @@ public static class Seeder
         }
         admin.Email = login;
         admin.PasswordHash = new PasswordHasher<User>().HashPassword(admin, password);
+    }
 
-        if (!await db.Titles.AnyAsync())
+    /// <summary>
+    /// Applique le catalogue de démonstration à chaque nouvelle version de <see cref="DemoCatalog"/> seulement :
+    /// les modifications faites ensuite depuis le back-office ne sont jamais écrasées par un redémarrage.
+    /// </summary>
+    private static async Task SeedDemoCatalogAsync(DivertiflixDbContext db, IConfiguration config)
+    {
+        var tag = $"v{DemoCatalog.Version}";
+        if (await db.AuditLogs.AnyAsync(a => a.Action == "seed.demo" && a.Detail == tag)) return;
+
+        var art = Path.Combine(MediaEndpoints.Root(config), "art");
+        var existing = await db.Titles.ToListAsync();
+        var now = DateTime.UtcNow;
+        var i = 0;
+        foreach (var e in DemoCatalog.All)
         {
-            db.Titles.AddRange(
-                new Title { Name = "Big Buck Bunny", Synopsis = "Un lapin géant se venge de trois rongeurs.", Year = 2008, Kind = TitleKind.Movie, Genre = "Animation", DurationMinutes = 10, StreamUrl = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
-                new Title { Name = "Sintel", Synopsis = "Une jeune femme cherche son dragon.", Year = 2010, Kind = TitleKind.Movie, Genre = "Animation", DurationMinutes = 15, StreamUrl = "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8" },
-                new Title { Name = "Tears of Steel", Synopsis = "Des guerriers tentent de sauver le monde des robots.", Year = 2012, Kind = TitleKind.Movie, Genre = "Science-fiction", DurationMinutes = 12 },
-                new Title { Name = "Cosmos Laundromat", Synopsis = "Un mouton suicidaire rencontre un vendeur étrange.", Year = 2015, Kind = TitleKind.Movie, Genre = "Fantastique", DurationMinutes = 12 });
+            var t = existing.FirstOrDefault(x => x.ExternalSource == "demo" && x.ExternalId == e.Slug)
+                    // Les anciens titres du premier seed (sans source externe) sont adoptés plutôt que dupliqués.
+                    ?? existing.FirstOrDefault(x => x.ExternalSource == null && Text.Normalize(x.Name) == Text.Normalize(e.Name));
+            if (t is null) { t = new Title(); db.Titles.Add(t); existing.Add(t); }
+
+            t.ExternalSource = "demo"; t.ExternalId = e.Slug;
+            t.Name = e.Name; t.Synopsis = e.Synopsis; t.Year = e.Year; t.Kind = e.Kind; t.Genre = e.Genre; t.DurationMinutes = e.Minutes;
+            t.Maturity = e.Maturity; t.Rating = e.Rating; t.Director = e.Director; t.Cast = [.. e.Cast]; t.Keywords = [.. e.Keywords];
+            t.Author = e.Author; t.Narrator = e.Narrator; t.StreamUrl = e.Stream;
+            t.PosterUrl = e.Art && File.Exists(Path.Combine(art, e.Slug, "poster.webp")) ? $"/api/media/art/{e.Slug}/poster.webp" : null;
+            t.BackdropUrl = e.Art && File.Exists(Path.Combine(art, e.Slug, "backdrop.webp")) ? $"/api/media/art/{e.Slug}/backdrop.webp" : null;
+            t.AddedAt = now.AddDays(-2 * i++);   // échelonné, pour que « Ajouts récents » ait un ordre lisible
+            t.RefreshSearchText();
         }
-        await db.SaveChangesAsync();
+        db.AuditLogs.Add(new AuditLog { Action = "seed.demo", Target = "catalog", Detail = tag });
     }
 }

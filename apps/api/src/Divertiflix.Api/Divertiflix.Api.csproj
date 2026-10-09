@@ -16,6 +16,11 @@
     <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
   </ItemGroup>
 
+  <!-- Médias de démonstration générés par tools/demo-media : copiés avec l'application, servis par /api/media. -->
+  <ItemGroup>
+    <Content Include="media\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Divertiflix.Infrastructure\Divertiflix.Infrastructure.csproj" />
     <ProjectReference Include="..\Divertiflix.Domain\Divertiflix.Domain.csproj" />

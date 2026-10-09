@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using Divertiflix.Api.Dtos;
+using Divertiflix.Api.Services;
+using Divertiflix.Api.Support;
 using Divertiflix.Domain;
 using Divertiflix.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
@@ -10,11 +11,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/profiles"), Authorize]
-public class ProfilesController(DivertiflixDbContext db) : ControllerBase
+public class ProfilesController(DivertiflixDbContext db, CatalogCache cache) : ControllerBase
 {
     private const int MaxProfiles = 5;
 
-    private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+    private Guid UserId => User.UserId();
 
     [HttpGet]
     public async Task<List<ProfileDto>> List() =>
@@ -25,7 +26,7 @@ public class ProfilesController(DivertiflixDbContext db) : ControllerBase
     public async Task<ActionResult<ProfileDto>> Create(ProfileUpsert req)
     {
         if (await db.Profiles.CountAsync(p => p.UserId == UserId) >= MaxProfiles)
-            return Conflict(new { error = $"Maximum {MaxProfiles} profils." });
+            return this.Err(409, $"Maximum {MaxProfiles} profils.");
         var p = new Profile { UserId = UserId, Name = req.Name.Trim() };
         db.Profiles.Add(p);
         await db.SaveChangesAsync();
@@ -48,19 +49,22 @@ public class ProfilesController(DivertiflixDbContext db) : ControllerBase
         var profiles = await db.Profiles.Where(p => p.UserId == UserId).ToListAsync();
         var p = profiles.FirstOrDefault(p => p.Id == id);
         if (p is null) return NotFound();
-        if (profiles.Count == 1) return Conflict(new { error = "Impossible de supprimer le dernier profil." });
+        if (profiles.Count == 1) return this.Err(409, "Impossible de supprimer le dernier profil.");
         db.Profiles.Remove(p);
         await db.SaveChangesAsync();
         return NoContent();
     }
 
+    // ------------------------------------------------------------------ Ma liste
+
     [HttpGet("{id:guid}/watchlist")]
-    public async Task<ActionResult<List<TitleDto>>> Watchlist(Guid id)
+    public async Task<ActionResult<List<CardDto>>> Watchlist(Guid id, CancellationToken ct)
     {
         if (!await Owns(id)) return NotFound();
-        var items = await db.Watchlist.AsNoTracking().Where(w => w.ProfileId == id)
-            .OrderByDescending(w => w.AddedAt).Select(w => w.Title!).ToListAsync();
-        return items.Select(TitlesController.ToDto).ToList();
+        var snap = await cache.GetAsync(db, ct);
+        var state = await ProfileState.LoadAsync(db, id, ct);
+        var cards = new HomeService.CardFactory(snap, state);
+        return state.Watchlist.OrderByDescending(w => w.Value).Where(w => snap.ById.ContainsKey(w.Key)).Select(w => cards.Make(w.Key)).ToList();
     }
 
     [HttpPut("{id:guid}/watchlist/{titleId:guid}")]
@@ -68,11 +72,8 @@ public class ProfilesController(DivertiflixDbContext db) : ControllerBase
     {
         if (!await Owns(id)) return NotFound();
         if (!await db.Titles.AnyAsync(t => t.Id == titleId)) return NotFound();
-        if (!await db.Watchlist.AnyAsync(w => w.ProfileId == id && w.TitleId == titleId))
-        {
-            db.Watchlist.Add(new WatchlistItem { ProfileId = id, TitleId = titleId });
-            await db.SaveChangesAsync();
-        }
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"""INSERT INTO "Watchlist" ("ProfileId","TitleId","AddedAt") VALUES ({id},{titleId},{DateTime.UtcNow}) ON CONFLICT DO NOTHING""");
         return NoContent();
     }
 
@@ -81,6 +82,54 @@ public class ProfilesController(DivertiflixDbContext db) : ControllerBase
     {
         if (!await Owns(id)) return NotFound();
         await db.Watchlist.Where(w => w.ProfileId == id && w.TitleId == titleId).ExecuteDeleteAsync();
+        return NoContent();
+    }
+
+    // ------------------------------------------------------------------ Reprise de lecture
+
+    /// <summary>Enregistré toutes les ~10 s par le lecteur. Un upsert atomique évite les conflits entre onglets.</summary>
+    [HttpPut("{id:guid}/progress/{titleId:guid}")]
+    public async Task<IActionResult> SaveProgress(Guid id, Guid titleId, ProgressUpsert req)
+    {
+        if (!await Owns(id)) return NotFound();
+        var title = await db.Titles.AsNoTracking().Where(t => t.Id == titleId).Select(t => new { t.DurationMinutes }).FirstOrDefaultAsync();
+        if (title is null) return NotFound();
+        var duration = req.DurationSeconds > 0 ? req.DurationSeconds : title.DurationMinutes * 60;
+        if (duration <= 0) return this.Err(400, "Durée inconnue.");
+        var position = Math.Clamp(req.PositionSeconds, 0, duration);
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "Progress" ("ProfileId","TitleId","PositionSeconds","DurationSeconds","UpdatedAt")
+            VALUES ({id},{titleId},{position},{duration},{DateTime.UtcNow})
+            ON CONFLICT ("ProfileId","TitleId") DO UPDATE SET "PositionSeconds" = EXCLUDED."PositionSeconds",
+              "DurationSeconds" = EXCLUDED."DurationSeconds", "UpdatedAt" = EXCLUDED."UpdatedAt"
+            """);
+        return NoContent();
+    }
+
+    /// <summary>« Retirer de Continuer à regarder ».</summary>
+    [HttpDelete("{id:guid}/progress/{titleId:guid}")]
+    public async Task<IActionResult> ClearProgress(Guid id, Guid titleId)
+    {
+        if (!await Owns(id)) return NotFound();
+        await db.Progress.Where(p => p.ProfileId == id && p.TitleId == titleId).ExecuteDeleteAsync();
+        return NoContent();
+    }
+
+    // ------------------------------------------------------------------ Pouces
+
+    /// <summary>1 = pouce haut, -1 = pouce bas, 0 = retire la note.</summary>
+    [HttpPut("{id:guid}/ratings/{titleId:guid}")]
+    public async Task<IActionResult> Rate(Guid id, Guid titleId, RatingUpsert req)
+    {
+        if (!await Owns(id)) return NotFound();
+        if (!await db.Titles.AnyAsync(t => t.Id == titleId)) return NotFound();
+        if (req.Value == 0)
+            await db.Ratings.Where(r => r.ProfileId == id && r.TitleId == titleId).ExecuteDeleteAsync();
+        else
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "Ratings" ("ProfileId","TitleId","Value","At") VALUES ({id},{titleId},{(short)Math.Sign(req.Value)},{DateTime.UtcNow})
+                ON CONFLICT ("ProfileId","TitleId") DO UPDATE SET "Value" = EXCLUDED."Value", "At" = EXCLUDED."At"
+                """);
         return NoContent();
     }
 

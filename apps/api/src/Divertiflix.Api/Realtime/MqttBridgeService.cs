@@ -11,7 +11,7 @@ namespace Divertiflix.Api.Realtime;
 ///   mosquitto_pub -h localhost -t divertiflix/capteurs/temp1 -m '{"temp":21.5}'
 /// Se reconnecte tout seul ; ne bloque jamais le démarrage de l'API si Mosquitto est indisponible.
 /// </summary>
-public class MqttBridgeService(IHubContext<NotificationsHub> hub, IConfiguration config, ILogger<MqttBridgeService> logger) : BackgroundService
+public class MqttBridgeService(IHubContext<NotificationsHub> hub, IConfiguration config, ILogger<MqttBridgeService> logger, MqttStatus status) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -22,18 +22,24 @@ public class MqttBridgeService(IHubContext<NotificationsHub> hub, IConfiguration
         using var client = new MqttClientFactory().CreateMqttClient();
         client.ApplicationMessageReceivedAsync += async e =>
         {
-            await hub.Clients.All.SendAsync("sensorMessage", new
+            status.LastMessageAt = DateTime.UtcNow;
+            var payload = e.ApplicationMessage.ConvertPayloadToString() ?? "";
+            if (payload.Length > 2000) payload = payload[..2000];   // un capteur bavard ne doit pas saturer les clients
+            await hub.Clients.Group(NotificationsHub.StaffGroup).SendAsync("sensorMessage", new
             {
                 topic = e.ApplicationMessage.Topic,
-                payload = e.ApplicationMessage.ConvertPayloadToString(),
+                payload,
                 at = DateTime.UtcNow,
             }, stoppingToken);
         };
 
-        var options = new MqttClientOptionsBuilder()
+        var builder = new MqttClientOptionsBuilder()
             .WithTcpServer(host, port)
-            .WithClientId($"divertiflix-api-{Guid.NewGuid():N}")
-            .Build();
+            .WithClientId($"divertiflix-api-{Guid.NewGuid():N}");
+        // Mosquitto durci (password_file) : identifiants optionnels, jamais en dur.
+        if (config["Mqtt:User"] is { Length: > 0 } user) builder = builder.WithCredentials(user, config["Mqtt:Password"]);
+        var options = builder.Build();
+        client.DisconnectedAsync += _ => { status.Connected = false; return Task.CompletedTask; };
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -43,11 +49,15 @@ public class MqttBridgeService(IHubContext<NotificationsHub> hub, IConfiguration
                 {
                     await client.ConnectAsync(options, stoppingToken);
                     await client.SubscribeAsync(topic, cancellationToken: stoppingToken);
+                    status.Connected = true;
                     logger.LogInformation("MQTT connecté à {Host}:{Port}, abonné à {Topic}.", host, port, topic);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Connecté mais pas abonné serait un état muet : on repart d'une connexion propre.
+                status.Connected = false;
+                if (client.IsConnected) { try { await client.DisconnectAsync(cancellationToken: stoppingToken); } catch { /* déjà fermé */ } }
                 logger.LogWarning("MQTT indisponible ({Host}:{Port}) : {Message}", host, port, ex.Message);
             }
             try { await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken); } catch (OperationCanceledException) { }

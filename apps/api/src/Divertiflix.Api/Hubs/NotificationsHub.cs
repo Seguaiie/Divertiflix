@@ -1,12 +1,22 @@
+using Divertiflix.Api.Support;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Divertiflix.Api.Hubs;
 
 /// <summary>
-/// Hub de notifications temps réel (étape 4 du plan) : pousse les évènements serveur → clients
-/// (nouveaux titres, synchros AD/Audiobookshelf, messages capteurs ESP32 via MqttBridgeService).
-/// Les clients ne font qu'écouter ; aucune méthode cliente → serveur pour l'instant.
+/// Hub temps réel. Tout utilisateur authentifié reçoit ses propres notifications et les nouveaux titres ;
+/// les évènements d'exploitation (capteurs, synchronisations, demandes, billets) ne vont qu'au groupe « staff ».
+/// Les clients ne font qu'écouter.
 /// </summary>
 [Authorize]
-public class NotificationsHub : Hub;
+public class NotificationsHub : Hub
+{
+    public const string StaffGroup = "staff";
+
+    public override async Task OnConnectedAsync()
+    {
+        if (Context.User?.IsStaff() == true) await Groups.AddToGroupAsync(Context.ConnectionId, StaffGroup);
+        await base.OnConnectedAsync();
+    }
+}
