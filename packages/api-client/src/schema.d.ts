@@ -698,6 +698,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/directory-sync": {
         parameters: {
             query?: never;
@@ -1900,9 +1933,9 @@ export interface components {
             label: string;
         };
         DirectoryAccountDto: {
-            email: string;
-            displayName: string;
-            groups: string[];
+            email: string | null;
+            displayName: string | null;
+            groups: string[] | null;
         };
         DirectorySyncRequest: {
             accounts: components["schemas"]["DirectoryAccountDto"][];
@@ -1916,6 +1949,11 @@ export interface components {
             deactivated: number;
             /** Format: int32 */
             conflicts: number;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            errors: number;
         };
         GenreCount: {
             genre: string;

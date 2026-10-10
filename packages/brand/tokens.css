@@ -36,7 +36,7 @@
   --brand-cyan: #38c8ff;
   /* Boutons : blanc sur ce dégradé reste au-dessus de 4.5:1. */
   --brand-gradient: linear-gradient(120deg, #6a4cff 0%, #a53fe0 55%, #c4308d 100%);
-  --brand-gradient-hover: linear-gradient(120deg, #7b61ff 0%, #b552ee 55%, #d93da0 100%);
+  --brand-gradient-hover: linear-gradient(120deg, #7054ff 0%, #aa42e4 55%, #c93292 100%);   /* texte blanc >= 4,5:1 sur tout le dégradé */
   /* Décor : filets, progression, anneau de focus. Jamais derrière du texte. */
   --brand-gradient-vivid: linear-gradient(100deg, #5b6bff 0%, #9b4dff 34%, #e440a4 68%, #ff8f3a 100%);
 
