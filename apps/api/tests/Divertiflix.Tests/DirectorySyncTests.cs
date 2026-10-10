@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using Divertiflix.Api.Dtos;
 using Divertiflix.Domain;
+using Divertiflix.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Divertiflix.Tests;
 
@@ -48,6 +51,24 @@ public class DirectorySyncTests(ApiFactory f) : IClassFixture<ApiFactory>
         var (c, login) = await f.LoginAsync(email, "Passw0rd!");
         Assert.Equal(Role.Subscriber, login.User.Role);
         Assert.Equal(HttpStatusCode.Forbidden, (await c.GetAsync("/api/admin/stats")).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_legacy_account_with_an_empty_source_is_treated_as_local()
+    {
+        // Bases créées avant la colonne Source : la migration d'origine y a laissé une valeur vide. Ces comptes sont locaux.
+        var email = $"vieux{Guid.NewGuid():N}@corp.test";
+        await f.RegisterAsync(email);
+        using (var scope = f.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<DivertiflixDbContext>().Database.ExecuteSqlAsync($"""UPDATE "Users" SET "Source" = '' WHERE "Email" = {email}""");
+
+        var res = await f.CreateClient().SendAsync(Req(ApiFactory.SyncKey, new DirectorySyncRequest([Acc(email, "Divertiflix-Admins")]), "?force=true"));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);   // avant le correctif : 500, doublon de courriel
+        var result = (await res.Content.ReadAsync<DirectorySyncResult>())!;
+        Assert.Equal(1, result.Conflicts);
+        Assert.Equal(0, result.Created + result.Updated);
+        var (c, login) = await f.LoginAsync(email, "Passw0rd!");
+        Assert.Equal(Role.Subscriber, login.User.Role);
     }
 
     [Fact]

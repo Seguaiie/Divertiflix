@@ -98,9 +98,59 @@ public sealed class RecommendationEngine
     public IReadOnlyList<Scored> Recommend(UserContext ctx, int n, Constraints? constraints = null)
     {
         constraints ??= new Constraints();
+        var st = Prepare(ctx);
+
+        var cands = new List<(int I, double Score, double Content, Reason Reason)>();
+        for (var i = 0; i < _items.Length; i++)
+        {
+            var it = _items[i];
+            if (ctx.Excluded.Contains(it.Id) || !constraints.Allows(it)) continue;
+            var (score, content, reason) = ScoreAt(st, i);
+            cands.Add((i, score, content, reason));
+        }
+        if (cands.Count == 0) return [];
+
+        var ordered = cands.OrderByDescending(c => c.Score).ThenBy(c => _items[c.I].Name, StringComparer.Ordinal).ToList();
+        var picked = Mmr(ordered.Select(c => (c.I, c.Score)).ToList(), n);
+
+        var result = picked.Select(i => ordered.First(c => c.I == i)).ToList();
+
+        // Exploration : une place vers un genre hors des habitudes, déterministe sur la journée.
+        if (st.HasTaste && n >= 6)
+        {
+            var slot = Math.Min(3, result.Count - 1);
+            var inPick = result.Select(r => r.I).ToHashSet();
+            var explore = ordered.Where(c => !inPick.Contains(c.I) && !st.TopGenres.Contains(Text.Normalize(_items[c.I].Genre)) && c.Content > -0.05)
+                .Take(5).OrderBy(c => Hash(ctx.Seed, _items[c.I].Id)).FirstOrDefault();
+            if (explore.Reason is not null && result.Count > slot)
+                result[slot] = (explore.I, explore.Score, explore.Content, new Reason(ReasonType.Explore, Genre: _items[explore.I].Genre));
+        }
+
+        return result.Select(c => new Scored(_items[c.I], c.Score, c.Reason, st.HasTaste ? MatchPercent(c.Content) : 0)).ToList();
+    }
+
+    /// <summary>
+    /// Score, raison et pourcentage d'UN titre pour ce profil, calculés comme dans <see cref="Recommend"/> mais sans re-classement MMR ni place
+    /// d'exploration : coût proportionnel au profil, pas au catalogue. Aucun filtre (déjà vu, jouable) : c'est à l'appelant de décider d'afficher.
+    /// </summary>
+    public Scored? ScoreOne(UserContext ctx, Guid titleId)
+    {
+        if (!_index.TryGetValue(titleId, out var i)) return null;
+        var st = Prepare(ctx);
+        var (score, content, reason) = ScoreAt(st, i);
+        return new Scored(_items[i], score, reason, st.HasTaste ? MatchPercent(content) : 0);
+    }
+
+    /// <summary>Ce que le goût du profil permet de calculer une fois pour toutes les notes d'un appel.</summary>
+    private sealed record Scoring(
+        Vec Pos, Vec Neg, bool HasTaste, List<(Guid Id, string Name, Vec Vec, double W)> Seeds, IReadOnlyDictionary<string, double> Affinity,
+        HashSet<string> TopGenres, List<(Guid Id, double W)> Liked, bool HasCollab,
+        double WContent, double WCollab, double WTrend, double WFresh, double WRating);
+
+    private Scoring Prepare(UserContext ctx)
+    {
         var (pos, neg) = Taste(ctx);
         var hasTaste = pos.Norm > 0;
-        var seeds = Seeds(ctx);
         var affinity = GenreAffinity(ctx);
         var topGenres = affinity.OrderByDescending(kv => kv.Value).Take(2).Select(kv => Text.Normalize(kv.Key)).ToHashSet();
         var liked = ctx.Signals.Where(s => s.Weight >= 0.4).GroupBy(s => s.TitleId)
@@ -111,43 +161,22 @@ public sealed class RecommendationEngine
         var (wContent, wCollab, wTrend, wFresh, wRating) = !hasTaste ? (0.0, 0.0, 0.55, 0.25, 0.20)
             : hasCollab ? (0.62, 0.14, 0.12, 0.07, 0.05)
             : (0.76, 0.0, 0.12, 0.07, 0.05);
+        return new Scoring(pos, neg, hasTaste, Seeds(ctx), affinity, topGenres, liked, hasCollab, wContent, wCollab, wTrend, wFresh, wRating);
+    }
 
-        var cands = new List<(int I, double Score, double Content, Reason Reason)>();
-        for (var i = 0; i < _items.Length; i++)
-        {
-            var it = _items[i];
-            if (ctx.Excluded.Contains(it.Id) || !constraints.Allows(it)) continue;
+    private (double Score, double Content, Reason Reason) ScoreAt(Scoring st, int i)
+    {
+        var it = _items[i];
+        var content = st.HasTaste ? Cos(st.Pos, _vecs[i]) - (st.Neg.Norm > 0 ? 0.6 * Cos(st.Neg, _vecs[i]) : 0) : 0;
+        content = Math.Max(content, -0.5);
+        var collab = st.HasCollab ? Collab(st.Liked, it.Id) : 0;
+        var trend = _maxTrend > 0 ? _trending.GetValueOrDefault(it.Id) / (double)_maxTrend : 0;
+        var fresh = Freshness(it);
+        var rating = (it.Rating ?? 6.0) / 10.0;
 
-            var content = hasTaste ? Cos(pos, _vecs[i]) - (neg.Norm > 0 ? 0.6 * Cos(neg, _vecs[i]) : 0) : 0;
-            content = Math.Max(content, -0.5);
-            var collab = hasCollab ? Collab(liked, it.Id) : 0;
-            var trend = _maxTrend > 0 ? _trending.GetValueOrDefault(it.Id) / (double)_maxTrend : 0;
-            var fresh = Freshness(it);
-            var rating = (it.Rating ?? 6.0) / 10.0;
-
-            var parts = (Content: wContent * Math.Max(content, 0), Collab: wCollab * collab, Trend: wTrend * trend, Fresh: wFresh * fresh);
-            var score = wContent * content + wCollab * collab + wTrend * trend + wFresh * fresh + wRating * rating;
-            cands.Add((i, score, content, Explain(i, parts, content, seeds, affinity)));
-        }
-        if (cands.Count == 0) return [];
-
-        var ordered = cands.OrderByDescending(c => c.Score).ThenBy(c => _items[c.I].Name, StringComparer.Ordinal).ToList();
-        var picked = Mmr(ordered.Select(c => (c.I, c.Score)).ToList(), n);
-
-        var result = picked.Select(i => ordered.First(c => c.I == i)).ToList();
-
-        // Exploration : une place vers un genre hors des habitudes, déterministe sur la journée.
-        if (hasTaste && n >= 6)
-        {
-            var slot = Math.Min(3, result.Count - 1);
-            var inPick = result.Select(r => r.I).ToHashSet();
-            var explore = ordered.Where(c => !inPick.Contains(c.I) && !topGenres.Contains(Text.Normalize(_items[c.I].Genre)) && c.Content > -0.05)
-                .Take(5).OrderBy(c => Hash(ctx.Seed, _items[c.I].Id)).FirstOrDefault();
-            if (explore.Reason is not null && result.Count > slot)
-                result[slot] = (explore.I, explore.Score, explore.Content, new Reason(ReasonType.Explore, Genre: _items[explore.I].Genre));
-        }
-
-        return result.Select(c => new Scored(_items[c.I], c.Score, c.Reason, hasTaste ? MatchPercent(c.Content) : 0)).ToList();
+        var parts = (Content: st.WContent * Math.Max(content, 0), Collab: st.WCollab * collab, Trend: st.WTrend * trend, Fresh: st.WFresh * fresh);
+        var score = st.WContent * content + st.WCollab * collab + st.WTrend * trend + st.WFresh * fresh + st.WRating * rating;
+        return (score, content, Explain(i, parts, content, st.Seeds, st.Affinity));
     }
 
     // ------------------------------------------------------------------ Similaires

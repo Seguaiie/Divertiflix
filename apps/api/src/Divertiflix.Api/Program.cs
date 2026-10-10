@@ -11,6 +11,7 @@ using Divertiflix.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,7 +26,7 @@ builder.Services.AddSingleton<StreamSigner>();
 if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing")) builder.Logging.AddJsonConsole();
 
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+builder.Services.AddControllers(o => o.Filters.Add(new RejectNulFilter())).AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 // Le générateur OpenAPI lit les options HTTP (pas celles de MVC) : sans ceci, les enums sont décrits comme des entiers.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
@@ -34,6 +35,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
 
 builder.Services.AddSingleton<CatalogCache>();
+builder.Services.AddMemoryCache();
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<HubConnections>();
+builder.Services.AddSingleton<AccountGuard>();
+builder.Services.AddSingleton<LoginThrottle>();
 builder.Services.AddSingleton<MqttStatus>();
 builder.Services.AddScoped<HomeService>();
 builder.Services.AddScoped<AssistantService>();
@@ -65,11 +71,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     ctx.Token = token;
                 return Task.CompletedTask;
             },
+            // Signature et durée ne suffisent pas : un compte désactivé ou rétrogradé perd ses droits tout de suite (cache de 5 s, vidé par les écritures).
+            OnTokenValidated = async ctx =>
+            {
+                if (ctx.Principal is null || !await ctx.HttpContext.RequestServices.GetRequiredService<AccountGuard>().IsCurrentAsync(ctx.Principal))
+                    ctx.Fail("Compte désactivé ou rôle modifié.");
+            },
         };
     });
 builder.Services.AddAuthorization();
 
-// Limitation de débit : par adresse IP pour l'authentification et les synchronisations, par utilisateur pour le reste.
+// Limitation de débit : par adresse IP (préfixe /64 en IPv6) pour l'authentification et les synchronisations, par utilisateur pour le reste.
 // Les plafonds se règlent par configuration (RateLimit:*), les tests les relèvent.
 builder.Services.AddRateLimiter(o =>
 {
@@ -81,7 +93,7 @@ builder.Services.AddRateLimiter(o =>
         await ctx.HttpContext.Response.WriteAsJsonAsync(new { type = "about:blank", title = "Too Many Requests", status = 429, detail = "Trop de requêtes, réessayez dans un instant.", error = "Trop de requêtes, réessayez dans un instant." }, ct);
     };
     int Limit(string key, int fallback) => builder.Configuration.GetValue<int?>($"RateLimit:{key}") ?? fallback;
-    static string Ip(HttpContext c) => c.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    static string Ip(HttpContext c) => ClientAddress.Key(c.Connection.RemoteIpAddress);
     static string Who(HttpContext c) => c.User.Identity?.IsAuthenticated == true ? c.User.UserId().ToString() : Ip(c);
     o.AddPolicy("auth", c => RateLimitPartition.GetFixedWindowLimiter("auth:" + Ip(c), _ => new FixedWindowRateLimiterOptions { PermitLimit = Limit("AuthPerMinute", 20), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("sync", c => RateLimitPartition.GetFixedWindowLimiter("sync:" + Ip(c), _ => new FixedWindowRateLimiterOptions { PermitLimit = Limit("SyncPerMinute", 30), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));

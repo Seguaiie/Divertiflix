@@ -51,6 +51,51 @@ public class RealtimeTests(ApiFactory f) : IClassFixture<ApiFactory>
         Assert.False(await Received(viewerGot.Task, 800), "un abonné ne doit jamais la recevoir");
     }
 
+    private async Task<(HubConnection Conn, Task Closed, AuthResponse Auth)> StaffConnectionAsync(HttpClient admin)
+    {
+        var (_, reg) = await f.RegisterAsync();
+        await admin.PutAsync($"/api/admin/users/{reg.User.Id}", new AdminUserUpdate(Role.Support, null));
+        var (_, support) = await f.LoginAsync(reg.User.Email, "Passw0rd!");
+        var conn = await ConnectAsync(support.AccessToken);
+        var closed = new TaskCompletionSource();
+        conn.Closed += _ => { closed.TrySetResult(); return Task.CompletedTask; };
+        return (conn, closed.Task, support);
+    }
+
+    [Fact]
+    public async Task A_deactivated_staff_member_is_disconnected_at_once_and_cannot_come_back_with_the_old_token()
+    {
+        var (admin, _) = await f.LoginAdminAsync();
+        var (conn, closed, support) = await StaffConnectionAsync(admin);
+        await using var staffConn = conn;
+        Assert.Equal(HubConnectionState.Connected, conn.State);
+
+        await admin.PutAsync($"/api/admin/users/{support.User.Id}", new AdminUserUpdate(null, false));
+        Assert.Same(closed, await Task.WhenAny(closed, Task.Delay(5000)));
+        await Assert.ThrowsAnyAsync<Exception>(() => ConnectAsync(support.AccessToken));
+    }
+
+    [Fact]
+    public async Task A_demoted_staff_member_is_disconnected_and_no_longer_receives_staff_events()
+    {
+        var (admin, _) = await f.LoginAdminAsync();
+        var (conn, closed, support) = await StaffConnectionAsync(admin);
+        await using var staffConn = conn;
+
+        await admin.PutAsync($"/api/admin/users/{support.User.Id}", new AdminUserUpdate(Role.Subscriber, null));
+        Assert.Same(closed, await Task.WhenAny(closed, Task.Delay(5000)));
+
+        // Reconnecté avec un jeton à jour (abonné), il ne reçoit plus les évènements d'exploitation.
+        var (_, subscriber) = await f.LoginAsync(support.User.Email, "Passw0rd!");
+        await using var again = await ConnectAsync(subscriber.AccessToken);
+        var got = new TaskCompletionSource<bool>();
+        again.On<object>("directorySynced", _ => got.TrySetResult(true));
+        var msg = new HttpRequestMessage(HttpMethod.Post, "/api/admin/directory-sync") { Content = JsonContent.Create(new DirectorySyncRequest([new($"dm{Guid.NewGuid():N}@corp.test", "DM", [])]), options: Json.Options) };
+        msg.Headers.Add("X-Sync-Key", ApiFactory.SyncKey);
+        await f.CreateClient().SendAsync(msg);
+        Assert.False(await Received(got.Task, 800));
+    }
+
     [Fact]
     public async Task Notifications_are_pushed_only_to_their_recipient_in_real_time()
     {

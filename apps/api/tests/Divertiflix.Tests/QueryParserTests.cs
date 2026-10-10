@@ -81,6 +81,132 @@ public class QueryParserTests
     }
 
     [Theory]
+    [InlineData("1h30 max", 90)]
+    [InlineData("2h max", 120)]
+    [InlineData("2 heures maximum", 120)]
+    [InlineData("90 min max", 90)]
+    [InlineData("a film of 1h30 max", 90)]
+    public void Duration_ceiling_can_come_after_the_number(string msg, int minutes) =>
+        Assert.Equal(minutes, Parser.Parse(msg).Spec.Constraints.MaxMinutes);
+
+    [Theory]
+    [InlineData("pas trop long")]
+    [InlineData("not too long")]
+    [InlineData("pas long")]
+    [InlineData("une comédie qui ne soit pas trop longue")]
+    public void Negated_long_caps_the_duration_below_the_long_threshold(string msg)
+    {
+        var p = Parser.Parse(msg);
+        Assert.Equal(Parser.LongMin - 1, p.Spec.Constraints.MaxMinutes);
+        Assert.Null(p.Spec.Constraints.MinMinutes);
+        Assert.DoesNotContain(p.Chips, c => c.Kind == "long");
+        Assert.Contains(p.Chips, c => c.Kind == "maxMinutes" && c.Label == (Parser.LongMin - 1).ToString());
+    }
+
+    [Theory]
+    [InlineData("un film pas trop court")]
+    [InlineData("not too short")]
+    [InlineData("pas court")]
+    public void Negated_short_floors_the_duration_above_the_short_threshold(string msg)
+    {
+        var p = Parser.Parse(msg);
+        Assert.Equal(Parser.ShortMax + 1, p.Spec.Constraints.MinMinutes);
+        Assert.Null(p.Spec.Constraints.MaxMinutes);
+        Assert.DoesNotContain(p.Chips, c => c.Kind == "short");
+    }
+
+    [Theory]
+    [InlineData("pas récent")]
+    [InlineData("not recent")]
+    public void Negated_recent_means_before_the_recent_years(string msg)
+    {
+        var c = Parser.Parse(msg).Spec.Constraints;
+        Assert.Equal(Now.Year - 4, c.YearTo);
+        Assert.Null(c.YearFrom);
+    }
+
+    [Theory]
+    [InlineData("pas classique")]
+    [InlineData("no old movies")]
+    public void Negated_classic_means_from_2000(string msg)
+    {
+        var c = Parser.Parse(msg).Spec.Constraints;
+        Assert.Equal(2000, c.YearFrom);
+        Assert.Null(c.YearTo);
+    }
+
+    [Fact]
+    public void Plain_long_short_recent_and_classic_are_unchanged()
+    {
+        Assert.Equal(Parser.LongMin, Parser.Parse("un film long").Spec.Constraints.MinMinutes);
+        Assert.Equal(Parser.ShortMax, Parser.Parse("un film court").Spec.Constraints.MaxMinutes);
+        Assert.Equal(Now.Year - 3, Parser.Parse("un film récent").Spec.Constraints.YearFrom);
+        Assert.Equal(1999, Parser.Parse("un classique").Spec.Constraints.YearTo);
+    }
+
+    [Theory]
+    [InlineData("pas de série", new[] { TitleKind.Movie, TitleKind.Audiobook })]
+    [InlineData("no movies please", new[] { TitleKind.Series, TitleKind.Audiobook })]
+    [InlineData("sans livre audio", new[] { TitleKind.Movie, TitleKind.Series })]
+    [InlineData("ni film ni série", new[] { TitleKind.Audiobook })]
+    [InlineData("des films mais pas de série", new[] { TitleKind.Movie })]
+    public void Negated_content_type_keeps_the_other_types(string msg, TitleKind[] expected)
+    {
+        var p = Parser.Parse(msg);
+        Assert.Equal(expected.OrderBy(k => k), p.Spec.Constraints.Kinds!.OrderBy(k => k));
+        Assert.Equal(Intent.Recommend, p.Intent);
+        // Les puces annoncent les types réellement cherchés, jamais le type écarté.
+        Assert.Equal(expected.Select(k => k.ToString()).Order(), p.Chips.Where(c => c.Kind == "kind").Select(c => c.Label).Order());
+    }
+
+    [Theory]
+    [InlineData("pas de série ce soir", new[] { TitleKind.Movie, TitleKind.Audiobook })]
+    [InlineData("pas de série s'il vous plaît", new[] { TitleKind.Movie, TitleKind.Audiobook })]
+    [InlineData("pas de série mais un film", new[] { TitleKind.Movie })]
+    public void Negated_content_type_ends_the_clause(string msg, TitleKind[] expected) =>
+        Assert.Equal(expected.OrderBy(k => k), Parser.Parse(msg).Spec.Constraints.Kinds!.OrderBy(k => k));
+
+    [Theory]
+    [InlineData("pas de film d'horreur")]
+    [InlineData("pas de film triste")]
+    public void A_content_type_followed_by_a_qualifier_is_not_a_negated_type(string msg)
+    {
+        // Le qualificatif nie un genre ou une ambiance ; le type, lui, reste demandé.
+        var p = Parser.Parse(msg);
+        Assert.Equal([TitleKind.Movie], p.Spec.Constraints.Kinds!);
+    }
+
+    [Fact]
+    public void Horror_films_are_excluded_as_a_genre_not_as_a_type()
+    {
+        var p = Parser.Parse("pas de film d'horreur");
+        Assert.Contains("horreur", p.Spec.Constraints.ExcludeGenres!);
+    }
+
+    [Theory]
+    [InlineData("show me something funny")]
+    [InlineData("show me a funny one")]
+    public void Show_alone_is_not_a_request_for_series(string msg) =>
+        Assert.Null(Parser.Parse(msg).Spec.Constraints.Kinds);
+
+    [Fact]
+    public void Show_me_a_scary_movie_asks_for_movies_only()
+    {
+        var p = Parser.Parse("show me a scary movie");
+        Assert.Equal([TitleKind.Movie], p.Spec.Constraints.Kinds!);
+        Assert.Contains("Horreur", p.Spec.BoostGenres);
+        Assert.DoesNotContain(p.Chips, c => c.Kind == "kind" && c.Label == "Series");
+    }
+
+    [Theory]
+    [InlineData("une série")]
+    [InlineData("a tv show")]
+    [InlineData("some tv shows")]
+    [InlineData("des épisodes")]
+    public void Series_are_still_recognized(string msg) =>
+        Assert.Contains(TitleKind.Series, Parser.Parse(msg).Spec.Constraints.Kinds!);
+
+    [Theory]
     [InlineData("des films des années 80", 1980, 1989)]
     [InlineData("annees 2010", 2010, 2019)]
     [InlineData("avant 2000", null, 1999)]

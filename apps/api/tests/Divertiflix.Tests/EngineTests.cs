@@ -109,6 +109,74 @@ public class EngineTests
     }
 
     [Fact]
+    public void ScoreOne_agrees_with_Recommend_on_score_reason_and_percentage()
+    {
+        var p1 = Guid.NewGuid(); var p2 = Guid.NewGuid();
+        var community = new Community
+        {
+            Trending = new Dictionary<Guid, int> { [Funny.Id] = 3, [Drama.Id] = 1 },
+            Interactions = [new(p1, Dune.Id, 1), new(p1, Drama.Id, 1), new(p2, Dune.Id, 1), new(p2, Funny.Id, 1)],
+        };
+        var engine = Engine(community);
+        var ctx = Likes(Dune);
+        var all = engine.Recommend(ctx, 50);
+        Assert.NotEmpty(all);
+        foreach (var r in all)
+        {
+            var one = engine.ScoreOne(ctx, r.Item.Id)!;
+            Assert.Equal(r.Score, one.Score, 12);
+            Assert.Equal(r.Match, one.Match);
+            // La place d'exploration remplace la raison, jamais le score ; ScoreOne ne connaît pas l'exploration.
+            if (r.Reason.Type != ReasonType.Explore) Assert.Equal(r.Reason, one.Reason);
+        }
+        // Sans historique, même accord (démarrage à froid : aucun pourcentage).
+        foreach (var r in engine.Recommend(new UserContext(), 50))
+        {
+            var one = engine.ScoreOne(new UserContext(), r.Item.Id)!;
+            Assert.Equal(r.Score, one.Score, 12);
+            Assert.Equal(0, one.Match);
+            Assert.Equal(r.Reason, one.Reason);
+        }
+    }
+
+    [Fact]
+    public void ScoreOne_has_no_filter_and_unknown_titles_have_no_score()
+    {
+        var engine = Engine();
+        var ctx = Likes(Dune);
+        Assert.NotNull(engine.ScoreOne(ctx, Hidden.Id));   // non jouable : l'appelant décide
+        Assert.NotNull(engine.ScoreOne(ctx, Dune.Id));     // déjà vu : idem
+        Assert.Null(engine.ScoreOne(ctx, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void ScoreOne_on_a_large_catalog_explains_every_title_and_stays_fast()
+    {
+        // Avant ScoreOne, la fiche d'un titre passait par Recommend(200) : plusieurs secondes sur un grand catalogue, et rien au-delà du rang 200.
+        var rng = new Random(42);
+        var genres = new[] { "Drame", "Comédie", "Horreur", "Science-fiction", "Thriller", "Animation", "Documentaire", "Romance", "Aventure", "Fantastique" };
+        var words = Enumerable.Range(0, 400).Select(i => $"mot{i}").ToArray();
+        string Pick(int n) => string.Join(' ', Enumerable.Range(0, n).Select(_ => words[rng.Next(words.Length)]));
+        var catalog = Enumerable.Range(0, 3000).Select(i => Item($"Titre {i}", genres[rng.Next(genres.Length)], [words[rng.Next(words.Length)], words[rng.Next(words.Length)]], Pick(25), ageDays: rng.Next(1000))).ToList();
+        var engine = new RecommendationEngine(catalog, null, Now);
+        var ctx = new UserContext
+        {
+            Signals = [.. catalog.Take(15).Select(c => new Signal(c.Id, SignalWeights.FromProgress(1.0), Now.AddDays(-3)))],
+            Excluded = new HashSet<Guid>(catalog.Take(15).Select(c => c.Id)),
+        };
+
+        var sample = catalog.Skip(15).Where((_, i) => i % 30 == 0).ToList();   // une centaine de titres, bien au-delà du rang 200
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var scored = sample.Select(c => engine.ScoreOne(ctx, c.Id)!).ToList();
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds < 1500, $"{sample.Count} fiches en {sw.ElapsedMilliseconds} ms");
+        Assert.All(scored, s => Assert.NotNull(s.Reason));
+        Assert.All(scored, s => Assert.InRange(s.Match, 0, 98));
+        Assert.Contains(scored, s => s.Match > 0);
+    }
+
+    [Fact]
     public void Trending_uses_distinct_recent_viewers_and_falls_back_to_ratings()
     {
         var withTrend = Engine(new Community { Trending = new Dictionary<Guid, int> { [Funny.Id] = 4, [Drama.Id] = 1 } });

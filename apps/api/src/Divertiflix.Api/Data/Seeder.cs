@@ -48,6 +48,9 @@ public static class Seeder
         admin.PasswordHash = new PasswordHasher<User>().HashPassword(admin, password);
     }
 
+    /// <summary>Action du journal d'audit qui marque une version du catalogue de démonstration comme appliquée (la rétention ne la purge jamais).</summary>
+    public const string DemoMarkerAction = "seed.demo";
+
     /// <summary>
     /// Applique le catalogue de démonstration à chaque nouvelle version de <see cref="DemoCatalog"/> seulement :
     /// les modifications faites ensuite depuis le back-office ne sont jamais écrasées par un redémarrage.
@@ -55,7 +58,7 @@ public static class Seeder
     private static async Task SeedDemoCatalogAsync(DivertiflixDbContext db, IConfiguration config)
     {
         var tag = $"v{DemoCatalog.Version}";
-        if (await db.AuditLogs.AnyAsync(a => a.Action == "seed.demo" && a.Detail == tag)) return;
+        if (await db.AuditLogs.AnyAsync(a => a.Action == DemoMarkerAction && a.Detail == tag)) return;
 
         var mediaRoot = MediaEndpoints.Root(config);
         var art = Path.Combine(mediaRoot, "art");
@@ -86,6 +89,6 @@ public static class Seeder
             t.AddedAt = now.AddDays(-2 * i++);   // échelonné, pour que « Ajouts récents » ait un ordre lisible
             t.RefreshSearchText();
         }
-        db.AuditLogs.Add(new AuditLog { Action = "seed.demo", Target = "catalog", Detail = tag });
+        db.AuditLogs.Add(new AuditLog { Action = DemoMarkerAction, Target = "catalog", Detail = tag });
     }
 }

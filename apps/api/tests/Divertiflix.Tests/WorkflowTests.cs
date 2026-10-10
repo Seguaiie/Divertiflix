@@ -191,6 +191,7 @@ public class AdminTests(ApiFactory f) : IClassFixture<ApiFactory>
         var (support, _) = await f.LoginAsync(agent.User.Email, "Passw0rd!");
         Assert.Equal(HttpStatusCode.OK, (await support.GetAsync("/api/admin/stats")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await support.GetAsync("/api/admin/titles")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await support.GetAsync("/api/admin/users")).StatusCode);   // la liste des comptes est réservée à l'Admin
         Assert.Equal(HttpStatusCode.Forbidden, (await support.PutAsync($"/api/admin/users/{victim.User.Id}", new AdminUserUpdate(null, true))).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await support.DeleteAsync($"/api/admin/titles/{Guid.NewGuid()}")).StatusCode);
     }

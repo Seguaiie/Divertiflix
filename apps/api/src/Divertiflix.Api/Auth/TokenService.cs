@@ -27,11 +27,21 @@ public class TokenService(IOptions<JwtOptions> options)
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    /// <summary>Retourne le jeton en clair (envoyé au client) et son empreinte (stockée en base).</summary>
-    public (string Token, RefreshToken Entity) CreateRefreshToken(Guid userId)
+    /// <summary>
+    /// Retourne le jeton en clair (envoyé au client) et son empreinte (stockée en base). Une connexion ouvre une session (nouvelle
+    /// famille, fin absolue dans <see cref="JwtOptions.SessionDays"/> jours) ; une rotation passe la famille et la fin de session du jeton remplacé.
+    /// </summary>
+    public (string Token, RefreshToken Entity) CreateRefreshToken(Guid userId, Guid? familyId = null, DateTime? sessionEnd = null)
     {
         var raw = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
-        return (raw, new RefreshToken { UserId = userId, TokenHash = Hash(raw), ExpiresAt = DateTime.UtcNow.AddDays(_o.RefreshDays) });
+        var now = DateTime.UtcNow;
+        var end = sessionEnd ?? now.AddDays(_o.SessionDays);
+        var expires = now.AddDays(_o.RefreshDays);
+        return (raw, new RefreshToken
+        {
+            UserId = userId, FamilyId = familyId ?? Guid.NewGuid(), TokenHash = Hash(raw),
+            ExpiresAt = expires < end ? expires : end, SessionExpiresAt = end,
+        });
     }
 
     public static string Hash(string raw) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));

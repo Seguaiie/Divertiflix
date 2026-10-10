@@ -107,10 +107,35 @@ public class TitlesTests(ApiFactory f) : IClassFixture<ApiFactory>
         Assert.Equal(["Nuit", "mer"], updated.Keywords);   // dédoublonné, nettoyé
 
         Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/admin/titles", Sample("") with { Name = "" })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/admin/titles", Sample("X") with { Year = 1500 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/admin/titles", Sample("X") with { Year = 0 })).StatusCode);
 
         Assert.Equal(HttpStatusCode.NoContent, (await c.DeleteAsync($"/api/admin/titles/{dto.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync($"/api/titles/{dto.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Every_seeded_title_can_be_saved_again_unchanged_from_the_back_office()
+    {
+        // Le formulaire du back-office renvoie la fiche telle quelle : aucun titre du seed (livres audio de 1759, 1818, 1857...) ne doit être refusé.
+        var (admin, _) = await f.LoginAdminAsync();
+        var all = (await admin.GetAsync<PagedResult<AdminTitleDto>>("/api/admin/titles?pageSize=100"))!;
+        Assert.Equal(all.Total, all.Items.Count);
+        Assert.Contains(all.Items, t => t.Year < 1888);
+        foreach (var t in all.Items)
+        {
+            var same = new TitleUpsert(t.Name, t.Synopsis, t.Year, t.Kind, t.Genre, t.DurationMinutes, t.PosterUrl, t.StreamUrl, t.Author, t.Narrator, t.BackdropUrl,
+                [.. t.Keywords], [.. t.Cast], t.Director, t.Rating, t.Maturity, t.Credits);
+            var res = await admin.PutAsync($"/api/admin/titles/{t.Id}", same);
+            Assert.True(res.IsSuccessStatusCode, $"{t.Name} ({t.Year}) : {(int)res.StatusCode} {await res.Content.ReadAsStringAsync()}");
+        }
+    }
+
+    [Fact]
+    public async Task A_request_can_name_a_classic_older_than_cinema()
+    {
+        var (c, _) = await f.RegisterAsync();
+        Assert.Equal(HttpStatusCode.Created, (await c.PostAsync("/api/requests", new RequestCreate("Don Quichotte", TitleKind.Audiobook, 1605, null, null))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.PostAsync("/api/requests", new RequestCreate("Année zéro", TitleKind.Audiobook, 0, null, null))).StatusCode);
     }
 
     [Fact]

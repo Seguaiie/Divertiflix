@@ -78,7 +78,8 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
     {
         var t = await db.Titles.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
         if (t is null) return NotFound();
-        if (!t.IsPlayable) return this.Err(409, "Ce titre n'est pas encore disponible.");
+        // Une source au schéma inconnu (« javascript: » saisi avant la liste blanche) est traitée comme absente : le portail l'ouvrirait.
+        if (!t.IsPlayable || !SafeUrl.IsAllowed(t.StreamUrl)) return this.Err(409, "Ce titre n'est pas encore disponible.");
 
         var start = 0;
         if (profileId is { } pid && await OwnsProfile(pid))

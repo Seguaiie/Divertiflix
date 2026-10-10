@@ -119,6 +119,13 @@ public class RefreshToken
     public string TokenHash { get; set; } = "";
     public DateTime ExpiresAt { get; set; }
     public DateTime? RevokedAt { get; set; }
+    /// <summary>
+    /// Une session = une famille : chaque rotation donne un nouveau jeton de la même famille. Présenter un jeton déjà
+    /// remplacé (hors délai de grâce) signale une chaîne copiée : toute la famille est révoquée.
+    /// </summary>
+    public Guid FamilyId { get; set; } = Guid.NewGuid();
+    /// <summary>Fin absolue de la session (fixée à la connexion, reportée à chaque rotation) : on ne se renouvelle pas indéfiniment.</summary>
+    public DateTime SessionExpiresAt { get; set; }
 }
 
 public class MediaRequest

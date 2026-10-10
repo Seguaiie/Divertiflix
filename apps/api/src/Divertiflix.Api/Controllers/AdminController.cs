@@ -1,3 +1,4 @@
+using Divertiflix.Api.Auth;
 using Divertiflix.Api.Dtos;
 using Divertiflix.Api.Services;
 using Divertiflix.Api.Support;
@@ -11,7 +12,7 @@ namespace Divertiflix.Api.Controllers;
 
 /// <summary>Console d'exploitation (back-office Angular) : statistiques, comptes, demandes, billets.</summary>
 [ApiController, Route("api/admin"), Authorize(Roles = "Admin,Support")]
-public class AdminController(DivertiflixDbContext db, Notifier notifier, CatalogCache cache, Audit audit) : ControllerBase
+public class AdminController(DivertiflixDbContext db, Notifier notifier, CatalogCache cache, Audit audit, AccountGuard accounts) : ControllerBase
 {
     [HttpGet("stats")]
     public async Task<StatsDto> Stats()
@@ -32,7 +33,8 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
 
     // ------------------------------------------------------------------ Comptes (Admin uniquement)
 
-    [HttpGet("users")]
+    // La liste des comptes (courriels, rôles) n'est pas utile au Support : l'API la réserve à l'Admin, comme la page du back-office.
+    [HttpGet("users"), Authorize(Roles = "Admin")]
     public async Task<PagedResult<AdminUserDto>> Users([FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         page = Math.Clamp(page, 1, 100_000);
@@ -51,24 +53,28 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
         var user = await db.Users.Include(u => u.Profiles).FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound();
         var me = User.UserId();
-        if (id == me && (req.IsActive == false || (req.Role is { } r && r != Role.Admin)))
+        var roleChanges = req.Role is { } newRole && newRole != user.Role;
+        var activeChanges = req.IsActive is { } newActive && newActive != user.IsActive;
+        // Personne ne change son propre rôle ni l'état de son compte (une session qu'on vient de couper ne doit pas pouvoir se rétablir).
+        if (id == me && (roleChanges || activeChanges))
             return this.Err(409, "Vous ne pouvez pas retirer vos propres droits ni désactiver votre compte.");
         if (user.Role == Role.Admin && (req.IsActive == false || (req.Role is { } r2 && r2 != Role.Admin))
             && await db.Users.CountAsync(u => u.Role == Role.Admin && u.IsActive && u.Id != id) == 0)
             return this.Err(409, "Il doit rester au moins un administrateur actif.");
 
         if (req.Role is { } role) user.Role = role;
-        if (req.IsActive is { } active)
-        {
-            user.IsActive = active;
-            if (!active)   // un compte désactivé perd ses sessions renouvelables immédiatement
-            {
-                var now = DateTime.UtcNow;
-                await db.RefreshTokens.Where(t => t.UserId == id && t.RevokedAt == null).ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now));
-            }
-        }
+        if (req.IsActive is { } active) user.IsActive = active;
         audit.Record(me, "user.update", user.Email, $"role={user.Role} active={user.IsActive}");
+        // Un compte désactivé perd ses sessions renouvelables immédiatement, et jamais sans que la désactivation soit enregistrée.
+        await using var tx = await db.Database.BeginTransactionAsync();
         await db.SaveChangesAsync();
+        if (req.IsActive == false)
+        {
+            var now = DateTime.UtcNow;
+            await db.RefreshTokens.Where(t => t.UserId == id && t.RevokedAt == null).ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now));
+        }
+        await tx.CommitAsync();
+        if (roleChanges || activeChanges) accounts.Changed(id);   // jeton, connexions temps réel et flux de ce compte : refusés tout de suite
         return new AdminUserDto(user.Id, user.Email, user.Role, user.Source, user.IsActive, user.CreatedAt, user.Profiles.Count);
     }
 
@@ -94,6 +100,8 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
     [HttpPut("requests/{id:guid}"), Authorize(Roles = "Admin")]
     public async Task<ActionResult<AdminRequestDto>> UpdateRequest(Guid id, RequestStatusUpdate req)
     {
+        // La transition se juge sur l'état lu : deux décisions simultanées passent l'une après l'autre (la seconde voit « Approved vers Approved »).
+        await using var tx = await db.BeginLockedAsync($"request:{id}");
         var r = await db.Requests.Include(r => r.User).FirstOrDefaultAsync(r => r.Id == id);
         if (r is null) return NotFound();
         if (!Transitions.TryGetValue(r.Status, out var allowed) || !allowed.Contains(req.Status))
@@ -114,6 +122,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
         var n = notifier.Add(r.UserId, $"request.{req.Status.ToString().ToLowerInvariant()}", r.Name, req.Status == RequestStatus.Declined ? req.Reason : null, req.Status == RequestStatus.Available ? link : null);
         audit.Record(User.UserId(), "request." + req.Status.ToString().ToLowerInvariant(), r.Name);
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         cache.Invalidate();
         await notifier.PushAsync(n);
         return new AdminRequestDto(r.Id, r.Name, r.Kind, r.Year, r.Note, r.Status, r.TitleId, r.User!.Email, r.CreatedAt, r.UpdatedAt);
@@ -133,6 +142,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
     [HttpPut("tickets/{id:guid}/status")]
     public async Task<ActionResult<TicketSummaryDto>> UpdateTicket(Guid id, TicketStatusUpdate req)
     {
+        await using var tx = await db.BeginLockedAsync($"ticket:{id}");   // « résolu » ne prévient l'abonné qu'une fois, même si deux agents le fixent ensemble
         var t = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
         if (t is null) return NotFound();
         var wasResolved = t.Status == TicketStatus.Resolved;
@@ -141,6 +151,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
         Notification? n = req.Status == TicketStatus.Resolved && !wasResolved ? notifier.Add(t.UserId, "ticket.resolved", t.Subject, null, $"/?aide={t.Id}") : null;
         audit.Record(User.UserId(), "ticket." + req.Status.ToString().ToLowerInvariant(), t.Subject);
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         if (n is not null) await notifier.PushAsync(n);
         return new TicketSummaryDto(t.Id, t.Subject, t.Category, t.Status, t.CreatedAt, t.UpdatedAt);
     }

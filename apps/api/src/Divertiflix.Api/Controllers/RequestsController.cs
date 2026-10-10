@@ -38,6 +38,9 @@ public class RequestsController(DivertiflixDbContext db, IHubContext<Notificatio
             if (title.IsPlayable) return this.Err(409, "Ce titre est déjà disponible.");
             name = title.Name; kind = title.Kind; year = title.Year;
         }
+        // Plafond et anti-doublon lisent puis écrivent : sans verrou, des appels simultanés passent tous (double-clic, nouvelle tentative réseau).
+        // Le doublon se juge sur tout le catalogue de demandes, pas sur l'auteur : un seul verrou pour la création.
+        await using var tx = await db.BeginLockedAsync("requests.create");
         var open = new[] { RequestStatus.Pending, RequestStatus.Approved, RequestStatus.Downloading };
         if (await db.Requests.CountAsync(r => r.UserId == userId && open.Contains(r.Status)) >= MaxOpenPerUser)
             return this.Err(409, $"Maximum {MaxOpenPerUser} demandes en cours.");
@@ -49,6 +52,7 @@ public class RequestsController(DivertiflixDbContext db, IHubContext<Notificatio
         db.Requests.Add(r);
         audit.Record(userId, "request.create", name);
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         await hub.Clients.Group(NotificationsHub.StaffGroup).SendAsync("requestCreated", new { r.Id, r.Name });
         return CreatedAtAction(nameof(Mine), new RequestCardDto(r.Id, r.Name, r.Kind, r.Year, r.Status, r.UpdatedAt, true, r.TitleId));
     }
@@ -57,12 +61,14 @@ public class RequestsController(DivertiflixDbContext db, IHubContext<Notificatio
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id)
     {
+        await using var tx = await db.BeginLockedAsync($"request:{id}");   // même verrou que la décision du personnel : l'un ou l'autre, jamais les deux
         var r = await db.Requests.FirstOrDefaultAsync(r => r.Id == id && r.UserId == User.UserId());
         if (r is null) return NotFound();
         if (r.Status != RequestStatus.Pending) return this.Err(409, "Seules les demandes en attente peuvent être annulées.");
         db.Requests.Remove(r);
         audit.Record(User.UserId(), "request.cancel", r.Name);
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         return NoContent();
     }
 }

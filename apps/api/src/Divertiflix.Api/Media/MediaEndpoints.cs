@@ -1,3 +1,4 @@
+using Divertiflix.Api.Auth;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 
@@ -37,12 +38,14 @@ public static class MediaEndpoints
                 OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=604800",
             });
 
-        app.MapGet("/api/media/stream/{token}/{**path}", (string token, string path, StreamSigner signer, HttpContext http) =>
+        app.MapGet("/api/media/stream/{token}/{**path}", async Task<IResult> (string token, string path, StreamSigner signer, AccountGuard accounts, HttpContext http) =>
         {
             var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 2 || parts.Any(p => p is "." or ".." || p.Contains('\\') || p.Contains(':')))
+            if (parts.Length < 2 || parts.Any(p => p is "." or ".." || p.Contains('\\') || p.Contains(':') || p.Contains('\0')))
                 return Results.NotFound();
-            if (!signer.Verify(token, parts[0])) return Results.Unauthorized();
+            if (signer.Verify(token, parts[0]) is not { } userId) return Results.Unauthorized();
+            // Le jeton dure des heures : un compte désactivé depuis ne doit plus rien recevoir (cache de quelques secondes).
+            if (!await accounts.IsActiveAsync(userId)) return Results.Unauthorized();
 
             var full = Path.GetFullPath(Path.Combine(stream, string.Join(Path.DirectorySeparatorChar, parts)));
             if (!full.StartsWith(stream + Path.DirectorySeparatorChar, StringComparison.Ordinal) || !File.Exists(full)) return Results.NotFound();

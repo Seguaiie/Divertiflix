@@ -29,7 +29,7 @@ namespace Divertiflix.Infrastructure.Migrations
                 table: "Users",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "Local");
 
             migrationBuilder.AddColumn<string>(
                 name: "Author",

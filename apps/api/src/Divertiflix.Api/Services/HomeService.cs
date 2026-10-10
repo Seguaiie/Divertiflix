@@ -102,8 +102,9 @@ public sealed class HomeService(DivertiflixDbContext db, CatalogCache cache, ILo
         var ctx = state.Context(DateTime.UtcNow, profileId);
         var cards = new CardFactory(snap, state);
 
-        // Raison personnalisée pour ce titre : le moteur l'explique via une recommandation ciblée.
-        var scored = snap.Engine.Recommend(ctx, 200, new Constraints { PlayableOnly = false }).FirstOrDefault(s => s.Item.Id == titleId);
+        // Raison personnalisée pour ce titre : le moteur le note seul, sans classer tout le catalogue. Un titre déjà vu, en cours ou rejeté
+        // n'est jamais recommandé : sa fiche reste sans raison.
+        var scored = ctx.Excluded.Contains(titleId) ? null : snap.Engine.ScoreOne(ctx, titleId);
         var similar = snap.Engine.Similar(titleId, 12, new Constraints()).Select(cards.Make).ToList();
 
         var req = await db.Requests.AsNoTracking().Where(r => r.TitleId == titleId && r.Status != RequestStatus.Declined)

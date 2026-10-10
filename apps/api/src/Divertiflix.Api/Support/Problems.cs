@@ -23,5 +23,9 @@ public static class ClaimsExtensions
     public static Guid UserId(this ClaimsPrincipal user) =>
         Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub") ?? throw new InvalidOperationException("Jeton sans identifiant."));
 
+    /// <summary>Identifiant porté par le jeton, ou faux s'il manque (jamais d'exception : appelé pendant l'authentification).</summary>
+    public static bool TryUserId(this ClaimsPrincipal user, out Guid id) =>
+        Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub"), out id);
+
     public static bool IsStaff(this ClaimsPrincipal user) => user.IsInRole("Admin") || user.IsInRole("Support");
 }

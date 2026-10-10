@@ -13,10 +13,13 @@ namespace Divertiflix.Tests;
 public class ApiFactory : WebApplicationFactory<Program>
 {
     // Serveur PostgreSQL du docker-compose ; une base jetable par classe de test.
-    private readonly string _cs = new NpgsqlConnectionStringBuilder(
+    private readonly string _cs = NewConnectionString();
+    private bool _disposed;
+    /// <summary>Chaîne de connexion vers une base jetable (nom unique) du serveur PostgreSQL de test.</summary>
+    public static string NewConnectionString() => new NpgsqlConnectionStringBuilder(
         Environment.GetEnvironmentVariable("TEST_DB") ?? "Host=localhost;Port=5432;Username=divertiflix;Password=divertiflix-dev")
         { Database = $"divertiflix_test_{Guid.NewGuid():N}" }.ConnectionString;
-    private bool _disposed;
+
     public const string AdminEmail = "root";
     public const string AdminPassword = "boom123$";
     public const string SyncKey = "test-only-sync-key";

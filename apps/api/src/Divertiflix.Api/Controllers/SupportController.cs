@@ -38,6 +38,7 @@ public class SupportController(DivertiflixDbContext db, Notifier notifier, IHubC
     public async Task<ActionResult<TicketDetailDto>> Create(TicketCreate req)
     {
         var uid = User.UserId();
+        await using var tx = await db.BeginLockedAsync($"tickets.create:{uid}");   // le plafond se lit puis s'écrit : un verrou par abonné
         if (await db.Tickets.CountAsync(t => t.UserId == uid && t.Status != TicketStatus.Resolved) >= MaxOpenPerUser)
             return this.Err(409, $"Maximum {MaxOpenPerUser} billets ouverts. Répondez à un billet existant.");
         var t = new SupportTicket { UserId = uid, Subject = req.Subject.Trim(), Category = req.Category };
@@ -45,6 +46,7 @@ public class SupportController(DivertiflixDbContext db, Notifier notifier, IHubC
         db.Tickets.Add(t);
         audit.Record(uid, "ticket.create", t.Subject);
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         await hub.Clients.Group(NotificationsHub.StaffGroup).SendAsync("ticketCreated", new { t.Id, t.Subject });
         return CreatedAtAction(nameof(Get), new { id = t.Id }, new TicketDetailDto(Summary(t), t.Messages.Select(m => new TicketMessageDto(m.Id, false, m.Body, m.At)).ToList()));
     }

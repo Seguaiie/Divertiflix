@@ -27,14 +27,26 @@ d'exploration déterministe (stable sur une journée) qui propose un titre hors 
 
 Chaque recommandation porte la raison réelle de son calcul : « parce que vous avez regardé X », « vous aimez le genre Y »,
 « tendance chez Divertiflix », « ajout récent », « apprécié par des profils proches », « pour élargir vos horizons ». Le client ne fait que
-les mettre en mots, il n'en invente jamais. L'indice d'affinité (%) est une transformation de l'écart au meilleur score et n'est affiché
-qu'à partir de 60 %.
+les mettre en mots, il n'en invente jamais. L'indice d'affinité (%) est une transformation de la proximité de contenu entre le titre et le goût
+du profil : il ne dépend pas du classement des autres titres, et n'est affiché qu'à partir de 60 %.
+
+La fiche d'un titre n'a pas besoin du classement complet : `RecommendationEngine.ScoreOne` note ce seul titre (score, raison, pourcentage)
+avec les mêmes calculs que `Recommend`, sans re-classement MMR ni place d'exploration. Son coût ne dépend pas de la taille du catalogue
+(moins d'une milliseconde sur 3 000 titres, contre plusieurs secondes pour un classement de 200 titres). Un titre déjà vu, en cours ou
+rejeté n'est jamais recommandé : sa fiche reste sans raison.
 
 ## Assistant
 
-Analyseur à règles (`QueryParser`) au-dessus du moteur : genres, ambiances, durée (« moins de 90 minutes », « court »), époque
-(« années 80 », « récent »), exclusions (« sans gore »), « comme X ». Si aucun titre ne respecte tous les critères, il assouplit durée et
-époque et le dit. Un « comme X » inconnu est avoué. Aucune conversation n'est conservée : la réponse est calculée à chaque message.
+Analyseur à règles (`QueryParser`) au-dessus du moteur : genres, ambiances, durée (« moins de 90 minutes », « 1h30 max », « court »), époque
+(« années 80 », « récent »), type (« film », « série », « livre audio »), exclusions (« sans gore »), « comme X ». Les négations sont lues
+avant les contraintes qu'elles retournent : « pas trop long » plafonne la durée juste sous le seuil du « long » (et non l'inverse), « pas trop
+court » fixe un plancher, « pas récent » et « pas classique » prennent l'époque opposée, et « pas de série » ou « no movies » gardent les autres
+types. Une négation de type ne vaut que si elle termine la proposition : « pas de film d'horreur » exclut le genre, pas les films. « show »
+seul n'est pas un type (« show me something funny »), « tv show » désigne une série.
+
+Si aucun titre ne respecte tous les critères, l'assistant assouplit durée et époque et le dit ; les raisons des cartes n'affichent alors plus
+ces critères levés, seulement ce que le titre respecte vraiment. Un « comme X » inconnu est avoué. Aucune conversation n'est conservée : la
+réponse est calculée à chaque message.
 
 ## Évaluation
 

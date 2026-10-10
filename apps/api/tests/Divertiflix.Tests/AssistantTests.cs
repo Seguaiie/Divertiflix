@@ -78,6 +78,43 @@ public class AssistantTests(ApiFactory f) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Negations_of_duration_and_type_are_not_read_backwards()
+    {
+        var (c, _) = await f.RegisterAsync();
+        var pid = await ApiFactory.ProfileIdAsync(c);
+
+        // « pas trop long » : un plafond de durée (sous le seuil du long), jamais une puce « long ».
+        var notLong = await AskAsync(c, pid, "quelque chose de réconfortant pas trop long");
+        Assert.Equal("found", notLong.Reply);
+        Assert.DoesNotContain(notLong.Understood, ch => ch.Kind == "long");
+        var cap = int.Parse(notLong.Understood.Single(ch => ch.Kind == "maxMinutes").Label);
+        Assert.All(notLong.Cards, k => Assert.True(k.Title.DurationMinutes <= cap, k.Title.Name));
+
+        // « pas de série » garde les autres types ; « show » seul n'est pas une demande de séries.
+        var noSeries = await AskAsync(c, pid, "pas de série");
+        Assert.Equal("found", noSeries.Reply);
+        Assert.All(noSeries.Cards, k => Assert.NotEqual(TitleKind.Series, k.Title.Kind));
+        var show = await AskAsync(c, pid, "show me something funny");
+        Assert.Equal("found", show.Reply);
+        Assert.DoesNotContain(show.Understood, ch => ch.Kind == "kind");
+    }
+
+    [Theory]
+    [InlineData("un film d'horreur de moins de 1 minute", "min")]
+    [InlineData("des années 80", "1980")]
+    [InlineData("une comédie de plus de 2 heures", "120")]
+    public async Task Relaxed_answers_never_claim_the_constraints_they_lifted(string msg, string lifted)
+    {
+        var (c, _) = await f.RegisterAsync();
+        var pid = await ApiFactory.ProfileIdAsync(c);
+        var r = await AskAsync(c, pid, msg);
+        Assert.Equal("relaxed", r.Reply);
+        Assert.NotEmpty(r.Cards);
+        // La raison d'une carte ne porte que ce qu'elle respecte vraiment : ni durée, ni époque levées.
+        Assert.All(r.Cards, k => Assert.DoesNotContain(k.Reason?.Tags ?? [], tag => tag.Contains(lifted)));
+    }
+
+    [Fact]
     public async Task Unknown_reference_is_admitted_not_invented()
     {
         var (c, _) = await f.RegisterAsync();

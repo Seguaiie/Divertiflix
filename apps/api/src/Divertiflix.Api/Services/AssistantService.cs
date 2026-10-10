@@ -58,10 +58,11 @@ public sealed class AssistantService(DivertiflixDbContext db, CatalogCache cache
         if (results.Count > 0) return Reply("found", null, results);
 
         // Rien de strict : on relâche durée et époque (jamais les exclusions), en le disant.
+        // Les libellés de contraintes ne décrivent que la durée et l'époque : levés, ils ne doivent plus apparaître dans la raison des cartes.
         var c = parsed.Spec.Constraints;
         if (c.MaxMinutes is not null || c.MinMinutes is not null || c.YearFrom is not null || c.YearTo is not null)
         {
-            var relaxed = parsed.Spec with { Constraints = c with { MaxMinutes = null, MinMinutes = null, YearFrom = null, YearTo = null } };
+            var relaxed = parsed.Spec with { ConstraintLabels = [], Constraints = c with { MaxMinutes = null, MinMinutes = null, YearFrom = null, YearTo = null } };
             results = snap.Engine.Search(relaxed, ctx, MaxCards);
             if (results.Count > 0) return Reply("relaxed", null, results);
         }

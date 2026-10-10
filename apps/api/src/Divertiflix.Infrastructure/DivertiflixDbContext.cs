@@ -73,6 +73,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
         {
             e.HasIndex(r => r.TokenHash);
             e.HasIndex(r => r.UserId);
+            e.HasIndex(r => r.FamilyId);
             e.HasOne<User>().WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<MediaRequest>(e =>
