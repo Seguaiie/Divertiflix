@@ -14,7 +14,7 @@ Le document `porjetdivertiflyx.docx` est le rapport de planification de l'implan
 | React (TypeScript) | Vite, TanStack Query | Application **abonné** : parcourir, rechercher, lire (HLS), liste de lecture |
 | Angular (TypeScript) | Signals, RxJS, Angular Material | **Back-office** admin/support : catalogue, utilisateurs, supervision en direct |
 | Contrat partagé | OpenAPI → client TS généré dans `packages/api-client` | Types uniques pour React et Angular |
-| Infra | Docker Compose (API, PostgreSQL, Mosquitto, Redis), monorepo npm workspaces | Cohérent avec l'infra du rapport |
+| Infra | Docker Compose (PostgreSQL, Mosquitto, Redis, ce dernier pas encore utilisé par l'API), monorepo npm workspaces ; l'API et les fronts tournent sur l'hôte (en production : systemd et nginx) | Cohérent avec l'infra du rapport |
 | Tests | xUnit, Vitest, Playwright | |
 
 ## Étapes

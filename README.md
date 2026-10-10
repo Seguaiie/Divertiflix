@@ -15,7 +15,8 @@ demande de titre, aide avec fil de discussion, notifications en direct, françai
 
 **Back-office** (Angular) : tableau de bord (compteurs, état des services, flux en direct), catalogue complet, demandes
 (approuver, télécharger, rendre disponible, refuser avec raison), billets d'aide (réponse depuis le fil), utilisateurs (rôles,
-activation). Deux rôles : Admin (tout) et Support (lecture, réponses aux billets).
+activation). Deux rôles : Admin (tout) et Support (lecture du catalogue, des demandes et des billets, réponses aux billets ; ni les
+comptes ni les décisions sur les demandes).
 
 **API** (ASP.NET Core 9) : authentification JWT avec jetons de rafraîchissement à usage unique, recommandations, assistant,
 demandes, billets, notifications SignalR, synchronisation Active Directory et Audiobookshelf, médias servis par URL signées,
@@ -28,14 +29,14 @@ pont MQTT vers les capteurs ESP32.
 
 ## Démarrage rapide (développement)
 
-Prérequis : .NET 9, Node 22.22 ou plus, Docker.
+Prérequis : .NET 9, Node 22.22.3 ou plus, Docker. Les trois derniers serveurs restent au premier plan : un terminal chacun.
 
 ```bash
 docker compose up -d                       # PostgreSQL, Mosquitto, Redis (ports sur 127.0.0.1)
 npm install
-cd apps/api && ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Divertiflix.Api --urls http://localhost:5080
-npm run web                                # portail : http://localhost:5173
-npm start -w admin-angular                 # back-office : http://localhost:4200
+cd apps/api && ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Divertiflix.Api --urls http://localhost:5080   # terminal 1
+npm run web                                # terminal 2, portail : http://localhost:5173
+npm start -w admin-angular                 # terminal 3, back-office : http://localhost:4200
 ```
 
 Compte administrateur de développement : `root` / `boom123$` (n'existe qu'en développement : hors développement,
@@ -47,13 +48,17 @@ Compte administrateur de développement : `root` / `boom123$` (n'existe qu'en d�
 
 | Suite | Commande | Contenu |
 | --- | --- | --- |
-| API (xUnit) | `cd apps/api && dotnet test` | 117 tests : moteur, analyseur de requêtes, accueil, assistant, flux de travail, sécurité, temps réel. Base PostgreSQL jetable par classe. |
-| Portail (Vitest) | `npm test` | 44 tests : clés de traduction, client API, composants. |
-| Back-office (Angular) | `cd apps/admin-angular && npx ng test --watch=false` | 24 tests. |
+| API (xUnit) | `cd apps/api && dotnet test` | 257 tests : moteur, analyseur de requêtes, accueil, assistant, flux de travail, comptes et sessions, concurrence, synchronisations, temps réel. Base PostgreSQL jetable par classe. |
+| Portail (Vitest) | `npm test` | 120 tests : clés de traduction, client API et session, composants, hooks, pages, charte graphique. |
+| Back-office (Angular) | `cd apps/admin-angular && npx ng test --watch=false` | 68 tests : services, garde-fous de rôle, pages et fenêtres. |
+| Démo hébergée (Vitest) | `cd packages/demo && npx vitest run` | 33 tests du faux serveur. |
 | Bout en bout (Playwright) | `E2E_CHROME=/chemin/chrome npm run e2e` | 14 parcours réels sur la pile complète, dont les notifications en direct entre portail et back-office. |
 
 Les parcours de bout en bout demandent l'API, PostgreSQL et un Chrome capable de lire le H.264 (le Chromium de Playwright ne le lit
-pas). Pour les lancer à répétition, relever les plafonds de débit : `RateLimit__AuthPerMinute=100000`.
+pas). Sans portail ni back-office déjà lancés, Playwright démarre les serveurs de développement. Pour les lancer à répétition, relever
+les plafonds de débit de l'API : `RateLimit__AuthPerMinute=100000`. Pour viser un serveur installé par `install-serveur.sh` (nginx, CSP
+comprise), `E2E_BASE_URL`, `E2E_ADMIN_URL`, `E2E_ADMIN` et `E2E_ADMIN_PASSWORD` remplacent les adresses et le compte de développement.
+Le pipeline GitLab exécute les quatre autres suites, pas ceux-ci.
 
 ## Organisation du dépôt
 
@@ -69,7 +74,10 @@ tools/brand/         génération du logo et des icônes
 tools/recsys-eval/   évaluation du moteur sur MovieLens
 e2e/                 parcours Playwright
 infra/               configuration Mosquitto
-docs/                architecture, sécurité, recommandation, démonstration, captures
+scripts/             gabarits Python de synchronisation Active Directory et Audiobookshelf (non exécutés ici)
+docs/                architecture, sécurité, recommandation, démonstration, fichiers générés, captures
+install-serveur.sh   installation et déploiement sur un serveur Ubuntu (voir plus bas)
+start-all.sh, stop-all.sh   lancent et arrêtent tout le développement ; docker-compose.yml, .gitlab-ci.yml
 ```
 
 ## Documentation
@@ -79,14 +87,19 @@ docs/                architecture, sécurité, recommandation, démonstration, c
 - [Recommandation](docs/recommandation.md) : le moteur, l'assistant, et son [évaluation sur MovieLens](docs/evaluation-movielens.md).
 - [Démonstration](docs/demo.md) : déroulé de 7 minutes.
 - [Démo hébergée](docs/demo-hebergee.md) : portail et back-office jouables dans le navigateur, sans serveur.
+- [Fichiers générés](docs/regeneration.md) : ce qui n'est pas versionné et la commande qui le reproduit.
 - `memoire.md` : décisions et pièges rencontrés. `logiciels.md` : tout ce qui est installé. `progres.md` : avancement.
 
 ## Déploiement
 
 `sudo ./install-serveur.sh` sur un Ubuntu 22.04 ou 24.04 (idempotent : le relancer redéploie). Il installe les dépendances, génère
 les secrets dans `/opt/divertiflix/.env` (permissions 600), démarre l'infrastructure, compile l'API et les deux fronts, configure le
-service systemd durci et nginx (en-têtes de sécurité, CSP stricte, cache des fichiers à empreinte, WebSocket pour le temps réel).
-Avec `DOMAIN` et `CERTBOT_EMAIL`, HTTPS Let's Encrypt est configuré. Le pipeline GitLab exécute les tests avant tout déploiement.
+service systemd durci et nginx (en-têtes de sécurité, CSP stricte, cache des fichiers à empreinte, WebSocket pour le temps réel,
+limitation de débit par adresse IPv4 ou par préfixe /64 en IPv6, journal d'accès où les jetons de flux et de SignalR sont masqués).
+L'API reste en service pendant la compilation et n'est arrêtée que le temps de remplacer ses fichiers. Le mot de passe administrateur
+généré s'affiche à la fin dans un terminal ; sinon il est dans `/opt/divertiflix/.env`. Avec `DOMAIN` et `CERTBOT_EMAIL`, HTTPS
+Let's Encrypt est configuré ; ces deux variables ne sont pas mémorisées, il faut les redonner à chaque exécution (dans le pipeline :
+variables CI/CD du projet), sinon nginx repasse en HTTP seul. Le pipeline GitLab exécute les tests avant tout déploiement.
 
 ## Contenus de démonstration et licences
 
@@ -97,5 +110,5 @@ Le jeu de données MovieLens, utilisé uniquement pour l'évaluation, n'est pas 
 
 ## Identité visuelle
 
-Le logo officiel est dans `packages/brand` (SVG, fond transparent) ; les jetons de couleur, de police et de mouvement y sont aussi,
-et alimentent le portail et le back-office : une seule source. Voir `packages/brand/README.md`.
+Le logo, recréé en SVG d'après le logo officiel (fond transparent), est dans `packages/brand` ; les jetons de couleur, de police et
+de mouvement y sont aussi, et alimentent le portail et le back-office : une seule source. Voir `packages/brand/README.md`.

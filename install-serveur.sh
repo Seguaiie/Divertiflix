@@ -17,9 +17,11 @@
 #   ADMIN_LOGIN=root   login du compte administrateur créé au premier démarrage
 #   ADMIN_PASSWORD=    mot de passe du compte administrateur (sinon généré aléatoirement)
 #   ENABLE_FIREWALL=1  ufw : SSH, 80, 443 ouverts
-#   MQTT_BIND=127.0.0.1  adresse d'écoute de Mosquitto (mettre 0.0.0.0 pour les ESP32, voir note en bas)
+#   MQTT_BIND=127.0.0.1  adresse d'écoute de Mosquitto (mettre 0.0.0.0 pour les ESP32, voir note en bas) ; mémorisée dans .env
 #   APP_USER=divertiflix
 # Idempotent : relancer le script redéploie la dernière version sans toucher aux secrets ni à la base.
+# DOMAIN et CERTBOT_EMAIL ne sont pas mémorisés : le site nginx est réécrit à chaque exécution, donc une relance sans eux repasse en HTTP
+# seul (le pipeline GitLab doit les recevoir comme variables CI/CD du projet pour garder HTTPS).
 set -euo pipefail
 
 [ "$(id -u)" -eq 0 ] || { echo "Lance ce script avec sudo."; exit 1; }
@@ -34,6 +36,7 @@ CERTBOT_EMAIL=${CERTBOT_EMAIL:-}
 ADMIN_LOGIN=${ADMIN_LOGIN:-root}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
 ENABLE_FIREWALL=${ENABLE_FIREWALL:-1}
+MQTT_BIND_ASKED=${MQTT_BIND:-}
 MQTT_BIND=${MQTT_BIND:-127.0.0.1}
 APP_USER=${APP_USER:-divertiflix}
 APP_DIR=/opt/divertiflix
@@ -73,8 +76,8 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1
 # Node 22 (compile React et Angular)
 # Purge d'abord le nodejs/libnode fourni par Ubuntu (ex. 10.x sur 20.04) : sinon le paquet nodesource
 # se pose "over" l'ancien et dpkg râle sur des dépendances cassées (inoffensif mais bruyant dans les logs).
-# Angular 22 exige Node >= 22.22 : on compare la version complete, pas seulement "v22".
-node_ok() { node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a===22&&b>=22?0:1)' 2>/dev/null; }
+# Le CLI Angular 22 exige Node >= 22.22.3 : on compare la version complete, pas seulement "v22".
+node_ok() { node -e 'const [a,b,c]=process.versions.node.split(".").map(Number); process.exit(a===22&&(b>22||(b===22&&c>=3))?0:1)' 2>/dev/null; }
 if ! node_ok; then
   apt-get purge -y nodejs npm libnode-dev libnode64 nodejs-doc >/dev/null 2>&1 || true
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
@@ -111,6 +114,14 @@ EOF
   )   # umask 077 : le fichier n'est jamais lisible par un autre compte, meme un instant
   chown "$APP_USER":"$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 fi
+# Adresse d'écoute de Mosquitto : changée seulement quand MQTT_BIND est fourni. Un redéploiement sans la variable (le pipeline GitLab)
+# garde la valeur enregistrée au lieu de refermer le port que l'on avait ouvert aux ESP32.
+if [ -n "$MQTT_BIND_ASKED" ]; then
+  sed -i '/^MQTT_BIND=/d' "$ENV_FILE"
+  echo "MQTT_BIND=$MQTT_BIND" >> "$ENV_FILE"
+fi
+MQTT_BIND=$(grep '^MQTT_BIND=' "$ENV_FILE" | cut -d= -f2- || true)
+MQTT_BIND=${MQTT_BIND:-127.0.0.1}
 # Origine autorisée (CORS) : mise à jour à chaque exécution
 sed -i '/^Cors__Origins__0=/d' "$ENV_FILE"
 if [ -n "$DOMAIN" ]; then
@@ -133,8 +144,11 @@ chown "$APP_USER":"$APP_USER" "$APP_DIR/docker-compose.prod.yml"
 COMPOSE="docker compose --project-directory $APP_DIR --env-file $ENV_FILE -p divertiflix -f $APP_DIR/docker-compose.yml -f $APP_DIR/docker-compose.prod.yml"
 $COMPOSE up -d
 echo ">> Attente de PostgreSQL..."
+# Sondage par TCP (-h 127.0.0.1) : pendant la toute première initialisation du volume, l'image démarre un serveur temporaire qui n'écoute
+# que sur son socket local (listen_addresses='') puis l'arrête avant de lancer le vrai. Sondé par le socket, il répondrait « prêt »
+# trop tôt et le psql qui suit échouerait (le script s'arrête sur set -e).
 for _ in $(seq 1 60); do
-  $COMPOSE exec -T postgres pg_isready -U divertiflix >/dev/null 2>&1 && break
+  $COMPOSE exec -T postgres pg_isready -h 127.0.0.1 -U divertiflix >/dev/null 2>&1 && break
   sleep 1
 done
 
@@ -143,18 +157,24 @@ done
 # script...) avec un autre mot de passe, l'API n'arrivera jamais à se connecter (28P01). On
 # resynchronise donc le rôle à chaque exécution via le socket local (auth "trust" du conteneur,
 # sans avoir besoin de connaître l'ancien mot de passe) : idempotent, ne touche pas aux données.
+# Le mot de passe passe par l'entrée standard : en argument, il serait lisible par les autres comptes du serveur dans la liste des processus.
+# ON_ERROR_STOP : lu sur l'entrée standard, psql sortirait sinon avec 0 même si la commande échoue.
 CUR_PG_PASS=$(grep '^POSTGRES_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
-$COMPOSE exec -T -u postgres postgres psql -U divertiflix -d divertiflix \
-  -c "ALTER ROLE divertiflix WITH PASSWORD '$CUR_PG_PASS';" >/dev/null
+printf "ALTER ROLE divertiflix WITH PASSWORD '%s';\n" "$CUR_PG_PASS" \
+  | $COMPOSE exec -T -u postgres postgres psql -U divertiflix -d divertiflix -v ON_ERROR_STOP=1 >/dev/null
 
 # ---------------------------------------------------------------- 5. Build
 as_app() { sudo -u "$APP_USER" -H env DOTNET_CLI_TELEMETRY_OPTOUT=1 bash -c "cd $APP_DIR && $1"; }
 
-systemctl stop divertiflix-api 2>/dev/null || true
-as_app "dotnet publish apps/api/src/Divertiflix.Api -c Release -o $APP_DIR/publish/api"
+# Tout se compile pendant que l'ancienne version tourne encore (un échec de npm ou de NuGet ne laisse pas le site arrêté) ;
+# l'API n'est arrêtée que le temps de remplacer ses fichiers.
+as_app "rm -rf publish/api.new && dotnet publish apps/api/src/Divertiflix.Api -c Release -o $APP_DIR/publish/api.new"
 as_app "npm ci"
 as_app "npm run build -w web-react"
 as_app "cd apps/admin-angular && npx ng build --base-href /admin/"
+systemctl stop divertiflix-api 2>/dev/null || true
+rm -rf "$APP_DIR/publish/api"
+mv "$APP_DIR/publish/api.new" "$APP_DIR/publish/api"
 
 WWW=/var/www/divertiflix
 install -d "$WWW/web" "$WWW/admin"
@@ -218,13 +238,30 @@ HDR
 
 cat > /etc/nginx/conf.d/divertiflix-http.conf <<'HTTPCONF'
 map $http_upgrade $connection_upgrade { default upgrade; '' close; }
-limit_req_zone $binary_remote_addr zone=divertiflix_auth:10m rate=5r/s;
-gzip on;
-gzip_comp_level 5;
-gzip_min_length 1024;
-gzip_vary on;
-gzip_types text/css application/javascript application/json image/svg+xml application/manifest+json;
-server_tokens off;
+
+# Clé de la limitation de débit : l'adresse IPv4 telle quelle, le préfixe /64 en IPv6 (un abonné y contrôle 2^64 adresses : limiter
+# l'adresse complète ne limiterait rien, l'API fait le même regroupement). nginx écrit une adresse IPv6 en forme abrégée, où « :: »
+# remplace au moins deux groupes nuls consécutifs : une règle par position de ce « :: » dans les quatre premiers groupes. Les adresses
+# qui commencent par « :: » (locales) et celles qui ne sont pas de l'IPv6 gardent leur forme complète.
+map $remote_addr $divertiflix_client {
+    default $remote_addr;
+    "~^([0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}):" $1;
+    "~^([0-9a-f]{1,4})::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,3})?$" $1:0:0:0;
+    "~^([0-9a-f]{1,4})::([0-9a-f]{1,4}):[0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}:[0-9a-f]{1,4}$" $1:0:0:$2;
+    "~^([0-9a-f]{1,4}):([0-9a-f]{1,4})::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,3})?$" $1:$2:0:0;
+    "~^([0-9a-f]{1,4}):([0-9a-f]{1,4}):([0-9a-f]{1,4})::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,3})?$" $1:$2:$3:0;
+}
+limit_req_zone $divertiflix_client zone=divertiflix_auth:10m rate=5r/s;
+
+# Journal d'accès sans secrets : le jeton de flux média (dans le chemin, valable 6 h) et le access_token de SignalR (dans la requête,
+# un JWT) sont des secrets porteurs, que la ligne de requête du journal par défaut recopierait. Ils sont remplacés par « *** ».
+map $request_uri $divertiflix_logged_uri {
+    default $request_uri;
+    "~^(/api/media/stream/)[^/?]+(.*)$" "$1***$2";
+    "~*^([^?]*\?(?:.*?&)?)access_token=[^&]*(.*)$" "$1access_token=***$2";
+}
+log_format divertiflix '$remote_addr - $remote_user [$time_local] "$request_method $divertiflix_logged_uri $server_protocol" '
+                       '$status $body_bytes_sent "$http_referer" "$http_user_agent"';
 HTTPCONF
 rm -f /etc/nginx/conf.d/divertiflix-upgrade.conf
 
@@ -234,6 +271,16 @@ server {
     listen [::]:80 default_server;
     server_name ${DOMAIN:-_};
     client_max_body_size 10m;
+    server_tokens off;
+    access_log /var/log/nginx/access.log divertiflix;
+
+    # La compression est réglée ici et non au niveau http : le nginx.conf d'Ubuntu y active déjà gzip, et une seconde
+    # directive au même niveau fait échouer nginx -t (« directive is duplicate »).
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_vary on;
+    gzip_types text/css application/javascript application/json image/svg+xml application/manifest+json;
 
     # Défense en profondeur : l'API limite aussi le débit, mais nginx coupe les rafales avant qu'elles n'arrivent jusqu'à elle.
     location /api/auth/ {
@@ -246,8 +293,12 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
-    # Temps réel (SignalR, WebSocket) : connexions longues.
+    # Temps réel (SignalR, WebSocket) : connexions longues. Le JWT voyage dans la requête (access_token), et le jeton de flux des médias
+    # dans le chemin. error_log : nginx recopie la ligne de requête complète dans chaque erreur amont (API arrêtée pendant un déploiement,
+    # connexion coupée), sans moyen de la masquer ; ces deux emplacements n'écrivent donc que les erreurs critiques. Les échecs restent
+    # visibles dans le journal d'accès (502, 504), où les secrets sont masqués.
     location /api/hubs/ {
+        error_log /var/log/nginx/error.log crit;
         proxy_pass http://127.0.0.1:5080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -261,8 +312,9 @@ server {
         proxy_buffering off;
     }
 
-    # Médias : pas de tampon disque pour de gros fichiers, les requêtes Range passent telles quelles.
+    # Médias : pas de tampon disque pour de gros fichiers, les requêtes Range passent telles quelles (error_log : voir plus haut).
     location /api/media/ {
+        error_log /var/log/nginx/error.log crit;
         proxy_pass http://127.0.0.1:5080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -329,7 +381,12 @@ echo ">> Terminé."
 echo "   API      : $(systemctl is-active divertiflix-api)  (journalctl -u divertiflix-api -f)"
 echo "   Site     : http://${DOMAIN:-<IP du serveur>}/        Back-office : http://${DOMAIN:-<IP du serveur>}/admin/"
 if [ "$NEW_SECRETS" = 1 ]; then
-  echo "   Admin    : $(grep '^Seed__AdminLogin=' "$ENV_FILE" | cut -d= -f2) / $(grep '^Seed__AdminPassword=' "$ENV_FILE" | cut -d= -f2)"
+  # Le mot de passe généré ne s'affiche que dans un terminal : lancé par le pipeline, le script écrirait ce secret dans le journal du job.
+  if [ -z "$ADMIN_PASSWORD" ] && [ -t 1 ]; then
+    echo "   Admin    : $(grep '^Seed__AdminLogin=' "$ENV_FILE" | cut -d= -f2) / $(grep '^Seed__AdminPassword=' "$ENV_FILE" | cut -d= -f2)"
+  else
+    echo "   Admin    : $(grep '^Seed__AdminLogin=' "$ENV_FILE" | cut -d= -f2) (mot de passe : ligne Seed__AdminPassword de $ENV_FILE)"
+  fi
   echo "   (secrets dans $ENV_FILE, lisible par $APP_USER seulement)"
 fi
 echo "   MQTT     : écoute sur $MQTT_BIND:1883 (anonyme, cf. infra/mosquitto/mosquitto.conf)."

@@ -19,8 +19,9 @@ Les signaux s'estompent avec une demi-vie de 60 jours.
 ## Score d'un titre
 
 Combinaison pondérée : contenu 0,62 (vecteurs TF-IDF creux sur genres, mots-clés, époque et type), filtrage collaboratif item-item 0,14,
-tendance 0,12 (profils distincts récents), fraîcheur 0,07, note 0,05. Sans historique (démarrage à froid) : 0,55 / 0,25 / 0,20 sur
-popularité, tendance, fraîcheur. La sélection finale applique **MMR** (λ = 0,72) pour éviter dix titres identiques, et un emplacement
+tendance 0,12 (profils distincts récents), fraîcheur 0,07, note 0,05. Sans communauté (aucun autre profil n'a de signal comparable) le
+contenu prend le relais : 0,76 / 0,12 / 0,07 / 0,05 sur contenu, tendance, fraîcheur, note. Sans historique (démarrage à froid) : 0,55 / 0,25 / 0,20
+sur tendance, fraîcheur, note. La sélection finale applique **MMR** (λ = 0,72) pour éviter dix titres identiques, et un emplacement
 d'exploration déterministe (stable sur une journée) qui propose un titre hors des habitudes.
 
 ## Raisons expliquables

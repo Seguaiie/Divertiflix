@@ -9,6 +9,6 @@ Préparer : API et fronts lancés, un compte abonné créé, le back-office ouve
 5. **Demande de titre en direct** (1 min 30). Abonné : menu du profil, Demander un titre. Back-office : Demandes, Approuver. Revenir au portail : la notification arrive sans recharger.
 6. **Aide** (1 min). Abonné : bouton Aide, nouveau billet. Back-office : Billets, ouvrir, répondre. La réponse apparaît dans le fil de l'abonné.
 7. **Supervision** (30 s). Tableau de bord : compteurs, services, flux en direct. Simuler un capteur : `mosquitto_pub -h localhost -t divertiflix/capteurs/temp1 -m '{"temp":21.5}'`.
-8. **Sécurité en une phrase** (30 s). Jetons à usage unique, URL de média signées, CSP stricte, rôles vérifiés par l'API, rien d'externe.
+8. **Sécurité en une phrase** (30 s). Jetons à usage unique, URL de média signées, CSP stricte, rôles revérifiés par l'API à chaque requête, aucun service tiers (sauf la vidéo « Big Buck Bunny »).
 
 Plan B si le réseau tombe : tout le catalogue de démonstration est local, seule la vidéo « Big Buck Bunny » dépend d'Internet.

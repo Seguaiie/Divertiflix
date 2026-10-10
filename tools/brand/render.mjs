@@ -1,7 +1,7 @@
 // Rend les icônes raster (PNG, ICO) à partir de favicon.svg avec Chrome, puis les copie dans les deux applications.
 // Usage : node tools/brand/render.mjs        (utilise E2E_CHROME ou /opt/google/chrome/chrome, sinon le Chromium de Playwright)
 import { chromium } from '@playwright/test'
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -11,7 +11,9 @@ const png = join(assets, 'png')
 mkdirSync(png, { recursive: true })
 const svg = 'data:image/svg+xml;base64,' + readFileSync(join(assets, 'favicon.svg')).toString('base64')
 
-const browser = await chromium.launch({ executablePath: process.env.E2E_CHROME || (await import('node:fs')).existsSync('/opt/google/chrome/chrome') ? '/opt/google/chrome/chrome' : undefined, args: ['--no-sandbox'] })
+// E2E_CHROME d'abord, puis le Chrome de /opt, sinon le Chromium de Playwright (les parenthèses comptent : sans elles, la variable était ignorée).
+const chrome = process.env.E2E_CHROME || (existsSync('/opt/google/chrome/chrome') ? '/opt/google/chrome/chrome' : undefined)
+const browser = await chromium.launch({ executablePath: chrome, args: ['--no-sandbox'] })
 async function render(file, size, { background = 'transparent', pad = 0, radius = 0 } = {}) {
   const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: 1 })
   await page.setContent(`<body style="margin:0;background:transparent"><div style="width:${size}px;height:${size}px;display:grid;place-items:center;background:${background};border-radius:${radius}px"><img src="${svg}" style="width:${size - pad * 2}px;height:${size - pad * 2}px"></div></body>`)

@@ -60,9 +60,9 @@
   vers Divertiflix). Non exécuté ici, à lancer là où Audiobookshelf tourne.
 
 ## Temps réel (étape 4, 2026-10-09)
-- SignalR : `NotificationsHub` sur `/api/hubs/notifications`, volontairement SOUS `/api/` pour
-  réutiliser le `location /api/` nginx déjà configuré (avec upgrade WebSocket) sans toucher à
-  `install-serveur.sh` ni recharger nginx. JWT en query string (`?access_token=`), lu par
+- SignalR : `NotificationsHub` sur `/api/hubs/notifications`, volontairement SOUS `/api/` (même origine que
+  l'API, aucun CORS en production). nginx a un emplacement dédié `/api/hubs/` (upgrade WebSocket, délais d'une heure,
+  sans tampon). JWT en query string (`?access_token=`), lu par
   `OnMessageReceived` dans `Program.cs` (un WebSocket ne peut pas poser d'en-tête Authorization).
 - `MqttBridgeService` (`BackgroundService`) s'abonne à `divertiflix/capteurs/#` sur Mosquitto
   (localhost:1883, celui du docker-compose) et republie vers SignalR (`sensorMessage`). Se
@@ -81,9 +81,9 @@
 - Tout logiciel installé est listé dans `logiciels.md`.
 
 ## État d'avancement
-- [x] Étape 1 (partielle) : monorepo, API (auth JWT + refresh, catalogue CRUD, seed), Sqlite.
+- [x] Étape 1 (partielle) : monorepo, API (auth JWT + refresh, catalogue CRUD, seed), Sqlite au départ (remplacée ensuite par PostgreSQL).
 - [x] Profils/liste de lecture (API)
-- [x] Tests xUnit (18, `dotnet test` dans apps/api)
+- [x] Tests xUnit (`dotnet test` dans apps/api ; 257 au 2026-10-10)
 - [x] Migrations EF + docker-compose
 - [x] Front React (apps/web-react)
 - [x] Angular back-office (branche etape-3-angular) ; gestion des utilisateurs reportée à l'AD.
@@ -107,3 +107,26 @@
 - **Tests de bout en bout** : `E2E_CHROME=/opt/google/chrome/chrome npm run e2e` (H.264 requis) ; API lancée avec `RateLimit__AuthPerMinute=100000`.
 - **Évaluation** : `dotnet run --project tools/recsys-eval -- --out docs/evaluation-movielens.md` (télécharge MovieLens dans un dossier ignoré par git).
 - **Mots de passe** : le compte `root` / `boom123$` n'existe qu'en développement.
+
+## Pièges d'infrastructure rencontrés (audit du 2026-10-10)
+- **nginx -t échouait sur Ubuntu** : le `nginx.conf` livré active déjà `gzip on;` au niveau `http` ; une seconde directive au même niveau
+  est refusée (« directive is duplicate »). La compression est donc réglée dans le bloc `server` de `install-serveur.sh`. Tester nginx sans
+  l'installer : `apt-get download nginx nginx-common`, `dpkg-deb -x` dans un dossier, puis `nginx -t -c` avec une configuration qui y pointe
+  (`user root;` et des ports non privilégiés pour y répondre à de vraies requêtes).
+- **Jetons dans les journaux** : le jeton de flux média (chemin) et le `access_token` SignalR (requête) étaient recopiés dans `access.log`, et
+  nginx les recopie aussi dans `error.log` à chaque erreur amont (API arrêtée pendant un déploiement). Le journal d'accès passe par un
+  `log_format` qui les remplace par `***`, et les emplacements `/api/hubs/` et `/api/media/` n'écrivent que les erreurs critiques.
+- **Limitation de débit IPv6** : `$binary_remote_addr` est l'adresse complète ; un abonné qui possède un /64 en a 2^64. La zone nginx est
+  clée sur l'adresse IPv4 ou sur le préfixe /64 (map sur `$remote_addr`), comme `ClientAddress.Key` côté API.
+- **PostgreSQL dans Docker au premier démarrage** : l'image lance d'abord un serveur temporaire qui n'écoute que sur son socket local, puis
+  l'arrête. `pg_isready` par le socket répond « prêt » trop tôt ; sonder en TCP (`-h 127.0.0.1`).
+- **Back-office sans styles derrière la CSP** : le CLI Angular ajoutait à `index.html` un petit script en ligne qui active la feuille de styles
+  chargée en différé (`media="print"`) ; la CSP `script-src 'self'` de nginx le bloquait, donc la feuille globale (thème Material, surcouches,
+  tableaux) n'était jamais appliquée. La configuration `production` d'`angular.json` désactive `inlineCritical`, comme la configuration `demo`.
+  Pour voir ce genre de défaut, servir les `dist` par nginx (CSP comprise) et ouvrir les pages dans Chrome : `E2E_BASE_URL` et `E2E_ADMIN_URL`
+  permettent de rejouer les 14 parcours contre ce serveur.
+- **`npm ci` échouait** (pipeline et `install-serveur.sh`) : `package-lock.json` ne contenait pas l'espace de travail `packages/demo`
+  (« Missing: @divertiflix/demo@0.0.0 from lock file »). Après tout ajout d'un espace de travail : `npm install --package-lock-only`, puis
+  `npm ci --dry-run` pour vérifier que le fichier de verrouillage est à jour.
+- **`MQTT_BIND`** est mémorisé dans `/opt/divertiflix/.env` : un redéploiement sans la variable (le pipeline) ne referme plus le port.
+- **Node pour Angular 22** : le CLI exige Node 22.22.3 au moins (et non 22.22.0).

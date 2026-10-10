@@ -32,4 +32,4 @@ Le résultat (`packages/demo/dist/site`, environ 18 Mo) se sert tel quel par n'i
 
 ## Tests
 
-`cd packages/demo && npx vitest run` : 25 tests du faux serveur (rôles, catalogue, lecture, liste, notes, demandes et transitions, billets, garde-fous sur les utilisateurs, assistant).
+`cd packages/demo && npx vitest run` : 33 tests du faux serveur (rôles, catalogue, lecture, liste, notes, demandes et transitions, billets, garde-fous sur les utilisateurs, assistant). Le pipeline GitLab les exécute.

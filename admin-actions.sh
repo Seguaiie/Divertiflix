@@ -39,7 +39,11 @@ echo "2) Mot de passe admin par défaut -> \$ADMIN_PASSWORD"
 echo "=============================================="
 ENV_FILE=/opt/divertiflix/.env
 if [ -f "$ENV_FILE" ]; then
-  sed -i "s#^Seed__AdminPassword=.*#Seed__AdminPassword=${ADMIN_PASSWORD}#" "$ENV_FILE"
+  # Pas de sed : « & », « \ » ou « # » dans le mot de passe seraient interprétés et le fichier recevrait un autre mot de passe.
+  tmp=$(mktemp)
+  { grep -v '^Seed__AdminPassword=' "$ENV_FILE" || true; printf 'Seed__AdminPassword=%s\n' "$ADMIN_PASSWORD"; } > "$tmp"
+  cat "$tmp" > "$ENV_FILE"   # réécrit en place : le propriétaire et les droits 600 du fichier sont conservés
+  rm -f "$tmp"
   grep '^Seed__AdminLogin' "$ENV_FILE"
   echo "Seed__AdminPassword=(mis à jour)"
   systemctl restart divertiflix-api
@@ -87,6 +91,12 @@ echo
 echo ">> Terminé."
 echo ">> GitLab : http://$(hostname -I | awk '{print $1}'):8181"
 echo ">> Mot de passe root GitLab initial :"
-cat /etc/gitlab/initial_root_password 2>/dev/null || echo "   (fichier déjà expiré après 24h, ou déjà changé)"
+if [ ! -r /etc/gitlab/initial_root_password ]; then
+  echo "   (fichier déjà expiré après 24h, ou déjà changé)"
+elif [ -t 1 ]; then
+  cat /etc/gitlab/initial_root_password
+else
+  echo "   (non affiché hors terminal : sudo cat /etc/gitlab/initial_root_password)"   # pas de secret dans un journal
+fi
 echo
 free -h

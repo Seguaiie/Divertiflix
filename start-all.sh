@@ -11,8 +11,8 @@ if docker info >/dev/null 2>&1; then docker compose up -d
 else sg docker -c "docker compose up -d"; fi
 
 echo ">> Attente de PostgreSQL..."
-until docker exec divertiflix-postgres-1 pg_isready -U divertiflix >/dev/null 2>&1 \
-   || sg docker -c "docker exec divertiflix-postgres-1 pg_isready -U divertiflix" >/dev/null 2>&1; do sleep 1; done
+until docker exec divertiflix-postgres-1 pg_isready -h 127.0.0.1 -U divertiflix >/dev/null 2>&1 \
+   || sg docker -c "docker exec divertiflix-postgres-1 pg_isready -h 127.0.0.1 -U divertiflix" >/dev/null 2>&1; do sleep 1; done
 
 port_used() { ss -ltnH "sport = :$1" 2>/dev/null | grep -q .; }
 

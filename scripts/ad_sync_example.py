@@ -51,8 +51,10 @@ def push_to_divertiflix(accounts: list[dict]) -> None:
         headers={"X-Sync-Key": sync_key},
         timeout=30,
     )
-    res.raise_for_status()
-    print(res.json())  # {"created": N, "updated": N, "deactivated": N}
+    if not res.ok:
+        # L'API explique son refus (clé invalide, ou garde-fou de désactivation de masse : 409, à relancer avec ?force=true si voulu).
+        sys.exit(f"Refusé par l'API ({res.status_code}) : {res.text}")
+    print(res.json())  # {"created": N, "updated": N, "deactivated": N, "conflicts": N, "errors": N}
 
 
 if __name__ == "__main__":

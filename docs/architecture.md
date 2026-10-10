@@ -10,7 +10,8 @@ Navigateur ── HTTPS ──> nginx ──┬── /            portail React
                                      /api/media/  (flux signés)        └── disque : médias de démonstration
 ```
 
-Un seul jeton d'accès (JWT court) sert les deux fronts. Les rôles viennent du jeton : Abonné, Support, Admin.
+Un seul jeton d'accès (JWT court) sert les deux fronts. Le jeton annonce le rôle (Abonné, Support, Admin) mais ne fait pas foi à lui seul :
+à chaque requête, l'API relit l'état du compte (actif, rôle courant) et refuse le jeton s'il ne correspond plus (voir [sécurité](securite.md)).
 
 ## Couches de l'API
 
@@ -32,13 +33,16 @@ au-dessus de `HttpClient`. Un changement d'API casse la compilation des fronts a
 `NotificationsHub` (SignalR) : chaque utilisateur reçoit ses notifications (décision sur une demande, réponse à un billet) et les
 nouveaux titres. Le groupe `staff` reçoit en plus les évènements d'exploitation : nouvelle demande, nouveau billet, réponse d'un
 abonné, synchronisations, messages de capteurs. Les clients n'envoient rien au hub : ils écoutent. Le jeton passe en chaîne de requête
-(un WebSocket ne peut pas poser d'en-tête) et se renouvelle d'avance.
+(un WebSocket ne peut pas poser d'en-tête) et se renouvelle d'avance ; nginx le masque dans son journal d'accès. Une connexion est coupée
+dès que son compte est désactivé ou change de rôle.
 
 ## Médias
 
-Les fichiers de démonstration sont servis par `/api/media/stream/{jeton}/...`. Le jeton, signé par HMAC et valable peu de temps, est
-dans le **chemin** et non dans la requête : les segments HLS, adressés en relatif par le manifeste, héritent donc de l'autorisation sans
-que le lecteur ait à signer chaque segment. La source d'un titre est soit une URL absolue, soit `media:dossier/fichier`.
+Les fichiers de démonstration sont servis par `/api/media/stream/{jeton}/...`. Le jeton, signé par HMAC, lié à l'utilisateur et au dossier
+du média, et valable 6 heures, est dans le **chemin** et non dans la requête : les segments HLS, adressés en relatif par le manifeste,
+héritent donc de l'autorisation sans que le lecteur ait à signer chaque segment. Comme il dure longtemps, l'état du compte est revérifié à
+chaque requête de flux, et nginx le remplace par `***` dans son journal d'accès. La source d'un titre est soit une URL absolue, soit
+`media:dossier/fichier`.
 
 ## Données
 

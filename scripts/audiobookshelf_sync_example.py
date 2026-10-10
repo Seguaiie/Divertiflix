@@ -55,7 +55,8 @@ def push_to_divertiflix(items: list[dict]) -> None:
         headers={"X-Sync-Key": sync_key},
         timeout=30,
     )
-    res.raise_for_status()
+    if not res.ok:
+        raise SystemExit(f"Refusé par l'API ({res.status_code}) : {res.text}")
     print(res.json())  # {"created": N, "updated": N}
 
 

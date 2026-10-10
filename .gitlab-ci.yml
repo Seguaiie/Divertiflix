@@ -24,12 +24,13 @@ test:
   before_script:
     - docker rm -f "$CI_PG_NAME" >/dev/null 2>&1 || true
     - docker run -d --name "$CI_PG_NAME" -p 127.0.0.1:$CI_PG_PORT:5432 -e POSTGRES_USER=divertiflix -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=divertiflix postgres:17 >/dev/null
-    - for i in $(seq 1 30); do docker exec "$CI_PG_NAME" pg_isready -U divertiflix >/dev/null 2>&1 && break; sleep 1; done
+    - for i in $(seq 1 30); do docker exec "$CI_PG_NAME" pg_isready -h 127.0.0.1 -U divertiflix >/dev/null 2>&1 && break; sleep 1; done
     - npm ci
   script:
     - TEST_DB="Host=127.0.0.1;Port=$CI_PG_PORT;Username=divertiflix;Password=ci" dotnet test apps/api --nologo
     - npm test -w web-react
     - (cd apps/admin-angular && npx ng test --watch=false)
+    - (cd packages/demo && npx vitest run)
     - npm run build -w web-react
     - (cd apps/admin-angular && npx ng build --base-href /admin/)
   after_script:
@@ -42,5 +43,7 @@ deploy:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   # Aucun déploiement si un test échoue : la production ne reçoit que du code vérifié.
+  # Le script exige root et ne mémorise ni DOMAIN ni CERTBOT_EMAIL : le runner doit pouvoir l'exécuter en root, et ces deux variables
+  # doivent être définies dans les variables CI/CD du projet (GitLab les passe au script), sinon nginx repasse en HTTP seul à chaque déploiement.
   script:
     - bash install-serveur.sh

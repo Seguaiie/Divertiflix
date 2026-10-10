@@ -22,9 +22,12 @@ plutôt viser le .NET/Node système : `DOTNET_ROOT=/usr/share/dotnet`, `PATH=/us
 | Microsoft.EntityFrameworkCore | 9.0.x | Infrastructure |
 | Npgsql.EntityFrameworkCore.PostgreSQL | 9.0.x | Infrastructure |
 | Microsoft.AspNetCore.Authentication.JwtBearer | 9.0.x | Api |
+| Microsoft.AspNetCore.OpenApi | 9.0.20 | Api |
 | Microsoft.EntityFrameworkCore.Design | 9.0.x | Api |
 | MQTTnet | 5.2.0 | Api |
+| xunit 2.9.2, xunit.runner.visualstudio 2.8.2, Microsoft.NET.Test.Sdk 17.12.0, coverlet.collector 6.0.2 | | Tests |
 | Microsoft.AspNetCore.Mvc.Testing | 9.0.x | Tests |
+| Microsoft.AspNetCore.SignalR.Client | 9.0.x | Tests |
 | Npgsql | 9.0.x | Tests |
 
 ## À installer par l'utilisateur (sudo requis)
@@ -40,14 +43,15 @@ Lancer `./install-sudo.sh` (ou `! ./install-sudo.sh` dans Claude Code) :
 - PostgreSQL/Mosquitto/Redis via `docker-compose.prod.yml` (ports sur 127.0.0.1)
 - Build API (service systemd `divertiflix-api`), React sur `/`, Angular sur `/admin/`, API sur `/api` (nginx)
 - `DOMAIN=... CERTBOT_EMAIL=... sudo -E ./install-serveur.sh` pour HTTPS Let's Encrypt
-- Port MQTT 1883 fermé par défaut (`MQTT_BIND=0.0.0.0` pour les ESP32 du VLAN 10.10.4.0/24)
+- Port MQTT 1883 fermé par défaut (`MQTT_BIND=0.0.0.0` pour les ESP32 du VLAN 10.10.4.0/24) ; la valeur est mémorisée dans `.env` et un redéploiement sans la variable la conserve
+- Node 22.22.3 au moins (exigence du CLI Angular 22), sinon le script installe Node 22 de NodeSource
 
 ## Paquets npm
 | Paquet | Où |
 |---|---|
 | react 19, react-dom, vite 8, typescript 6, oxlint | web-react (gabarit `create vite`) |
 | @tanstack/react-query, react-router-dom, hls.js | web-react |
-| vitest, jsdom, @testing-library/{react,dom,jest-dom,user-event} | web-react (tests) |
+| vitest, jsdom, @testing-library/{react,dom,jest-dom,user-event} | web-react (tests) ; admin-angular déclare aussi vitest et jsdom, et packages/demo utilise le vitest hissé à la racine |
 | openapi-fetch, openapi-typescript | packages/api-client |
 | @angular/{core,common,forms,router,build,cli} 22.2, @angular/material + cdk 22.2, rxjs 7.8, vitest 5 | admin-angular |
 | @microsoft/signalr 10.0.11 (client du hub temps réel, étape 4) | admin-angular |
@@ -57,7 +61,7 @@ Lancer `./install-sudo.sh` (ou `! ./install-sudo.sh` dans Claude Code) :
 |---|---|
 | ffmpeg (libx264, libwebp), espeak-ng + MBROLA | Génération des médias de démonstration (`tools/demo-media`) |
 | Google Chrome (H.264) | Parcours Playwright et captures (le Chromium de Playwright ne lit pas le H.264) |
-| Playwright 1.56 (`e2e/`) | Tests de bout en bout |
+| Playwright 1.64 (`e2e/`, `^1.56` déclaré) | Tests de bout en bout |
 | fonttools, brotli (pip) | Conversion du texte du logo en tracés (`tools/brand`) |
 | Pillow (pip) | Export des icônes ICO et des captures |
 

@@ -55,7 +55,7 @@
 Politiques `auth`, `sync`, `write`, `assistant`, `media`, réglables par configuration (`RateLimit:*`). Les plafonds `write` et `assistant` sont
 par utilisateur, `auth`, `sync` et `media` par adresse (l'API fait confiance aux en-têtes du proxy local). En IPv6, l'adresse est ramenée à son
 préfixe /64 (qui est ce qu'un abonné contrôle : limiter l'adresse complète ne limiterait rien) ; une IPv4 reçue sous forme IPv6 redevient une IPv4.
-nginx coupe aussi les rafales sur `/api/auth/` et doit regrouper de même les adresses IPv6. Le compteur d'échecs par courriel (voir plus haut)
+nginx coupe aussi les rafales sur `/api/auth/` et regroupe de même les adresses IPv6 (map sur le préfixe /64). Le compteur d'échecs par courriel (voir plus haut)
 complète la limite par adresse contre une attaque répartie sur beaucoup d'adresses.
 
 ## Données
@@ -78,6 +78,9 @@ complète la limite par adresse contre une attaque répartie sur beaucoup d'adre
 - API : `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`. Erreurs en `problem+json`.
 - nginx : CSP stricte (scripts de notre origine seulement ; styles en ligne permis pour Angular Material), `frame-ancestors 'none'`,
   HSTS dès que HTTPS est activé, `Cross-Origin-Opener-Policy`, cache immuable des fichiers à empreinte.
+- Journaux nginx : le jeton de flux média (dans le chemin) et le `access_token` SignalR (dans la requête) sont remplacés par `***` dans
+  `access.log` ; `error.log` n'enregistre que les erreurs critiques sur `/api/hubs/` et `/api/media/`. Le mot de passe administrateur généré au
+  déploiement n'est affiché que si la sortie est un terminal (sinon il reste dans `.env`), pour ne pas finir dans le journal d'un pipeline.
 - Docker contourne le pare-feu : tous les ports d'infrastructure sont publiés sur 127.0.0.1.
 - Le compte système du service n'est **pas** dans le groupe `docker` (équivalent root). L'unité systemd : `NoNewPrivileges`, `ProtectSystem=strict`,
   `ProtectHome`, `PrivateDevices`, aucune capacité, familles d'adresses limitées.

@@ -4,7 +4,7 @@ Certains fichiers volumineux ou binaires ne sont pas versionnés sur la branche 
 
 | Fichier ou dossier | Commande | Prérequis |
 |---|---|---|
-| `package-lock.json` | `npm install` puis versionner le fichier | Node 22.22 ou plus |
+| `package-lock.json` | `npm install --package-lock-only` puis versionner le fichier ; `npm ci --dry-run` vérifie qu'il est à jour (le pipeline et `install-serveur.sh` lancent `npm ci`, qui refuse un fichier en retard sur un espace de travail) | Node 22.22.3 ou plus |
 | `packages/api-client/openapi.json` | API lancée, puis `curl http://localhost:5080/openapi/v1.json -o packages/api-client/openapi.json` | API en développement |
 | `packages/api-client/src/schema.d.ts` | `npm run api:types` | `openapi.json` présent |
 | Médias de démonstration : visuels `.webp`, segments HLS `.ts`, extraits audio `.m4a` | `python3 tools/demo-media/build.py` | ffmpeg (libx264, libwebp), espeak-ng et voix MBROLA pour les livres audio |
