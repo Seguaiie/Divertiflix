@@ -263,7 +263,7 @@ export function createBackend(snap: J, opts: { mediaBase: string }): DemoBackend
     if (S.titles.some(t => t.isPlayable && normalize(t.name) === key)) return problem(409, 'Ce titre est déjà au catalogue.')
     if (S.requests.some(r => normalize(r.name) === key && r.status !== 'Declined')) return problem(409, 'Ce titre a déjà été demandé.')
     const year = c.body?.year ? Math.trunc(+c.body.year) : null
-    if (year !== null && (year < 1888 || year > 2200)) return problem(400, "L'année doit être comprise entre 1888 et 2200.")
+    if (year !== null && (year < 1 || year > 2200)) return problem(400, "L'année doit être comprise entre 1 et 2200.")
     const t = nowIso()
     const r = { id: uuid(), name, kind: c.body?.kind ?? 'Movie', year, note: c.body?.note ? String(c.body.note).slice(0, 500) : null, status: 'Pending', titleId: c.body?.titleId ?? null, requestedBy: S.persona.email, userId: PERSONA_ID, createdAt: t, updatedAt: t }
     S.requests.unshift(r); commit(); emit('requestCreated', { id: r.id, name: r.name })
@@ -329,7 +329,10 @@ export function createBackend(snap: J, opts: { mediaBase: string }): DemoBackend
     t.isPlayable = !!t.streamUrl
     t.streamKind = !t.streamUrl ? null : t.streamUrl.startsWith('media:') ? (/\.(m4a|mp3|ogg)$/.test(t.streamUrl) ? 'Audio' : 'Hls') : /\.m3u8(\?|$)/.test(t.streamUrl) ? 'Hls' : /\.(mp4|webm)(\?|$)/.test(t.streamUrl) ? 'Video' : /\.(mp3|m4a|ogg)(\?|$)/.test(t.streamUrl) ? 'Audio' : 'External'
   }
-  const validUpsert = (u: J) => (!u?.name || !String(u.name).trim() ? 'Le nom est obligatoire.' : !u.genre ? 'Le genre est obligatoire.' : !(u.year >= 1888 && u.year <= 2200) ? "L'année doit être comprise entre 1888 et 2200." : null)
+  // Comme l'API : http, https, media: ou un chemin du site pour les liens ; jamais de caractère nul dans un texte.
+  const safeUrl = (v: unknown, site: boolean) => v == null || v === '' || (typeof v === 'string' && !/[\u0000-\u0020]/.test(v) && (/^https?:\/\/[^/]/i.test(v) || /^media:/.test(v) || (site && /^\/(?!\/)/.test(v))))
+  const hasNul = (u: J) => Object.values(u ?? {}).some(v => (typeof v === 'string' && v.includes('\u0000')) || (Array.isArray(v) && v.some(x => typeof x === 'string' && x.includes('\u0000'))))
+  const validUpsert = (u: J) => (hasNul(u) ? 'Le texte contient un caractère interdit.' : !u?.name || !String(u.name).trim() ? 'Le nom est obligatoire.' : !u.genre ? 'Le genre est obligatoire.' : !(u.year >= 1 && u.year <= 2200) ? "L'année doit être comprise entre 1 et 2200." : !safeUrl(u.streamUrl, false) ? 'Adresse de lecture non autorisée (http, https ou media: seulement).' : !safeUrl(u.posterUrl, true) || !safeUrl(u.backdropUrl, true) ? "Adresse d'image non autorisée." : null)
   on('POST', '/api/admin/titles', c => {
     const f = needAdmin(c); if (f) return f
     const bad = validUpsert(c.body); if (bad) return problem(400, bad)
@@ -353,7 +356,7 @@ export function createBackend(snap: J, opts: { mediaBase: string }): DemoBackend
   })
 
   on('GET', '/api/admin/users', c => {
-    const f = needStaff(c); if (f) return f
+    const f = needAdmin(c); if (f) return f
     const page = Math.max(1, +(c.q.get('page') ?? 1) || 1), size = Math.min(100, Math.max(1, +(c.q.get('pageSize') ?? 20) || 20)); const needle = (c.q.get('q') ?? '').trim().toLowerCase()
     const items = S.users.filter(u => !needle || u.email.includes(needle)).sort((a, b) => a.email.localeCompare(b.email))
     return ok({ items: items.slice((page - 1) * size, page * size), total: items.length, page, pageSize: size })

@@ -3,7 +3,8 @@ import { type J, normalize, rng } from './util'
 /**
  * Assistant de la démonstration : une version allégée de l'analyseur de requêtes de l'API (qui tourne en C# côté serveur).
  * Mêmes réponses structurées (clés de réponse, critères compris, étapes consultées, cartes avec raison), calculées ici sur le
- * catalogue de démonstration. Il comprend : genre, ambiance, durée, « sans X », « comme X », « surprends-moi ».
+ * catalogue de démonstration. Il comprend : genre, ambiance, type, durée, époque, négations (« sans gore », « pas trop long »,
+ * « pas de série »), « comme X » et « surprends-moi ».
  */
 
 const GENRES: Record<string, string> = {
@@ -39,7 +40,109 @@ export interface AssistantEnv {
   seed: number
 }
 
+// Seuils du catalogue de démonstration (l'API les calcule en centiles des durées jouables) et année de référence.
+const SHORT_MAX = 2, LONG_MIN = 10, RECENT_FROM = 2023
+const W_SHORT = 'court|courts|courte|short|rapide|quick|bref|brief|vite fait'
+const W_LONG = 'long|longue|longs|longues|lengthy'
+const W_RECENT = 'recent|recents|recente|recentes|nouveau|nouveaute|nouveautes|new|latest'
+const W_CLASSIC = 'classique|classiques|classic|ancien|anciens|vieux|retro|old'
+/** « tv show » désigne une série, « show » seul non ; les verbes (« écouter ») désignent un livre audio mais ne se nient pas. */
+const KIND_WORDS: { words: string; kind: string; verbs?: string }[] = [
+  { words: 'livre audio|livres audio|audiobook|audiobooks|audiolivre|livre|livres|roman|romans', kind: 'Audiobook', verbs: 'ecouter|a ecouter|listen|audio' },
+  { words: 'serie|series|tv show|tv shows|episode|episodes', kind: 'Series' },
+  { words: 'court metrage|court metrages|short film|short films', kind: 'Movie' },
+  { words: 'film|films|movie|movies|cinema', kind: 'Movie' },
+]
+const ALL_KINDS = ['Movie', 'Series', 'Audiobook']
+
+// Une négation (marqueur, puis mots de liaison) suivie d'une contrainte : « pas trop long », « no movies ». Lue avant les contraintes elles-mêmes.
+const NEG_MARKERS = 'pas|sans|aucun|aucune|no|not|without|ni|evite|eviter|avoid|non|jamais'
+const NEG_SKIP = 'trop|de|d|du|des|too|any|very|tres|beaucoup|un|une|le|la|les|of|a|an|the|peu'
+const negTerm = (words: string, after = '') => new RegExp(` (?:${NEG_MARKERS}) (?:(?:${NEG_SKIP}) )*(?:${words})(?= )${after}`)
+const NEG_LONG = negTerm(W_LONG), NEG_RECENT = negTerm(W_RECENT), NEG_CLASSIC = negTerm(W_CLASSIC)
+const NEG_SHORT = negTerm(W_SHORT, '(?! (?:metrage|metrages|film|films) )')   // « court métrage » est un type, pas une durée
+// « pas de série » nie le type seulement s'il termine la proposition : « pas de film d'horreur » nie un genre, pas le type.
+const NEG_KINDS = KIND_WORDS.map(k => ({ kind: k.kind, rx: negTerm(k.words, '(?= (?:$|(?:et|ou|mais|ni|and|or|but|s|svp|stp|please|plait|merci|thanks|ce|tonight|today) ))') }))
+
 const stem = (w: string) => w.replace(/(s|x)$/, '')
+const toMinutes = (n: string, unit?: string, extra?: string) => (unit && /^(h|heure|heures|hour|hours|hr|hrs)$/.test(unit) ? +n * 60 + (extra ? +extra : 0) : +n)
+
+/** Lit les critères d'une demande : genres, ambiances, type, durée, époque, exclusions, et la fonction de score qui en découle. */
+function readSpec(src: string) {
+  const understood: J[] = []
+  const genres = new Set<string>(), tags = new Set<string>(), avoidGenres = new Set<string>(), avoidTags = new Set<string>()
+  let kinds = new Set<string>()
+  let maxMin: number | null = null, minMin: number | null = null, yearFrom: number | null = null, yearTo: number | null = null
+  let recent = false, classic = false, short = false, long = false
+  let rest = src
+  const consume = (rx: RegExp) => { if (!rx.test(rest)) return false; rest = rest.replace(rx, ''); return true }
+
+  // Négations de type, de durée et d'époque, avant les lectures positives (sinon « pas trop long » serait lu comme « long »).
+  const negKinds = new Set<string>()
+  for (const { kind, rx } of NEG_KINDS) if (consume(rx)) negKinds.add(kind)
+  if (consume(NEG_LONG)) { maxMin = LONG_MIN - 1; understood.push({ kind: 'maxMinutes', label: String(maxMin) }) }
+  if (consume(NEG_SHORT)) { minMin = SHORT_MAX + 1; understood.push({ kind: 'minMinutes', label: String(minMin) }) }
+  if (consume(NEG_RECENT)) { yearTo = RECENT_FROM - 1; understood.push({ kind: 'before', label: String(RECENT_FROM) }) }
+  if (consume(NEG_CLASSIC)) { yearFrom = 2000; understood.push({ kind: 'after', label: '1999' }) }
+
+  // « sans X » / « pas de X » : on extrait avant de lire le reste, pour ne pas confondre « sans gore » avec « du gore ».
+  for (const m of [...rest.matchAll(/ (?:sans|pas de|no|without|evite|eviter) ([a-z0-9]+)/g)]) {
+    const w = m[1]!
+    const g = AVOID_GENRE[w] ?? GENRES[w]
+    if (g) { avoidGenres.add(g); understood.push({ kind: 'avoid', label: w }) } else if (TAGS[w]) { avoidTags.add(TAGS[w]!); understood.push({ kind: 'avoid', label: w }) }
+    rest = rest.replace(m[0], ' ')
+  }
+
+  // Type de contenu, avant « court » : « court métrage » est un type, pas une durée.
+  for (const k of KIND_WORDS) {
+    const rx = new RegExp(` (?:${k.words}${k.verbs ? `|${k.verbs}` : ''}) `)
+    if (rx.test(rest)) { kinds.add(k.kind); if (!understood.some(u => u.kind === 'kind' && u.label === k.kind)) understood.push({ kind: 'kind', label: k.kind }); rest = rest.replace(new RegExp(rx.source, 'g'), ' ') }
+  }
+  if (negKinds.size) {
+    // Un type nié écarte ce type ; sans type demandé, tous les autres restent permis et les critères les annoncent.
+    const wanted = kinds.size > 0
+    kinds = new Set((wanted ? [...kinds] : ALL_KINDS).filter(k => !negKinds.has(k)))
+    for (let i = understood.length - 1; i >= 0; i--) if (understood[i]!.kind === 'kind' && negKinds.has(understood[i]!.label)) understood.splice(i, 1)
+    if (!wanted) for (const k of kinds) understood.push({ kind: 'kind', label: k })
+  }
+
+  // Durée : « moins de 90 min », « max 1h30 », « 1h30 max », « 2 heures maximum », « plus de 2 h ».
+  const U = '(h|heures?|hours?|hrs?|min|mins|minutes?|mn)'
+  const dm = new RegExp(`(?:moins de|max(?:imum)?|jusqu a|pas plus de|under|less than|at most)\\s+(\\d{1,3})\\s*${U}?(?: ?(\\d{1,2}))?(?= |$)`).exec(rest)
+  const dmx = new RegExp(` (\\d{1,3}) ?${U}(?: ?(\\d{1,2}))? (?:max|maximum) `).exec(rest)
+  const dl = new RegExp(`(?:plus de|au moins|over|more than|at least)\\s+(\\d{1,3})\\s*${U}(?: ?(\\d{1,2}))?`).exec(rest)
+  const hit = dm ?? dmx
+  if (hit) { maxMin = toMinutes(hit[1]!, hit[2], hit[3]); understood.push({ kind: 'maxMinutes', label: String(maxMin) }); rest = rest.replace(hit[0], ' ') }
+  if (dl) { minMin = toMinutes(dl[1]!, dl[2], dl[3]); understood.push({ kind: 'minMinutes', label: String(minMin) }); rest = rest.replace(dl[0], ' ') }
+  if (!hit && new RegExp(` (?:${W_SHORT}) `).test(rest)) { short = true; maxMin = SHORT_MAX; understood.push({ kind: 'short', label: String(SHORT_MAX) }) }
+  if (!dl && new RegExp(` (?:${W_LONG}|epique long|long metrage) `).test(rest)) { long = true; minMin = LONG_MIN; understood.push({ kind: 'long', label: String(LONG_MIN) }) }
+  if (new RegExp(` (?:${W_RECENT}) `).test(rest)) { recent = true; yearFrom = RECENT_FROM; understood.push({ kind: 'recent', label: '' }) }
+  if (new RegExp(` (?:${W_CLASSIC}) `).test(rest)) { classic = true; yearTo = 1999; understood.push({ kind: 'classic', label: '1999' }) }
+
+  for (const [phrase, g] of Object.entries(GENRES)) if (rest.includes(` ${phrase} `) || rest.includes(` ${phrase}s `)) genres.add(g)
+  for (const g of genres) understood.push({ kind: 'genre', label: g })
+  for (const w of rest.trim().split(' ')) { const t = TAGS[w] ?? TAGS[stem(w)]; if (t && !tags.has(t) && !avoidTags.has(t)) { tags.add(t); understood.push({ kind: 'tag', label: t }) } }
+
+  const score = (t: J, relax: boolean) => {
+    if (kinds.size && !kinds.has(t.kind)) return -1
+    if (!relax) {
+      if (maxMin !== null && t.durationMinutes > maxMin) return -1
+      if (minMin !== null && t.durationMinutes < minMin) return -1
+      if (yearFrom !== null && t.year < yearFrom) return -1
+      if (yearTo !== null && t.year > yearTo) return -1
+    }
+    if (avoidGenres.has(t.genre)) return -1
+    const kws = new Set<string>((t.keywords as string[]).map(k => k.normalize('NFC')))
+    if ([...avoidTags].some(a => kws.has(a))) return -1
+    const gHit = genres.size ? (genres.has(t.genre) ? 1 : 0) : 0
+    if (genres.size && !gHit) return -1
+    const matched = [...tags].filter(g => kws.has(g)).length
+    if (tags.size && !matched && !genres.size && !short && !long && !classic && !recent) return -1
+    return 0.35 * gHit + 0.3 * (tags.size ? matched / tags.size : 0) + 0.04 * ((t.rating ?? 6) / 10) + 0.03 * Math.min(1, Math.max(0, (t.year - 2000) / 25))
+  }
+  const relaxable = maxMin !== null || minMin !== null || yearFrom !== null || yearTo !== null
+  return { understood, genres, tags, short, maxMin, score, relaxable }
+}
 
 export function chat(message: string, env: AssistantEnv): J {
   const text = ` ${normalize(message)} `
@@ -47,14 +150,17 @@ export function chat(message: string, env: AssistantEnv): J {
   const steps = (criteria: number) => [{ key: 'taste', count: env.signals }, { key: 'catalog', count: playable.length }, ...(criteria ? [{ key: 'criteria', count: criteria }] : [])]
   const reply = (r: string, cards: J[], over: J = {}) => ({ reply: r, param: null, unknownTitle: null, understood: [], steps: steps(0), cards, ...over })
 
-  // 1. Surprends-moi : un choix varié parmi les titres jamais vus, stable sur la journée.
-  if (SURPRISE.some(p => text.includes(` ${p} `))) {
+  // 1. Surprends-moi : un choix varié parmi les titres jamais vus, stable sur la journée. Les critères ajoutés (genre, « sans gore ») le cadrent.
+  const surprise = SURPRISE.find(p => text.includes(` ${p} `))
+  if (surprise) {
+    const spec = readSpec(text.replace(` ${surprise} `, ' '))
     const rnd = rng(env.seed)
-    const pool = playable.filter(t => !env.excluded.has(t.id)).map(t => ({ t, k: rnd() })).sort((a, b) => a.k - b.k)
+    const pool = playable.filter(t => !env.excluded.has(t.id) && spec.score(t, false) >= 0).map(t => ({ t, k: rnd() })).sort((a, b) => a.k - b.k)
     const picked: J[] = []
     const seenGenres = new Set<string>()
     for (const { t } of pool) { if (picked.length < 4 && !seenGenres.has(t.genre)) { picked.push(t); seenGenres.add(t.genre) } }
-    return picked.length ? reply('surprise', picked.map(t => env.card(t.id, { type: 'surprise', titleId: null, title: null, genre: null, tags: null }))) : reply('nothing', [])
+    const cards = picked.map(t => env.card(t.id, { type: 'surprise', titleId: null, title: null, genre: null, tags: null }))
+    return picked.length ? reply('surprise', cards, { understood: spec.understood, steps: steps(spec.understood.length) }) : reply('nothing', [], { understood: spec.understood, steps: steps(spec.understood.length) })
   }
 
   // 2. Comme X : titres proches d'un titre du catalogue.
@@ -73,69 +179,26 @@ export function chat(message: string, env: AssistantEnv): J {
   }
 
   // 3. Critères : genre, ambiance, type, durée, époque, exclusions.
-  const understood: J[] = []
-  const genres = new Set<string>(), tags = new Set<string>(), avoidGenres = new Set<string>(), avoidTags = new Set<string>()
-  let kind: string | null = null, maxMin: number | null = null, minMin: number | null = null, recent = false, classic = false, short = false, long = false
-
-  // « sans X » / « pas de X » : on extrait avant de lire le reste, pour ne pas confondre « sans gore » avec « du gore ».
-  let rest = text
-  const neg = [...rest.matchAll(/ (?:sans|pas de|no|without|evite|eviter) ([a-z0-9]+)/g)]
-  for (const m of neg) {
-    const w = m[1]!
-    const g = AVOID_GENRE[w] ?? GENRES[w]
-    if (g) { avoidGenres.add(g); understood.push({ kind: 'avoid', label: w }) } else if (TAGS[w]) { avoidTags.add(TAGS[w]!); understood.push({ kind: 'avoid', label: w }) }
-    rest = rest.replace(m[0], ' ')
-  }
-
-  if (/ (livre audio|livres audio|audiobook|audiolivre|ecouter|a ecouter|audio) /.test(rest)) { kind = 'Audiobook'; understood.push({ kind: 'kind', label: 'Audiobook' }) }
-  else if (/ (film|films|court metrage|movie) /.test(rest)) { kind = 'Movie'; understood.push({ kind: 'kind', label: 'Movie' }) }
-
-  const dm = /(?:moins de|max(?:imum)?|jusqu a|pas plus de|under|less than)\s+(\d+)\s*(?:min|minutes|mn)?/.exec(rest)
-  if (dm) { maxMin = +dm[1]!; understood.push({ kind: 'maxMinutes', label: String(maxMin) }) }
-  const dl = /(?:plus de|au moins|over|more than)\s+(\d+)\s*(?:min|minutes|mn)/.exec(rest)
-  if (dl) { minMin = +dl[1]!; understood.push({ kind: 'minMinutes', label: String(minMin) }) }
-  if (!dm && / (court|courte|courts|short|rapide|vite fait) /.test(rest)) { short = true; maxMin = 2; understood.push({ kind: 'short', label: '2' }) }
-  if (!dl && / (long|longue|longs|epique long|long metrage) /.test(rest)) { long = true; minMin = 10; understood.push({ kind: 'long', label: '10' }) }
-  if (/ (recent|recents|nouveau|nouveaute|nouveautes|new) /.test(rest)) { recent = true; understood.push({ kind: 'recent', label: '' }) }
-  if (/ (classique|classiques|classic|ancien|vieux) /.test(rest)) { classic = true; understood.push({ kind: 'classic', label: '1999' }) }
-
-  for (const [phrase, g] of Object.entries(GENRES)) if (rest.includes(` ${phrase} `) || rest.includes(` ${phrase}s `)) { genres.add(g) }
-  for (const g of genres) understood.push({ kind: 'genre', label: g })
-  for (const w of rest.trim().split(' ')) { const t = TAGS[w] ?? TAGS[stem(w)]; if (t && !tags.has(t) && !avoidTags.has(t)) { tags.add(t); understood.push({ kind: 'tag', label: t }) } }
+  const spec = readSpec(text)
+  const { understood, tags, genres } = spec
   const criteria = understood.length
   if (!criteria) return reply('help', [])
 
-  const score = (t: J, relax: boolean) => {
-    if (kind && t.kind !== kind) return -1
-    if (!relax) {
-      if (maxMin !== null && t.durationMinutes > maxMin) return -1
-      if (minMin !== null && t.durationMinutes < minMin) return -1
-      if (recent && t.year < 2023) return -1
-      if (classic && t.year > 1950) return -1
-    }
-    if (avoidGenres.has(t.genre)) return -1
-    const kws = new Set<string>((t.keywords as string[]).map(k => k.normalize('NFC')))
-    if ([...avoidTags].some(a => kws.has(a))) return -1
-    const gHit = genres.size ? (genres.has(t.genre) ? 1 : 0) : 0
-    if (genres.size && !gHit) return -1
-    const matched = [...tags].filter(g => kws.has(g)).length
-    if (tags.size && !matched && !genres.size && !short && !long && !classic && !recent) return -1
-    return 0.35 * gHit + 0.3 * (tags.size ? matched / tags.size : 0) + 0.04 * ((t.rating ?? 6) / 10) + 0.03 * Math.min(1, Math.max(0, (t.year - 2000) / 25))
-  }
   const run = (relax: boolean) => playable.filter(t => !env.excluded.has(t.id))
-    .map(t => ({ t, s: score(t, relax) })).filter(x => x.s >= 0).sort((a, b) => b.s - a.s || a.t.name.localeCompare(b.t.name, 'fr')).slice(0, 5)
+    .map(t => ({ t, s: spec.score(t, relax) })).filter(x => x.s >= 0).sort((a, b) => b.s - a.s || a.t.name.localeCompare(b.t.name, 'fr')).slice(0, 5)
 
-  const withReason = (list: { t: J }[]) => list.map(({ t }) => {
+  // En mode assoupli, la durée et l'époque sont levées : elles ne figurent plus dans les raisons affichées.
+  const withReason = (list: { t: J }[], relaxed: boolean) => list.map(({ t }) => {
     const matchedTags = [...tags].filter(g => (t.keywords as string[]).includes(g))
-    const labels = [short ? 'court' : maxMin !== null ? `≤ ${maxMin} min` : '', genres.has(t.genre) ? t.genre : '', ...matchedTags].filter(Boolean)
+    const labels = [!relaxed && spec.short ? 'court' : !relaxed && spec.maxMin !== null ? `≤ ${spec.maxMin} min` : '', genres.has(t.genre) ? t.genre : '', ...matchedTags].filter(Boolean)
     return env.card(t.id, labels.length ? { type: 'matches', titleId: null, title: null, genre: null, tags: labels } : { type: 'genreAffinity', titleId: null, title: null, genre: t.genre, tags: null })
   })
 
   let found = run(false)
-  if (found.length) return reply('found', withReason(found), { understood, steps: steps(criteria) })
-  if (maxMin !== null || minMin !== null || recent || classic) {
+  if (found.length) return reply('found', withReason(found, false), { understood, steps: steps(criteria) })
+  if (spec.relaxable) {
     found = run(true)
-    if (found.length) return reply('relaxed', withReason(found), { understood, steps: steps(criteria) })
+    if (found.length) return reply('relaxed', withReason(found, true), { understood, steps: steps(criteria) })
   }
   return reply('nothing', [], { understood, steps: steps(criteria) })
 }

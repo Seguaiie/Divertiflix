@@ -6,4 +6,4 @@
 .demo-hint { position: fixed; left: 50%; bottom: 64px; translate: -50% 0; z-index: 96; width: min(560px, calc(100vw - 24px)); display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line-strong); box-shadow: 0 24px 60px -20px #000; font: 400 0.8125rem/1.45 var(--font-ui); color: var(--text-2); }
 .demo-hint p { margin: 0; flex: 1; }
 .demo-hint button { flex: none; height: 34px; padding: 0 16px; border-radius: 8px; border: 0; background: var(--brand-gradient); color: var(--on-brand); font: 600 0.8125rem var(--font-ui); cursor: pointer; }
-@media (max-width: 720px) { .demo-bar { bottom: 70px; } .demo-hint { bottom: 118px; } }
+@media (max-width: 960px) { .demo-bar { bottom: 70px; } .demo-hint { bottom: 118px; } }

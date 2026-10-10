@@ -35,7 +35,8 @@ describe('authentification et rôles', () => {
     expect(call(SUPPORT, 'GET', '/api/admin/requests').status).toBe(200)
     const r = call(SUPPORT, 'GET', '/api/admin/requests').json[0]
     expect(call(SUPPORT, 'PUT', `/api/admin/requests/${r.id}`, { status: 'Approved' }).status).toBe(403)
-    expect(call(SUPPORT, 'GET', '/api/admin/users').status).toBe(200)
+    expect(call(SUPPORT, 'GET', '/api/admin/users').status).toBe(403)   // la gestion des comptes est réservée à l'Admin
+    expect(call(ADMIN, 'GET', '/api/admin/users').status).toBe(200)
     expect(call(SUPPORT, 'PUT', `/api/admin/users/${PERSONA.id}`, { isActive: false }).status).toBe(403)
   })
 })
@@ -184,5 +185,76 @@ describe('assistant de la démonstration', () => {
   it('sans critère, guide la personne', () => { expect(ask('bonjour').reply).toBe('help') })
   it('valide la longueur du message', () => {
     expect(call(PERSONA, 'POST', '/api/assistant/chat', { profileId: profileId(), message: '', locale: 'fr' }).status).toBe(400)
+  })
+})
+
+describe("assistant : négations et durées lues comme l'analyseur de l'API", () => {
+  const ask = (message: string) => call(PERSONA, 'POST', '/api/assistant/chat', { profileId: profileId(), message, locale: 'fr' }).json
+  const chip = (r: any, kind: string) => (r.understood as { kind: string; label: string }[]).find(c => c.kind === kind)
+  it('« pas trop long » est un plafond et non un plancher', () => {
+    for (const m of ['quelque chose pas trop long', 'not too long please']) {
+      const r = ask(m)
+      expect(chip(r, 'maxMinutes')?.label, m).toBe('9')
+      expect(chip(r, 'long'), m).toBeUndefined()
+      expect(r.cards.length, m).toBeGreaterThan(0)
+      expect(r.cards.every((c: any) => c.title.durationMinutes <= 9), m).toBe(true)
+    }
+  })
+  it('« pas trop court » est un plancher', () => {
+    const r = ask('un film pas trop court')
+    expect(chip(r, 'minMinutes')?.label).toBe('3')
+    expect(chip(r, 'short')).toBeUndefined()
+    // le catalogue de démonstration n'a presque que des courts : la réponse est « assouplie » quand rien ne dépasse 3 minutes
+    expect(['found', 'relaxed']).toContain(r.reply)
+    if (r.reply === 'found') expect(r.cards.every((c: any) => c.title.durationMinutes >= 3)).toBe(true)
+  })
+  it('« pas récent » et « pas classique » inversent l\'époque', () => {
+    expect(chip(ask('un drame pas récent'), 'before')?.label).toBe('2023')
+    expect(ask('un drame pas récent').cards.every((c: any) => c.title.year <= 2022)).toBe(true)
+    expect(chip(ask('un film pas classique'), 'after')?.label).toBe('1999')
+  })
+  it('nie un type seulement quand la négation le termine', () => {
+    const noSeries = ask('pas de série ce soir')
+    expect((noSeries.understood as { kind: string; label: string }[]).filter(c => c.kind === 'kind').map(c => c.label).sort()).toEqual(['Audiobook', 'Movie'])
+    expect(chip(ask('no movies please'), 'kind')).toBeDefined()
+    expect((ask('no movies please').understood as { kind: string; label: string }[]).some(c => c.kind === 'kind' && c.label === 'Movie')).toBe(false)
+    // « pas de film d'horreur » nie un genre : le type film reste demandé
+    const noHorror = ask("un film, pas de film d'horreur")
+    expect((noHorror.understood as { kind: string; label: string }[]).some(c => c.kind === 'kind' && c.label === 'Movie')).toBe(true)
+  })
+  it('« show » seul n\'est pas une demande de séries ; « 1h30 max » est reconnu', () => {
+    expect(chip(ask('show me something funny'), 'kind')).toBeUndefined()
+    expect(chip(ask('quelque chose de 1h30 max'), 'maxMinutes')?.label).toBe('90')
+    expect(chip(ask('2 heures maximum'), 'maxMinutes')?.label).toBe('120')
+    expect(chip(ask('90 min max'), 'maxMinutes')?.label).toBe('90')
+  })
+  it('en mode assoupli, les raisons ne reprennent pas les critères levés', () => {
+    const r = ask('un film de plus de 3 heures')
+    if (r.reply === 'relaxed') for (const c of r.cards) expect(((c.reason?.tags ?? []) as string[]).some(t => t.startsWith('≥') || t.startsWith('≤') || t === 'court')).toBe(false)
+    const r2 = ask('une comédie qui ne soit pas trop longue')
+    for (const c of r2.cards) if (r2.reply === 'relaxed') expect(((c.reason?.tags ?? []) as string[]).includes('long')).toBe(false)
+  })
+  it('« surprends-moi » respecte le genre demandé et les exclusions', () => {
+    const sf = ask('surprends-moi avec de la science-fiction')
+    expect(sf.reply).toBe('surprise')
+    expect(sf.cards.length).toBeGreaterThan(0)
+    expect(sf.cards.every((c: any) => c.title.genre === 'Science-fiction')).toBe(true)
+    const noGore = ask('surprends-moi sans gore')
+    expect(noGore.cards.length).toBeGreaterThan(0)
+    expect(noGore.cards.some((c: any) => c.title.genre === 'Horreur')).toBe(false)
+    expect(ask('surprise moi').reply).toBe('surprise')
+  })
+})
+
+describe("validation des adresses et des textes (comme l'API)", () => {
+  const base = { name: 'Essai', genre: 'Drame', year: 2000, kind: 'Movie', durationMinutes: 10 }
+  it('refuse les schémas dangereux et les caractères nuls, accepte http, https, media: et les chemins du site', () => {
+    for (const streamUrl of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,x', '//exemple.ca/x', 'ftp://exemple.ca/x', 'https://exemple.ca/a b', ' https://exemple.ca/x'])
+      expect(call(ADMIN, 'POST', '/api/admin/titles', { ...base, streamUrl }).status, streamUrl).toBe(400)
+    expect(call(ADMIN, 'POST', '/api/admin/titles', { ...base, name: 'a\u0000b' }).status).toBe(400)
+    expect(call(ADMIN, 'POST', '/api/admin/titles', { ...base, posterUrl: 'javascript:alert(1)' }).status).toBe(400)
+    for (const streamUrl of ['https://exemple.ca/film.mp4', 'http://exemple.ca/live.m3u8', 'media:ligne-9/index.m3u8'])
+      expect(call(ADMIN, 'POST', '/api/admin/titles', { ...base, name: `Essai ${streamUrl.length}`, streamUrl }).status, streamUrl).toBe(201)
+    expect(call(ADMIN, 'POST', '/api/admin/titles', { ...base, name: 'Essai image', posterUrl: '/api/media/art/x/poster.webp' }).status).toBe(201)
   })
 })
