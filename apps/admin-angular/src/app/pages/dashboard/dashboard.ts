@@ -1,9 +1,11 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, interval, of, startWith, switchMap } from 'rxjs';
 import { AdminService } from '../../core/admin.service';
+import { AuthService } from '../../core/auth.service';
+import { count } from '../../core/format';
 import type { SystemStatus } from '../../core/models';
 import { LiveService, type LiveKind } from '../../core/live.service';
 import { StatsStore } from '../../core/stats.store';
@@ -18,24 +20,24 @@ const EVENT_ICON: Record<LiveKind, IconName> = {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, DatePipe, DecimalPipe, Icon],
+  imports: [RouterLink, DatePipe, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px; }
-    .kpi { display: grid; gap: 4px; padding: 18px 20px; border-radius: 14px; background: var(--bg-1); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: border-color 160ms var(--ease), background 160ms var(--ease), transform 160ms var(--ease); }
-    a.kpi:hover { border-color: var(--line-strong); background: var(--bg-2); transform: translateY(-1px); }
+    .kpi { display: grid; align-content: start; gap: 4px; padding: 18px 20px; border-radius: 14px; background: var(--bg-1); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: border-color 160ms var(--ease), background 160ms var(--ease), transform 160ms var(--ease); }
+    a.kpi[href]:hover { border-color: var(--line-strong); background: var(--bg-2); transform: translateY(-1px); }
     .kpi .label { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 0.75rem; letter-spacing: 0.04em; }
     .kpi .value { font-family: var(--font-display); font-weight: 700; font-size: 2.3rem; line-height: 1.05; letter-spacing: -0.04em; }
     .kpi .hint { color: var(--text-3); font-size: 0.75rem; }
     .kpi[data-alert='true'] .value { color: var(--accent-hi); }
-    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; margin-bottom: 16px; }
     .split { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
     .split span { padding: 4px 12px; border-radius: 999px; background: var(--bg-3); color: var(--text-2); font-size: 0.8125rem; }
     .split b { color: var(--text); font-weight: 600; margin-right: 4px; }
     .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
     .bars li { display: grid; grid-template-columns: 120px 1fr 32px; gap: 12px; align-items: center; font-size: 0.8125rem; }
     .bar { height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; }
-    .bar i { display: block; height: 100%; border-radius: 3px; background: var(--brand-gradient-vivid); }
+    .bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
     .svc { list-style: none; margin: 0; padding: 0; }
     .svc li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
     .svc li:last-child { border: 0; }
@@ -66,7 +68,7 @@ const EVENT_ICON: Record<LiveKind, IconName> = {
         </a>
         <div class="kpi">
           <span class="label"><app-icon name="play" />Lectures sur 24 h</span>
-          <span class="value tnum">{{ s() ? (s()!.plays24h | number) : '·' }}</span>
+          <span class="value tnum">{{ s() ? fmt(s()!.plays24h) : '·' }}</span>
           <span class="hint">{{ s()?.activeProfiles7d ?? 0 }} profils actifs sur 7 jours</span>
         </div>
         <a class="kpi" routerLink="/catalog">
@@ -74,7 +76,7 @@ const EVENT_ICON: Record<LiveKind, IconName> = {
           <span class="value tnum">{{ s() ? s()!.playable : '·' }}</span>
           <span class="hint">sur {{ s()?.titles ?? 0 }} au catalogue</span>
         </a>
-        <a class="kpi" routerLink="/users">
+        <a class="kpi" [routerLink]="auth.isAdmin() ? '/users' : null">
           <span class="label"><app-icon name="users" />Comptes actifs</span>
           <span class="value tnum">{{ s() ? s()!.activeUsers : '·' }}</span>
           <span class="hint">{{ s()?.users ?? 0 }} comptes, dont {{ s()?.staff ?? 0 }} du personnel</span>
@@ -135,6 +137,7 @@ const EVENT_ICON: Record<LiveKind, IconName> = {
   `,
 })
 export class Dashboard {
+  protected readonly auth = inject(AuthService);
   protected readonly live = inject(LiveService);
   protected readonly store = inject(StatsStore);
   private readonly admin = inject(AdminService);
@@ -154,6 +157,7 @@ export class Dashboard {
       .subscribe(v => { if (v) this.status.set(v); });
   }
 
+  protected readonly fmt = count;
   protected icon = (k: LiveKind): IconName => EVENT_ICON[k];
   protected serviceLabel = (id: string) => SERVICE_LABEL[id] ?? id;
   protected stateLabel = (s: string) => (s === 'up' ? 'Tout fonctionne' : s === 'degraded' ? 'Service dégradé' : 'Panne');

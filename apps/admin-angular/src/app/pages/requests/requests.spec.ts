@@ -63,6 +63,16 @@ describe('Requests', () => {
     put.flush(req({ id: 'a', status: 'Approved' }));
   });
 
+  it('nomme chaque action par la demande concernée (plusieurs lignes portent le même verbe)', async () => {
+    const { fixture, ctl, el } = setup('Admin');
+    ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ id: 'a', name: 'Nosferatu', status: 'Pending' }), req({ id: 'b', name: 'Metropolis', status: 'Pending' })]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const names = [...el.querySelectorAll('button[aria-label]')].map(b => b.getAttribute('aria-label'));
+    expect(names).toEqual(['Approuver : Nosferatu', 'Refuser : Nosferatu', 'Approuver : Metropolis', 'Refuser : Metropolis']);
+  });
+
   it("n'offre aucune action au rôle Support (lecture seule)", async () => {
     const { fixture, ctl, el } = setup('Support');
     ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ status: 'Pending' })]);
@@ -70,6 +80,26 @@ describe('Requests', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect(buttons(el)).not.toContain('Approuver');
+    expect(el.textContent).toContain('Nosferatu');
+  });
+
+  it('un chargement raté affiche une erreur avec « Réessayer », jamais « Rien à afficher » (liste vide trompeuse)', async () => {
+    const { fixture, ctl, el } = setup('Admin');
+    ctl.expectOne(r => r.url === '/api/admin/requests').flush({}, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Chargement impossible');
+    expect(el.textContent).not.toContain('Rien à afficher');
+
+    [...el.querySelectorAll('button')].find(b => b.textContent!.trim() === 'Réessayer')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ status: 'Pending' })]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('Chargement impossible');
     expect(el.textContent).toContain('Nosferatu');
   });
 });

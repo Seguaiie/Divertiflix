@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, Injector, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -11,9 +11,11 @@ import { catchError, combineLatest, EMPTY, filter, switchMap, tap } from 'rxjs';
 import { AdminService } from '../../core/admin.service';
 import { AuthService } from '../../core/auth.service';
 import { ago, exact, KIND_LABEL, REQUEST_LABEL, REQUEST_TONE } from '../../core/format';
+import { restoreLostFocus } from '../../core/focus';
 import { LiveService } from '../../core/live.service';
 import type { AdminRequest, RequestStatus, TitleKind } from '../../core/models';
 import { problemMessage } from '../../core/problem';
+import { LoadError } from '../../shared/load-error';
 import { ACTION_LABEL, NEXT_STATUS } from '../../core/request-flow';
 import { RequestDialog, type RequestActionResult } from './request-dialog';
 
@@ -22,12 +24,13 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
 
 @Component({
   selector: 'app-requests',
-  imports: [MatTableModule, MatButtonModule, MatButtonToggleModule, MatProgressBarModule, MatTooltipModule],
+  imports: [MatTableModule, MatButtonModule, MatButtonToggleModule, MatProgressBarModule, MatTooltipModule, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
-    .note-text { display: block; margin-top: 4px; color: var(--text-2); font-size: 0.8125rem; max-width: 56ch; font-style: italic; }
-    .actions { width: 1%; white-space: nowrap; }
+    .note-text { display: block; margin-top: 4px; color: var(--text-2); font-size: 0.8125rem; max-width: 56ch; font-style: italic; overflow-wrap: anywhere; }
     td.mat-mdc-cell:first-child { min-width: 190px; }
+    /* Les boutons passent à la ligne quand la colonne est étroite : un peu d'air pour qu'ils ne touchent pas les bordures de la ligne. */
+    .row-actions { flex-wrap: wrap; padding-block: 6px; }
     .row-actions button { --mdc-outlined-button-container-height: 34px; --mat-button-outlined-container-height: 34px; }
     .loading { height: 3px; }
     mat-button-toggle-group { --mat-button-toggle-height: 40px; flex-wrap: wrap; }
@@ -52,7 +55,7 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
       <div class="panel">
         <div class="loading">@if (loading()) { <mat-progress-bar mode="indeterminate" aria-label="Chargement" /> }</div>
         <div class="scroll-x">
-          <table mat-table [dataSource]="rows()">
+          <table mat-table class="stack-860" [dataSource]="rows()" [trackBy]="trackById">
             <ng-container matColumnDef="name">
               <th mat-header-cell *matHeaderCellDef>Demande</th>
               <td mat-cell *matCellDef="let r"><span class="cell-main">{{ r.name }}</span>
@@ -61,7 +64,7 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
             </ng-container>
             <ng-container matColumnDef="by">
               <th mat-header-cell *matHeaderCellDef>Demandé par</th>
-              <td mat-cell *matCellDef="let r">{{ r.requestedBy }}<span class="cell-sub" [matTooltip]="exact(r.createdAt)">{{ ago(r.createdAt) }}</span></td>
+              <td mat-cell *matCellDef="let r" data-label="Demandé par">{{ r.requestedBy }}<span class="cell-sub" [matTooltip]="exact(r.createdAt)">{{ ago(r.createdAt) }}</span></td>
             </ng-container>
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>État</th>
@@ -71,8 +74,9 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
               <th mat-header-cell *matHeaderCellDef class="actions"><span class="visually-hidden">Actions</span></th>
               <td mat-cell *matCellDef="let r" class="actions">
                 <div class="row-actions">
-                  @for (next of nextOf(r); track next) {
-                    <button matButton="outlined" type="button" [disabled]="busy() === r.id" (click)="act(r, next)">{{ actionLabel[next] }}</button>
+                  <!-- track $index : après une décision, le premier bouton reste en place (et garde le focus) avec le libellé de l'action suivante. -->
+                  @for (next of nextOf(r); track $index) {
+                    <button matButton="outlined" type="button" disabledInteractive [disabled]="busy() === r.id" [attr.aria-label]="actionLabel[next] + ' : ' + r.name" (click)="act(r, next)">{{ actionLabel[next] }}</button>
                   }
                 </div>
               </td>
@@ -81,7 +85,9 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
             <tr mat-row *matRowDef="let row; columns: columns()"></tr>
           </table>
         </div>
-        @if (!loading() && rows().length === 0) {
+        @if (!loading() && failed() && rows().length === 0) {
+          <app-load-error message="Les demandes n'ont pas pu être lues : ce n'est pas une liste vide." (retry)="retry()" />
+        } @else if (!loading() && rows().length === 0) {
           <div class="empty"><strong>Rien à afficher</strong>{{ filter() === 'active' ? 'Aucune demande à traiter pour le moment.' : 'Aucune demande dans cet état.' }}</div>
         }
       </div>
@@ -94,27 +100,38 @@ export class Requests {
   private readonly dialog = inject(MatDialog);
   private readonly snack = inject(MatSnackBar);
   private readonly live = inject(LiveService);
+  private readonly injector = inject(Injector);
 
   protected readonly kindLabel = (k: TitleKind) => KIND_LABEL[k];
   protected readonly label = (s: RequestStatus) => REQUEST_LABEL[s];
   protected readonly tone = (s: RequestStatus) => REQUEST_TONE[s];
   protected readonly actionLabel = ACTION_LABEL;
+  // Lignes réutilisées d'un rechargement à l'autre : le focus ne se perd pas quand la liste se relit.
+  protected readonly trackById = (_: number, r: AdminRequest) => r.id;
   protected readonly ago = ago;
   protected readonly exact = exact;
 
   protected readonly filter = signal<Filter>('active');
   protected readonly loading = signal(true);
+  /** Le dernier chargement a échoué : une liste vide n'est alors pas « rien à traiter ». */
+  protected readonly failed = signal(false);
   protected readonly busy = signal<string | null>(null);
   private readonly reload = signal(0);
+  /** Une décision vient d'être prise : si la ligne a quitté la liste, le focus clavier est ramené sur la page. */
+  private afterDecision = false;
   protected readonly columns = computed(() => ['name', 'by', 'status', ...(this.auth.isAdmin() ? ['actions'] : [])]);
 
   private readonly all = toSignal(
     combineLatest([toObservable(this.reload), toObservable(this.live.tick)]).pipe(
       tap(() => this.loading.set(true)),
       switchMap(() => this.admin.requests().pipe(
-        catchError(e => { this.loading.set(false); this.snack.open(problemMessage(e, 'Chargement des demandes impossible.'), 'OK', { duration: 5000 }); return EMPTY; }),
+        catchError(e => { this.loading.set(false); this.failed.set(true); this.snack.open(problemMessage(e, 'Chargement des demandes impossible.'), 'OK', { duration: 5000 }); return EMPTY; }),
       )),
-      tap(() => this.loading.set(false)),
+      tap(() => {
+        this.loading.set(false);
+        this.failed.set(false);
+        if (this.afterDecision) { this.afterDecision = false; restoreLostFocus(this.injector); }
+      }),
     ),
     { initialValue: [] as AdminRequest[] },
   );
@@ -140,11 +157,13 @@ export class Requests {
     } else this.apply(r, next, {});
   }
 
+  protected retry(): void { this.reload.update(n => n + 1); }
+
   private apply(r: AdminRequest, status: RequestStatus, extra: RequestActionResult): void {
     this.busy.set(r.id);
     this.admin.updateRequest(r.id, { status, titleId: extra.titleId, reason: extra.reason }).subscribe({
-      next: () => { this.busy.set(null); this.snack.open(`« ${r.name} » : ${REQUEST_LABEL[status].toLowerCase()}`, 'OK', { duration: 3000 }); this.reload.update(n => n + 1); },
-      error: e => { this.busy.set(null); this.snack.open(problemMessage(e, 'Action impossible.'), 'OK', { duration: 6000 }); this.reload.update(n => n + 1); },
+      next: () => { this.busy.set(null); this.snack.open(`« ${r.name} » : ${REQUEST_LABEL[status].toLowerCase()}`, 'OK', { duration: 3000 }); this.afterDecision = true; this.reload.update(n => n + 1); },
+      error: e => { this.busy.set(null); this.snack.open(problemMessage(e, 'Action impossible.'), 'OK', { duration: 6000 }); this.afterDecision = true; this.reload.update(n => n + 1); },
     });
   }
 }

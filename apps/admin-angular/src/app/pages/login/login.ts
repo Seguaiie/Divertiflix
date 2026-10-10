@@ -23,7 +23,7 @@ import { HttpErrorResponse } from '@angular/common/http';
     button[type='submit'] { margin-top: 8px; height: 46px; }
   `,
   template: `
-    <div class="card">
+    <main class="card">
       @if (busy()) { <mat-progress-bar mode="indeterminate" aria-label="Connexion en cours" /> }
       <form [formGroup]="form" (ngSubmit)="submit()">
         <img class="logo" src="brand/logo.svg" alt="Divertiflix, stream without limits" width="260" height="172" />
@@ -40,7 +40,7 @@ import { HttpErrorResponse } from '@angular/common/http';
         @if (error()) { <p class="error-text" role="alert">{{ error() }}</p> }
         <button matButton="filled" type="submit" [disabled]="form.invalid || busy()">Se connecter</button>
       </form>
-    </div>
+    </main>
   `,
 })
 export class Login {
@@ -61,7 +61,8 @@ export class Login {
     this.auth.login(login.trim(), password).subscribe({
       next: user => {
         this.busy.set(false);
-        if (user.role === 'Subscriber') { this.auth.logout(); this.error.set("Ce compte n'a pas accès au back-office."); return; }
+        // Le service n'a pas gardé cette session (elle est révoquée) : il ne reste qu'à l'expliquer.
+        if (user.role === 'Subscriber') { this.error.set("Ce compte n'a pas accès au back-office."); return; }
         void this.router.navigate(['/']);
       },
       error: (e: unknown) => {

@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AdminService } from '../../core/admin.service';
-import { CATEGORY_LABEL, TICKET_LABEL, TICKET_TONE } from '../../core/format';
+import { CATEGORY_LABEL, exact, TICKET_LABEL, TICKET_TONE } from '../../core/format';
 import { LiveService } from '../../core/live.service';
 import type { AdminTicket, TicketDetail, TicketStatus } from '../../core/models';
 import { problemMessage } from '../../core/problem';
@@ -17,7 +16,7 @@ import { Icon } from '../../shared/icon';
 /** Fil d'un billet : l'agent lit la conversation, répond, et fait avancer l'état. Le fil se rafraîchit quand l'abonné écrit. */
 @Component({
   selector: 'app-ticket-dialog',
-  imports: [DatePipe, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatInputModule, Icon],
+  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatInputModule, Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host { display: block; width: min(640px, 92vw); }
@@ -42,7 +41,7 @@ import { Icon } from '../../shared/icon';
 
       <div class="thread" role="log" aria-label="Conversation" aria-live="polite">
         @for (m of detail()?.messages ?? []; track m.id) {
-          <div class="msg" [class.staff]="m.fromStaff"><p>{{ m.body }}</p><small>{{ m.fromStaff ? 'Équipe Divertiflix' : data.requester }} · {{ m.at | date: 'd MMM, HH:mm' }}</small></div>
+          <div class="msg" [class.staff]="m.fromStaff"><p>{{ m.body }}</p><small>{{ m.fromStaff ? 'Équipe Divertiflix' : data.requester }} · {{ exact(m.at) }}</small></div>
         } @empty { <p class="note">Chargement de la conversation.</p> }
       </div>
 
@@ -63,7 +62,7 @@ import { Icon } from '../../shared/icon';
         </mat-button-toggle-group>
       </div>
       <span style="flex:1"></span>
-      <button matButton type="button" [mat-dialog-close]="changed()">Fermer</button>
+      <button matButton type="button" mat-dialog-close>Fermer</button>
       <button matButton="filled" type="button" [disabled]="body.invalid || sending()" (click)="send()"><app-icon name="send" />Envoyer</button>
     </mat-dialog-actions>
   `,
@@ -77,11 +76,10 @@ export class TicketDialog {
   protected readonly label = TICKET_LABEL;
   protected readonly tone = TICKET_TONE;
   protected readonly category = CATEGORY_LABEL;
+  protected readonly exact = exact;
   protected readonly detail = signal<TicketDetail | null>(null);
   protected readonly status = signal<TicketStatus>(this.data.ticket.status);
   protected readonly sending = signal(false);
-  /** Vrai dès que l'agent a répondu ou changé l'état : la liste derrière se rafraîchit à la fermeture. */
-  protected readonly changed = signal(false);
   protected readonly body = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(4000), c => (String(c.value).trim() ? null : { blank: true })] });
 
   constructor() {
@@ -101,7 +99,7 @@ export class TicketDialog {
     if (!text || this.sending()) return;
     this.sending.set(true);
     this.admin.reply(this.data.ticket.id, text).subscribe({
-      next: () => { this.sending.set(false); this.body.reset(''); this.changed.set(true); this.load(); },
+      next: () => { this.sending.set(false); this.body.reset(''); this.load(); },
       error: e => { this.sending.set(false); this.snack.open(problemMessage(e, "Échec de l'envoi."), 'OK', { duration: 6000 }); },
     });
   }
@@ -111,7 +109,6 @@ export class TicketDialog {
     const before = this.status();
     this.status.set(s);
     this.admin.setTicketStatus(this.data.ticket.id, s).subscribe({
-      next: () => { this.changed.set(true); },
       error: e => { this.status.set(before); this.snack.open(problemMessage(e, "Échec du changement d'état."), 'OK', { duration: 6000 }); },
     });
   }

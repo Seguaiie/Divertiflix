@@ -27,13 +27,13 @@ import { fromTitle, toUpsert } from '../../core/title-form';
       <mat-dialog-content>
         <div class="grid">
           <h3>Identité</h3>
-          <mat-form-field class="full"><mat-label>Nom</mat-label><input matInput formControlName="name" maxlength="200" required /></mat-form-field>
+          <mat-form-field class="full"><mat-label>Nom</mat-label><input matInput formControlName="name" maxlength="200" required /><mat-error>Le nom est obligatoire.</mat-error></mat-form-field>
           <mat-form-field><mat-label>Type</mat-label>
             <mat-select formControlName="kind"><mat-option value="Movie">Film</mat-option><mat-option value="Series">Série</mat-option><mat-option value="Audiobook">Livre audio</mat-option></mat-select>
           </mat-form-field>
-          <mat-form-field><mat-label>Genre</mat-label><input matInput formControlName="genre" maxlength="60" required /></mat-form-field>
-          <mat-form-field><mat-label>Année</mat-label><input matInput type="number" formControlName="year" min="1888" max="2200" /></mat-form-field>
-          <mat-form-field><mat-label>Durée (minutes)</mat-label><input matInput type="number" formControlName="durationMinutes" min="0" max="6000" /></mat-form-field>
+          <mat-form-field><mat-label>Genre</mat-label><input matInput formControlName="genre" maxlength="60" required /><mat-error>Le genre est obligatoire.</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Année</mat-label><input matInput type="number" formControlName="year" min="1" max="2200" /><mat-error>Une année entre 1 et 2200.</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Durée (minutes)</mat-label><input matInput type="number" formControlName="durationMinutes" min="0" max="6000" /><mat-error>Une durée entre 0 et 6000 minutes.</mat-error></mat-form-field>
           <mat-form-field class="full"><mat-label>Synopsis</mat-label><textarea matInput rows="3" formControlName="synopsis" maxlength="4000"></textarea></mat-form-field>
 
           <h3>{{ isBook() ? 'Livre audio' : 'Distribution' }}</h3>
@@ -58,7 +58,7 @@ import { fromTitle, toUpsert } from '../../core/title-form';
           <mat-form-field><mat-label>Classification</mat-label>
             <mat-select formControlName="maturity"><mat-option value="">Non précisée</mat-option>@for (m of maturities; track m) { <mat-option [value]="m">{{ m }}</mat-option> }</mat-select>
           </mat-form-field>
-          <mat-form-field><mat-label>Note sur 10</mat-label><input matInput type="number" formControlName="rating" min="0" max="10" step="0.1" /></mat-form-field>
+          <mat-form-field><mat-label>Note sur 10</mat-label><input matInput type="number" formControlName="rating" min="0" max="10" step="0.1" /><mat-error>Une note entre 0 et 10.</mat-error></mat-form-field>
           <mat-form-field class="full"><mat-label>Crédits et licence</mat-label><input matInput formControlName="credits" maxlength="300" />
             <mat-hint>Obligatoire pour les contenus sous licence CC BY, par exemple « © Blender Foundation, CC BY 3.0 »</mat-hint></mat-form-field>
         </div>
@@ -82,7 +82,7 @@ export class TitleDialog {
       synopsis: [v.synopsis, Validators.maxLength(4000)],
       kind: [v.kind, Validators.required],
       genre: [v.genre, [Validators.required, Validators.maxLength(60)]],
-      year: [v.year, [Validators.required, Validators.min(1888), Validators.max(2200)]],
+      year: [v.year, [Validators.required, Validators.min(1), Validators.max(2200)]],
       durationMinutes: [v.durationMinutes, [Validators.required, Validators.min(0), Validators.max(6000)]],
       posterUrl: [v.posterUrl], backdropUrl: [v.backdropUrl], streamUrl: [v.streamUrl],
       author: [v.author], narrator: [v.narrator], director: [v.director],

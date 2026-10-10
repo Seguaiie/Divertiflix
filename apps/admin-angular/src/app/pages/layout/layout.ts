@@ -38,31 +38,34 @@ import { Icon } from '../../shared/icon';
     nav a.item { position: relative; display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-weight: 500; transition: background 140ms, color 140ms; }
     nav a.item:hover { background: var(--bg-3); color: var(--text); }
     nav a.item.active { background: var(--bg-3); color: var(--text); }
-    nav a.item.active::before { content: ''; position: absolute; left: -12px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand-gradient-vivid); }
+    nav a.item.active::before { content: ''; position: absolute; left: -12px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
     nav a.item.active app-icon { color: var(--accent); }
-    .count { margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 999px; background: var(--brand-gradient); color: var(--on-brand); font-size: 0.6875rem; font-weight: 700; }
+    .count { margin-left: auto; min-width: 22px; height: 20px; padding: 0 7px; display: grid; place-items: center; border-radius: 999px; background: var(--accent-lo); color: var(--on-brand); font-size: 0.6875rem; font-weight: 700; }
     .sep { flex: 1; }
     .foot { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; }
     main { outline: none; }
     @media (max-width: 959px) {
       .menu { display: inline-flex; }
-      .who, .lbl, .brand span { display: none; }
+      .who, .brand span { display: none; }
+      .live .lbl { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      .btn .lbl { display: none; }
       .brand img { height: 22px; }
       .topbar { gap: 8px; }
     }
+    @media (max-width: 359px) { .brand img { height: 18px; } }
   `,
   template: `
-    <a class="skip" href="#main">Aller au contenu</a>
+    <a class="skip" href="#main" (click)="skipToContent($event)">Aller au contenu</a>
     <header class="topbar">
       <button class="btn menu" type="button" (click)="menuOpen.set(!menuOpen())" aria-label="Menu de navigation" [attr.aria-expanded]="menuOpen()"><app-icon name="menu" /></button>
       <a class="brand" routerLink="/dashboard" aria-label="Divertiflix, tableau de bord"><img src="brand/lockup.svg" alt="Divertiflix" width="248" height="28" /><span>Back-office</span></a>
       <span class="grow"></span>
-      <span class="live" [attr.data-on]="live.connected()" role="status"><i></i><span class="lbl">{{ live.connected() ? 'En direct' : 'Hors ligne' }}</span></span>
+      <span class="live" [attr.data-on]="live.connected()" [attr.title]="live.connected() ? 'En direct' : 'Hors ligne'" role="status"><i></i><span class="lbl">{{ live.connected() ? 'En direct' : 'Hors ligne' }}</span></span>
       <div class="who"><strong>{{ auth.user()?.email }}</strong><small>{{ role() }}</small></div>
       <button class="btn" type="button" (click)="auth.logout()" aria-label="Déconnexion"><app-icon name="logout" /><span class="lbl">Déconnexion</span></button>
     </header>
     <mat-sidenav-container>
-      <mat-sidenav [mode]="narrow() ? 'over' : 'side'" [opened]="!narrow() || menuOpen()" (closedStart)="menuOpen.set(false)" [fixedInViewport]="narrow()" [fixedTopGap]="56">
+      <mat-sidenav [mode]="narrow() ? 'over' : 'side'" [opened]="!narrow() || menuOpen()" (closedStart)="menuOpen.set(false)" (openedChange)="onDrawer($event)" [fixedInViewport]="narrow()" [fixedTopGap]="56">
         <nav aria-label="Navigation principale">
           <a class="item" routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page"><app-icon name="dashboard" />Tableau de bord</a>
           <a class="item" routerLink="/catalog" routerLinkActive="active" ariaCurrentWhenActive="page"><app-icon name="catalog" />Catalogue</a>
@@ -88,8 +91,22 @@ export class Layout {
   private readonly router = inject(Router);
 
   protected readonly menuOpen = signal(false);
+  /** Le menu se referme parce qu'on a choisi une page : une fois fermé, le focus doit aller au contenu et non revenir au bouton du menu. */
+  private focusContentOnClose = false;
   protected readonly narrow = toSignal(inject(BreakpointObserver).observe('(max-width: 959px)').pipe(map(r => r.matches)), { initialValue: false });
   protected readonly role = () => ROLE_LABEL[this.auth.user()?.role ?? 'Subscriber'];
+
+  /** Le lien « #main » pointerait vers l'accueil à cause de <base href="/"> : on place le focus sur le contenu sans naviguer. */
+  protected skipToContent(e: Event): void {
+    e.preventDefault();
+    document.getElementById('main')?.focus();
+  }
+
+  protected onDrawer(opened: boolean): void {
+    if (opened || !this.focusContentOnClose) return;
+    this.focusContentOnClose = false;
+    document.getElementById('main')?.focus({ preventScroll: true });
+  }
 
   constructor() {
     this.live.start();
@@ -101,6 +118,7 @@ export class Layout {
 
     // Après chaque navigation : menu refermé (mobile), focus sur le contenu pour les lecteurs d'écran.
     this.router.events.pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed()).subscribe(() => {
+      this.focusContentOnClose = this.menuOpen();
       this.menuOpen.set(false);
       document.getElementById('main')?.focus({ preventScroll: true });
     });

@@ -1,4 +1,4 @@
-import { ago } from './format';
+import { ago, count, day } from './format';
 
 describe('ago', () => {
   const now = new Date('2026-10-09T12:00:00Z').getTime();
@@ -13,5 +13,13 @@ describe('ago', () => {
 
   it('repasse à une date au-delà de 30 jours', () => {
     expect(ago(at(60 * 86400), now)).toMatch(/2026|août/);
+  });
+});
+
+describe('day et count', () => {
+  it('écrivent les mois et les milliers à la française', () => {
+    expect(day('2026-10-09T12:00:00Z')).toMatch(/^9 oct\.? 2026$/);
+    expect(day('2026-08-03T12:00:00Z')).toContain('août');
+    expect(count(1234567).replace(/\s/g, ' ')).toBe('1 234 567');
   });
 });

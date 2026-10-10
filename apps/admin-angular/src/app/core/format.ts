@@ -26,7 +26,13 @@ export function ago(date: string | Date, now = Date.now()): string {
   if (abs < 3600) return rtf.format(Math.round(diff / 60), 'minute');
   if (abs < 86400) return rtf.format(Math.round(diff / 3600), 'hour');
   if (abs < 86400 * 30) return rtf.format(Math.round(diff / 86400), 'day');
-  return new Date(date).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' });
+  return day(date);
 }
 
 export const exact = (date: string | Date) => new Date(date).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' });
+
+/** « 9 oct. 2026 » : les mois restent en français (le DatePipe d'Angular les écrirait en anglais sans données de langue). */
+export const day = (date: string | Date) => new Date(date).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** « 1 234 » : séparateur de milliers français. */
+export const count = (n: number) => n.toLocaleString('fr-CA');
