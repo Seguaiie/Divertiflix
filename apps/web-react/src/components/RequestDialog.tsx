@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n'
 import { api, call, type S } from '../lib/api'
+import { errorText } from '../lib/errors'
 import { useDialog } from '../hooks/useDialog'
 import { keys } from '../state/queries'
 import { useToast } from '../state/toast'
@@ -33,7 +35,7 @@ export function RequestDialog() {
       void qc.invalidateQueries({ queryKey: keys.myRequests })
       void qc.invalidateQueries({ queryKey: ['home'] })
     },
-    onError: e => setError((e as Error).message),
+    onError: e => setError(errorText(e, t, { 409: 'request.conflict' })),
   })
   const cancel = useMutation({
     mutationFn: (id: string) => call(api.DELETE('/api/requests/{id}', { params: { path: { id } } })),
@@ -44,7 +46,8 @@ export function RequestDialog() {
   const submit = (e: FormEvent) => { e.preventDefault(); if (name.trim()) create.mutate() }
   const statusLabel = (s: S['RequestCardDto']['status']) => t(`request.status.${s}` as never)
 
-  return (
+  // Sous <body> : à même z-index, le dernier dialogue ouvert est au-dessus (la demande peut s'ouvrir depuis la palette, par-dessus une fiche).
+  return createPortal(
     <div className="overlay" style={{ display: 'grid', placeItems: 'center', padding: 16, overflowY: 'auto' }} onMouseDown={e => { if (e.target === e.currentTarget) closeRequest() }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="rq-title" ref={ref} style={{ width: 'min(560px, 100%)', padding: 'clamp(20px, 4vw, 32px)', display: 'grid', gap: 22 }}>
         <header className="row-flex">
@@ -78,6 +81,7 @@ export function RequestDialog() {
           </section>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

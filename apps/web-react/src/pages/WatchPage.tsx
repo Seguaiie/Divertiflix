@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n'
@@ -6,7 +6,7 @@ import { api, ApiError, call } from '../lib/api'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../state/auth'
 import { useDock } from '../state/dock'
-import { keys, useDetail } from '../state/queries'
+import { useDetail } from '../state/queries'
 import { Player } from '../components/Player'
 
 /** Page de lecture : charge la fiche et l'URL de lecture (signée, durée courte), puis confie la suite au lecteur. */
@@ -16,13 +16,14 @@ export function WatchPage() {
   const { profileId } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const qc = useQueryClient()
   const dock = useDock()
   const detail = useDetail(id)
   const playback = useQuery({
     queryKey: ['playback', profileId, id],
     enabled: !!profileId,
-    gcTime: 0, staleTime: 0, refetchOnWindowFocus: false, retry: false,
+    // L'URL est signée et change à chaque appel : la relire au retour du réseau ou au remontage ferait redémarrer le film.
+    // On n'en redemande une que sur « Réessayer ».
+    gcTime: 0, staleTime: 0, refetchOnWindowFocus: false, refetchOnReconnect: false, refetchOnMount: false, retry: false,
     queryFn: () => call(api.GET('/api/titles/{id}/playback', { params: { path: { id }, query: { profileId: profileId ?? undefined } } })),
   })
   const title = detail.data?.card.title
@@ -30,18 +31,13 @@ export function WatchPage() {
 
   const back = useCallback(() => (location.key !== 'default' ? navigate(-1) : navigate('/', { replace: true })), [navigate, location.key])
 
-  // Le « Continuer à regarder » et les recommandations dépendent de ce qu'on vient de regarder.
-  useEffect(() => () => {
-    void qc.invalidateQueries({ queryKey: keys.home(profileId ?? '') })
-    void qc.invalidateQueries({ queryKey: ['detail', profileId] })
-  }, [qc, profileId])
-
   // Un livre audio ouvert par erreur sur la page de lecture vidéo : on le confie au lecteur persistant.
   useEffect(() => {
     if (title && playback.data?.kind === 'Audio') { void dock.play(title); back() }
   }, [title, playback.data?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (detail.isError || playback.isError) {
+  // L'écran d'erreur n'a de sens que sans rien à montrer : une relecture en arrière-plan qui échoue ne remplace pas un film en cours.
+  if ((detail.isError && !detail.data) || (playback.isError && !playback.data)) {
     const unavailable = playback.error instanceof ApiError && playback.error.status === 409
     return (
       <div className="player" style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
@@ -53,5 +49,5 @@ export function WatchPage() {
   if (!title || !playback.data || !profileId || playback.data.kind === 'Audio') {
     return <div className="player" style={{ display: 'grid', placeItems: 'center' }} role="status"><span className="spinner" style={{ width: 44, height: 44 }} /><span className="visually-hidden">{t('common.loading')}</span></div>
   }
-  return <Player key={playback.data.url} profileId={profileId} title={title} playback={playback.data} similar={detail.data?.similar ?? []} onBack={back} onRetry={() => void playback.refetch()} />
+  return <Player key={title.id} profileId={profileId} title={title} playback={playback.data} similar={detail.data?.similar ?? []} onBack={back} onRetry={() => void playback.refetch()} />
 }

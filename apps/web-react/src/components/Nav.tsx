@@ -1,5 +1,5 @@
 import { BookOpen, Clapperboard, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, UserRound } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { usePopover } from '../hooks/usePopover'
@@ -20,6 +20,7 @@ export function Nav() {
   const { setPaletteOpen, setAssistantOpen, assistantOpen, openRequest, openSupport } = useUI()
   const navigate = useNavigate()
   const menu = usePopover()
+  const focusFirst = useRef(false)
   const [scrolled, setScrolled] = useState(false)
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => call(api.GET('/api/profiles')), enabled: !!user })
   const profile = profiles.data?.find(p => p.id === profileId)
@@ -30,6 +31,21 @@ export function Nav() {
     window.addEventListener('scroll', on, { passive: true })
     return () => window.removeEventListener('scroll', on)
   }, [])
+
+  // Menu du profil : flèches haut et bas, Début et Fin parcourent les entrées ; Flèche bas sur le bouton l'ouvre et va à la première.
+  useEffect(() => {
+    if (menu.open && focusFirst.current) menu.ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    focusFirst.current = false
+  }, [menu.open, menu.ref])
+  const onMenuKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
+    const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+    const at = items.indexOf(document.activeElement as HTMLElement)
+    if (!menu.open) { if (e.key === 'ArrowDown') { e.preventDefault(); focusFirst.current = true; menu.setOpen(true) } return }
+    e.preventDefault()
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : e.key === 'ArrowDown' ? (at + 1) % items.length : (at <= 0 ? items.length - 1 : at - 1)
+    items[next]?.focus()
+  }
 
   const links = [
     { to: '/', label: t('nav.home'), icon: Home, end: true },
@@ -54,7 +70,7 @@ export function Nav() {
           <Sparkles aria-hidden /><span>{t('nav.assistantShort')}</span>
         </button>
         <NotificationBell />
-        <div className="popover-root" ref={menu.ref}>
+        <div className="popover-root" ref={menu.ref} onKeyDown={onMenuKey}>
           <button className="nav-avatar" data-popover-trigger aria-expanded={menu.open} aria-haspopup="menu" aria-label={t('nav.account', { name: profile?.name ?? user?.email ?? '' })} onClick={() => menu.setOpen(!menu.open)}>
             <Avatar name={profile?.name ?? user?.email ?? '?'} size={34} />
           </button>
@@ -65,8 +81,8 @@ export function Nav() {
                 <div><strong>{profile?.name}</strong><span>{user?.email}</span></div>
               </div>
               <button role="menuitem" onClick={() => { menu.close(); selectProfile(null); navigate('/profils') }}><UserRound aria-hidden />{t('menu.switchProfile')}</button>
-              <button role="menuitem" onClick={() => { menu.close(); openRequest() }}><PlusCircle aria-hidden />{t('menu.request')}</button>
-              <button role="menuitem" onClick={() => { menu.close(); openSupport() }}><LifeBuoy aria-hidden />{t('menu.help')}</button>
+              <button role="menuitem" onClick={() => { menu.close(true); openRequest() }}><PlusCircle aria-hidden />{t('menu.request')}</button>
+              <button role="menuitem" onClick={() => { menu.close(true); openSupport() }}><LifeBuoy aria-hidden />{t('menu.help')}</button>
               <button role="menuitem" onClick={() => setLocale(locale === 'fr' ? 'en' : 'fr')}><Languages aria-hidden />{locale === 'fr' ? 'English' : 'Français'}</button>
               {isStaff && <a role="menuitem" href="/admin/"><Settings2 aria-hidden />{t('menu.backoffice')}</a>}
               <hr />

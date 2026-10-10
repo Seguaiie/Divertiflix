@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Clapperboard, Home, LifeBuoy, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { api, call, type Title } from '../lib/api'
+import { titleLink } from '../lib/links'
 import { useDebounced } from '../hooks/useDebounced'
 import { useDialog } from '../hooks/useDialog'
 import { useAuth } from '../state/auth'
@@ -59,7 +61,7 @@ export function CommandPalette() {
     const titles: Item[] = (results.data?.items ?? []).map(title => ({
       id: title.id, kind: 'title', label: title.name, title,
       hint: [title.kind === 'Audiobook' ? title.author : String(title.year), genre(title.genre)].filter(Boolean).join(' · '),
-      run: () => { close(); navigate(`/titres/${title.id}`, { state: { background: location } }) },
+      run: () => { close(); const { to, ...opts } = titleLink(location, title.id); navigate(to, opts) },
     }))
     const shown = needle ? actions.filter(a => norm(a.label).includes(needle)) : actions
     const ask: Item[] = needle.length >= 4 ? [{ id: 'ask', kind: 'ask', label: t('palette.ask', { q: q.trim() }), icon: Sparkles, run: () => { close(); ui.askAssistant(q.trim()) } }] : []
@@ -80,7 +82,8 @@ export function CommandPalette() {
   if (!ui.paletteOpen) return null
   const optionId = (i: number) => `pal-opt-${i}`
 
-  return (
+  // Sous <body> : à même z-index, le dernier dialogue ouvert est au-dessus (la palette peut s'ouvrir par-dessus une fiche ou l'assistant).
+  return createPortal(
     <div className="overlay pal-overlay" onMouseDown={e => { if (e.target === e.currentTarget) close() }}>
       <div className="sheet pal" role="dialog" aria-modal="true" aria-label={t('palette.title')} ref={ref}>
         <div className="pal-input">
@@ -105,6 +108,7 @@ export function CommandPalette() {
         </ul>
         <div className="pal-foot"><span><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd> {t('palette.navigate')}</span><span><kbd className="kbd">↵</kbd> {t('palette.open')}</span></div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -17,8 +17,9 @@
   .dock-seek input::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: var(--accent-hi); }
   .dock-seek input::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent-hi); border: 0; }
   .dock-rate { min-width: 52px; }
+  @media (max-width: 960px) { .dock { bottom: 64px; } }
   @media (max-width: 720px) {
-    .dock { bottom: 64px; height: 76px; grid-template-columns: 52px 1fr auto auto; gap: 10px; }
+    .dock { height: 76px; grid-template-columns: 52px 1fr auto auto; gap: 10px; }
     .dock-seek, .dock-rate { display: none; }
   }
 }

@@ -11,6 +11,12 @@ export const en: Record<Key, string> & Record<string, string> = {
   'common.loading': 'Loading',
   'common.retry': 'Try again',
   'common.save': 'Save',
+
+  'error.network': 'Cannot connect. Check your network and try again.',
+  'error.invalid': 'Check the information you entered.',
+  'error.rateLimited': 'Too many attempts. Wait a moment before trying again.',
+  'error.server': 'The service is temporarily unavailable. Try again in a moment.',
+  'error.generic': 'Something went wrong. Try again.',
   'toast.region': 'Notifications',
   'toast.newTitle': 'New in the catalogue',
 
@@ -130,6 +136,7 @@ export const en: Record<Key, string> & Record<string, string> = {
   'request.status.Downloading': 'Being prepared',
   'request.status.Available': 'Available',
   'request.status.Declined': 'Declined',
+  'request.conflict': 'This title is already available or already requested, or you have reached your limit of open requests.',
 
   'browse.filmsEyebrow': 'Catalogue',
   'browse.filmsHelp': 'Original short films and royalty-free films. Titles marked "On request" are not in the catalogue yet.',
@@ -286,6 +293,7 @@ export const en: Record<Key, string> & Record<string, string> = {
   'support.messageHelp': 'Describe what happens and on which title.',
   'support.submit': 'Send',
   'support.sent': 'Ticket sent. We reply here.',
+  'support.conflict': 'You have too many open tickets. Reply to an existing ticket.',
   'support.reply': 'Your reply',
   'support.staff': 'Support',
   'support.you': 'You',
@@ -345,6 +353,7 @@ export const en: Record<Key, string> & Record<string, string> = {
   'profiles.edit': 'Edit profile {name}',
   'profiles.delete': 'Delete profile {name}',
   'profiles.confirm': 'Delete?',
+  'profiles.conflict': 'Not possible: five profiles at most, and at least one must remain.',
 
   'notFound.title': 'Page not found',
   'notFound.help': 'This page does not exist or has moved.',

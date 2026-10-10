@@ -1,6 +1,8 @@
 @layer components {
+  /* Voile : l'assistant est une fenêtre modale, le fond n'est plus actionnable ; un clic dessus ferme le panneau. */
+  .as-scrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgb(var(--ink) / 0.5); animation: fade-in var(--dur-2) var(--ease); }
   .assistant {
-    position: fixed; z-index: var(--z-panel); top: 0; right: 0; bottom: 0; width: min(460px, 100vw); display: grid; grid-template-rows: auto 1fr auto; border-width: 0 0 0 1px;
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); display: grid; grid-template-rows: auto 1fr auto; border-width: 0 0 0 1px;
     background: var(--glass-strong); box-shadow: -30px 0 90px rgb(0 0 0 / 0.5); animation: slide-in var(--dur-3) var(--ease);
   }
   @keyframes slide-in { from { translate: 40px 0; opacity: 0; } }

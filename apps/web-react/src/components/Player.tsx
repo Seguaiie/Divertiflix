@@ -1,10 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Captions, Gauge, Maximize, Minimize, Pause, PictureInPicture2, Play, RotateCcw, RotateCw, Settings2, Volume1, Volume2, VolumeX } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import type Hls from 'hls.js'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { Card, S } from '../lib/api'
 import { saveProgress } from '../lib/progress'
+import { useDock } from '../state/dock'
+import { refreshAfterProgress } from '../state/queries'
 import { Artwork } from './Art'
 import './Player.css'
 
@@ -35,6 +38,8 @@ interface Props {
  */
 export function Player({ profileId, title, playback, similar, onBack, onRetry }: Props) {
   const { t, clock } = useI18n()
+  const qc = useQueryClient()
+  const { pause: pauseDock } = useDock()
   const video = useRef<HTMLVideoElement>(null)
   const shell = useRef<HTMLDivElement>(null)
   const hls = useRef<Hls | null>(null)
@@ -63,6 +68,8 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
   const [audios, setAudios] = useState<Track[]>([])
   const [audioTrack, setAudioTrack] = useState(0)
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null)
+  const overlay = ended || error // fin de film ou erreur : une boîte de dialogue recouvre les commandes
+  const hadOverlay = useRef(false)
 
   // ------------------------------------------------------------------ Source
   useEffect(() => {
@@ -103,9 +110,10 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
   }, [playback.url, playback.kind, playback.startSeconds])
 
   // ------------------------------------------------------------------ Progression
+  /** Envoie la position ; la promesse se résout quand le serveur a répondu (jamais rejetée). */
   const flush = useCallback((keepalive = false, atEnd = false) => {
     const { pos, dur } = last.current
-    if (dur > 0 && (pos > 2 || atEnd)) void saveProgress(profileId, title.id, atEnd ? dur : pos, dur, { keepalive })
+    return dur > 0 && (pos > 2 || atEnd) ? saveProgress(profileId, title.id, atEnd ? dur : pos, dur, { keepalive }) : Promise.resolve()
   }, [profileId, title.id])
 
   useEffect(() => {
@@ -115,10 +123,18 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
   }, [playing, flush])
 
   useEffect(() => {
-    const onHide = () => flush(true)
+    const onHide = () => { void flush(true) }
     window.addEventListener('pagehide', onHide)
-    return () => { window.removeEventListener('pagehide', onHide); flush(true) } // aussi en quittant la page de lecture
-  }, [flush])
+    return () => {
+      window.removeEventListener('pagehide', onHide)
+      // En quittant la page de lecture : « Continuer à regarder » et les recommandations dépendent de cette dernière position. On ne les
+      // rafraîchit qu'une fois l'envoi terminé, sinon le GET de l'accueil part en même temps que le PUT et peut lire l'ancien état.
+      void flush(true).then(() => refreshAfterProgress(qc, profileId))
+    }
+  }, [flush, qc, profileId])
+
+  // Un livre audio du lecteur persistant (absent de cette page) ne doit pas se superposer à la bande-son du film.
+  useEffect(() => { pauseDock() }, [pauseDock])
 
   // ------------------------------------------------------------------ Actions
   const toggle = useCallback(() => { const v = video.current; if (v) void (v.paused ? v.play().catch(() => undefined) : v.pause()) }, [])
@@ -160,6 +176,13 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
     return () => { for (const a of ['play', 'pause', 'seekbackward', 'seekforward'] as const) navigator.mediaSession.setActionHandler(a, null) }
   }, [title.name, title.posterUrl, toggle, skip])
 
+  // La boîte de dialogue prend le focus (il resterait sinon sur une commande masquée dessous) et le rend aux commandes quand elle se ferme.
+  useEffect(() => {
+    if (overlay) shell.current?.querySelector<HTMLElement>('.pl-end [data-autofocus]')?.focus()
+    else if (hadOverlay.current && document.activeElement === document.body) shell.current?.querySelector<HTMLElement>('.pl-bar .icon-btn')?.focus()
+    hadOverlay.current = overlay
+  }, [overlay])
+
   // ------------------------------------------------------------------ Clavier
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -200,8 +223,20 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
     setHover({ x: ratio * 100, t: ratio * duration })
   }
 
+  // Menus de réglage : flèches, Début et Fin parcourent les entrées (menu ouvert seulement : fermé, les flèches règlent le volume),
+  // Échap ou le choix d'une entrée referment le menu et rendent le focus à son bouton.
+  const menuTrigger = (wrap: HTMLElement) => wrap.querySelector<HTMLElement>('[aria-expanded]')
   const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') { e.stopPropagation(); setMenu(null) }
+    if (e.key === 'Escape') { e.stopPropagation(); setMenu(null); menuTrigger(e.currentTarget)?.focus(); return }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
+    const items = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitemradio"]')]
+    if (items.length === 0) return
+    e.preventDefault(); e.stopPropagation()
+    const at = items.indexOf(document.activeElement as HTMLElement)
+    items[e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : e.key === 'ArrowDown' ? (at + 1) % items.length : (at <= 0 ? items.length - 1 : at - 1)]?.focus()
+  }
+  const onMenuClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('[role="menuitemradio"]')) menuTrigger(e.currentTarget)?.focus() // l'entrée disparaît avec le menu
   }
 
   const volIcon = muted || volume === 0 ? <VolumeX /> : volume < 0.5 ? <Volume1 /> : <Volume2 />
@@ -234,11 +269,11 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
           last.current.pos = v.currentTime
           if (v.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1))
         }}
-        onEnded={() => { setEnded(true); setPlaying(false); flush(true, true) }}
+        onEnded={() => { setEnded(true); setPlaying(false); void flush(true, true) }}
         onError={() => { if (playback.kind !== 'Hls') setError(true) }}
       />
 
-      <div className="pl-top">
+      <div className="pl-top" inert={overlay || undefined}>
         <button className="icon-btn" onClick={onBack} aria-label={t('player.back')}><ArrowLeft /></button>
         <h1 className="display">{title.name}</h1>
       </div>
@@ -246,7 +281,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
       {buffering && !error && !ended && <div className="pl-center" role="status"><span className="spinner" /><span className="visually-hidden">{t('common.loading')}</span></div>}
       {!playing && !buffering && !ended && !error && <button className="pl-bigplay" onClick={toggle} aria-label={t('player.play')}><Play fill="currentColor" /></button>}
 
-      <div className="pl-bottom">
+      <div className="pl-bottom" inert={overlay || undefined}>
         <div className="pl-seek" onPointerMove={onBarHover} onPointerLeave={() => setHover(null)}>
           <div className="pl-track" aria-hidden>
             <i className="buf" style={{ width: `${duration ? (buffered / duration) * 100 : 0}%` }} />
@@ -272,12 +307,12 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
           <span className="pl-time tnum">{clock(time)} <em>/ {clock(duration)}</em></span>
           <span className="grow" />
 
-          <div className="pl-menu-wrap" onKeyDown={onMenuKey}>
+          <div className="pl-menu-wrap" onKeyDown={onMenuKey} onClick={onMenuClick}>
             <button className="icon-btn plain" onClick={() => setMenu(menu === 'speed' ? null : 'speed')} aria-expanded={menu === 'speed'} aria-label={t('player.speed')} title={t('player.speed')}><Gauge /></button>
             {menu === 'speed' && <ul className="pl-menu glass-panel" role="menu">{SPEEDS.map(s => <li key={s}><button role="menuitemradio" aria-checked={rate === s} onClick={() => applyRate(s)}>{s === 1 ? t('player.normal') : `${s}×`}</button></li>)}</ul>}
           </div>
           {levels.length > 0 && (
-            <div className="pl-menu-wrap" onKeyDown={onMenuKey}>
+            <div className="pl-menu-wrap" onKeyDown={onMenuKey} onClick={onMenuClick}>
               <button className="icon-btn plain" onClick={() => setMenu(menu === 'quality' ? null : 'quality')} aria-expanded={menu === 'quality'} aria-label={t('player.quality')} title={t('player.quality')}><Settings2 /></button>
               {menu === 'quality' && (
                 <ul className="pl-menu glass-panel" role="menu">
@@ -288,7 +323,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
             </div>
           )}
           {subs.length > 0 && (
-            <div className="pl-menu-wrap" onKeyDown={onMenuKey}>
+            <div className="pl-menu-wrap" onKeyDown={onMenuKey} onClick={onMenuClick}>
               <button className="icon-btn plain" onClick={() => setMenu(menu === 'subs' ? null : 'subs')} aria-expanded={menu === 'subs'} aria-label={t('player.subtitles')} title={`${t('player.subtitles')} (C)`}><Captions /></button>
               {menu === 'subs' && (
                 <ul className="pl-menu glass-panel" role="menu">
@@ -299,7 +334,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
             </div>
           )}
           {audios.length > 0 && (
-            <div className="pl-menu-wrap" onKeyDown={onMenuKey}>
+            <div className="pl-menu-wrap" onKeyDown={onMenuKey} onClick={onMenuClick}>
               <button className="icon-btn plain" onClick={() => setMenu(menu === 'audio' ? null : 'audio')} aria-expanded={menu === 'audio'} aria-label={t('player.audio')} title={t('player.audio')}><Volume2 /></button>
               {menu === 'audio' && <ul className="pl-menu glass-panel" role="menu">{audios.map(a => <li key={a.index}><button role="menuitemradio" aria-checked={audioTrack === a.index} onClick={() => { if (hls.current) hls.current.audioTrack = a.index; setAudioTrack(a.index); setMenu(null) }}>{a.label}</button></li>)}</ul>}
             </div>
@@ -310,7 +345,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
       </div>
 
       {ended && (
-        <div className="pl-end" role="dialog" aria-label={t('player.endTitle')}>
+        <div className="pl-end" role="dialog" aria-modal="true" aria-label={t('player.endTitle')}>
           <p className="eyebrow">{t('player.endEyebrow')}</p>
           <h2 className="display">{title.name}</h2>
           <div className="pl-end-actions">
@@ -336,8 +371,8 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
       )}
 
       {error && (
-        <div className="pl-end" role="alert">
-          <h2 className="display">{t('player.errorTitle')}</h2>
+        <div className="pl-end" role="alertdialog" aria-modal="true" aria-labelledby="pl-error-title">
+          <h2 id="pl-error-title" className="display">{t('player.errorTitle')}</h2>
           <p>{t('player.errorHelp')}</p>
           <div className="pl-end-actions">
             <button className="btn btn-primary" onClick={onRetry} data-autofocus><RotateCcw aria-hidden />{t('common.retry')}</button>

@@ -9,6 +9,12 @@ export const fr = {
   'common.loading': 'Chargement',
   'common.retry': 'Réessayer',
   'common.save': 'Enregistrer',
+
+  'error.network': 'Connexion impossible. Vérifiez votre réseau et réessayez.',
+  'error.invalid': 'Vérifiez les informations saisies.',
+  'error.rateLimited': 'Trop de tentatives. Patientez un instant avant de réessayer.',
+  'error.server': 'Le service est momentanément indisponible. Réessayez dans un instant.',
+  'error.generic': 'Une erreur est survenue. Réessayez.',
   'toast.region': 'Notifications',
   'toast.newTitle': 'Nouveau au catalogue',
 
@@ -128,6 +134,7 @@ export const fr = {
   'request.status.Downloading': 'En préparation',
   'request.status.Available': 'Disponible',
   'request.status.Declined': 'Refusée',
+  'request.conflict': 'Ce titre est déjà disponible ou déjà demandé, ou vous avez atteint votre limite de demandes en cours.',
 
   'browse.filmsEyebrow': 'Catalogue',
   'browse.filmsHelp': 'Courts-métrages originaux et films libres de droits. Les titres « Sur demande » ne sont pas encore au catalogue.',
@@ -284,6 +291,7 @@ export const fr = {
   'support.messageHelp': 'Décrivez ce qui se passe et sur quel titre.',
   'support.submit': 'Envoyer',
   'support.sent': 'Billet envoyé. Nous vous répondons ici.',
+  'support.conflict': 'Vous avez trop de billets ouverts. Répondez à un billet existant.',
   'support.reply': 'Votre réponse',
   'support.staff': 'Support',
   'support.you': 'Vous',
@@ -343,6 +351,7 @@ export const fr = {
   'profiles.edit': 'Modifier le profil {name}',
   'profiles.delete': 'Supprimer le profil {name}',
   'profiles.confirm': 'Supprimer ?',
+  'profiles.conflict': 'Action impossible : cinq profils au maximum, et il faut en garder au moins un.',
 
   'notFound.title': 'Page introuvable',
   'notFound.help': 'Cette page n\'existe pas ou a été déplacée.',

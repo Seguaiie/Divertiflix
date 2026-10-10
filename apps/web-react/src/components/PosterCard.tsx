@@ -2,6 +2,7 @@ import { Check, Headphones, Info, Play, Plus, ThumbsDown, ThumbsUp } from 'lucid
 import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { Card } from '../lib/api'
+import { titleLink } from '../lib/links'
 import { reasonText } from '../lib/reason'
 import { usePlayTitle } from '../hooks/usePlay'
 import { useRate, useWatchlistToggle } from '../state/queries'
@@ -28,7 +29,7 @@ export function PosterCard({ card, showReason = false, rated = true }: { card: C
   return (
     <article className="card" data-kind={isBook ? 'book' : 'film'} data-available={title.isPlayable}>
       <div className="card-frame">
-        <Link to={`/titres/${title.id}`} state={{ background: location }} className="card-link" aria-label={`${title.name}. ${meta.filter(Boolean).join(', ')}`}>
+        <Link {...titleLink(location, title.id)} className="card-link" aria-label={`${title.name}. ${meta.filter(Boolean).join(', ')}`}>
           <div className="card-art">
             <Artwork src={title.posterUrl} seed={title.id} genre={title.genre} ratio={isBook ? 'square' : 'poster'} />
             <div className="card-shade" aria-hidden />

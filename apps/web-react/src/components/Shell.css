@@ -9,7 +9,7 @@
   .nav[data-scrolled='true'] { background: var(--glass); backdrop-filter: blur(22px) saturate(1.5); border-bottom-color: var(--line); }
   .logo { display: block; height: 34px; width: auto; flex: none; }
   .nav-links { display: flex; gap: 4px; margin-left: clamp(8px, 2vw, 28px); }
-  .nav-links a { position: relative; padding: 8px 12px; color: var(--text-2); font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-sm); transition: color var(--dur-1); }
+  .nav-links a { position: relative; padding: 8px 12px; color: var(--text-2); font-size: 0.875rem; font-weight: 500; white-space: nowrap; border-radius: var(--radius-sm); transition: color var(--dur-1); }
   .nav-links a:hover { color: var(--text); }
   .nav-links a[aria-current='page'] { color: var(--text); }
   .nav-links a[aria-current='page']::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--brand-gradient-vivid); }
@@ -21,7 +21,7 @@
   }
   .nav-search:hover { border-color: var(--text-3); color: var(--text-2); }
   .nav-search svg { width: 16px; height: 16px; }
-  .nav-search span { flex: 1; text-align: left; }
+  .nav-search span { flex: 1; min-width: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nav-search-icon { display: none; }
   .nav-assistant span { display: inline; }
   .nav-avatar { border-radius: 50%; display: grid; place-items: center; outline-offset: 3px; }
@@ -77,16 +77,18 @@
   .status-pop ul { display: grid; gap: 10px; }
   .status-pop li { display: flex; align-items: center; gap: 10px; font-size: 0.875rem; }
 
-  /* ------------------------------------------------------------------ Mobile */
+  /* ------------------------------------------------------------------ Tablette et mobile */
   .tabbar { display: none; }
-  @media (max-width: 960px) {
-    .nav-links, .nav-search { display: none; }
+  /* Sous 1180 px, logo, quatre liens, recherche, assistant, cloche et avatar ne tiennent plus sur une ligne : la recherche et l'assistant passent en icônes. */
+  @media (max-width: 1180px) {
+    .nav-search { display: none; }
     .nav-search-icon { display: inline-grid; }
     .nav-assistant span { display: none; }
     .nav-assistant { padding: 0 10px; }
   }
-  @media (max-width: 720px) {
-    .nav-assistant { display: none; }
+  /* Sous 960 px (tablette en portrait comprise), la navigation passe dans la barre d'onglets, en bas, à portée du pouce. */
+  @media (max-width: 960px) {
+    .nav-links, .nav-assistant { display: none; }
     .tabbar {
       display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; inset: auto 0 0 0; z-index: var(--z-nav); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
       background: var(--glass-strong); backdrop-filter: blur(22px) saturate(1.5); border-top: 1px solid var(--line);
@@ -94,6 +96,7 @@
     .tabbar a, .tabbar button { display: grid; justify-items: center; gap: 3px; padding: 6px 2px; font-size: 0.625rem; font-weight: 500; color: var(--text-3); border-radius: var(--radius-sm); }
     .tabbar svg { width: 21px; height: 21px; }
     .tabbar a[aria-current='page'], .tabbar button[aria-pressed='true'] { color: var(--accent-hi); }
+    html { scroll-padding-bottom: calc(var(--dock-h) + 64px + 96px); }
     body { padding-bottom: calc(var(--dock-h) + 64px); }
     .toasts { bottom: calc(76px + var(--dock-h)); }
     .footer { padding-bottom: 28px; }

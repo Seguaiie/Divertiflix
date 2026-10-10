@@ -29,21 +29,46 @@ export const session = {
 
 let refreshing: Promise<string | null> | null = null
 
-/** Un seul refresh à la fois : le jeton de rafraîchissement est à usage unique (rotation côté API). */
+/**
+ * Verrou partagé entre les onglets du navigateur quand il existe (navigator.locks) ; sinon, ou s'il est refusé (origine opaque,
+ * page sandboxée), on s'en passe. `fn` ne rejette jamais : la relancer après un refus du verrou est sans risque.
+ */
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    const locked = navigator.locks?.request('divertiflix-refresh', fn)
+    return locked ? locked.catch(() => fn()) : fn()
+  } catch { return fn() }
+}
+
+/**
+ * Un seul refresh à la fois : le jeton de rafraîchissement est à usage unique (rotation côté API).
+ * Seul un 400 ou un 401 signifie que ce jeton est mort : un 429 ou un 5xx (limiteur, redéploiement) est passager, la session reste.
+ * Entre onglets, celui qui perd la course reçoit un 401 alors que le gagnant a déjà écrit la session suivante : on la reprend.
+ */
 export function refresh(): Promise<string | null> {
   refreshing ??= (async () => {
-    const s = session.get()
-    if (!s) return null
-    try {
-      const res = await fetch('/api/auth/refresh', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: s.refreshToken }),
-      })
-      if (!res.ok) { session.clear(); window.dispatchEvent(new Event(LOGOUT_EVENT)); return null }
-      const data = (await res.json()) as AuthResponse
-      session.set(data) // met aussi à jour l'utilisateur : un rôle modifié côté serveur se voit sans reconnexion
-      window.dispatchEvent(new CustomEvent('divertiflix:user', { detail: data.user }))
-      return data.accessToken
-    } catch { return null } // réseau coupé : on garde la session, on réessaiera
+    const before = session.get()
+    if (!before) return null
+    return withRefreshLock(async () => {
+      const s = session.get()
+      if (!s) return null
+      if (s.refreshToken !== before.refreshToken) return s.accessToken // un autre onglet a renouvelé pendant l'attente du verrou
+      try {
+        const res = await fetch('/api/auth/refresh', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: s.refreshToken }),
+        })
+        if (res.status === 400 || res.status === 401) {
+          const now = session.get()
+          if (now && now.refreshToken !== s.refreshToken) return now.accessToken // sans verrou, l'autre onglet a gagné la rotation
+          session.clear(); window.dispatchEvent(new Event(LOGOUT_EVENT)); return null
+        }
+        if (!res.ok) return null // panne passagère : on garde la session, on réessaiera
+        const data = (await res.json()) as AuthResponse
+        session.set(data) // met aussi à jour l'utilisateur : un rôle modifié côté serveur se voit sans reconnexion
+        window.dispatchEvent(new CustomEvent('divertiflix:user', { detail: data.user }))
+        return data.accessToken
+      } catch { return null } // réseau coupé : on garde la session, on réessaiera
+    })
   })().finally(() => { refreshing = null })
   return refreshing
 }
@@ -68,6 +93,7 @@ export function problemText(error: unknown, fallback: string): string {
   return first ?? fallback
 }
 
+/** Erreur d'appel. Le message est technique (texte du serveur, en français) et n'est jamais affiché tel quel : l'interface passe par errorText. */
 export class ApiError extends Error {
   status: number
   constructor(message: string, status: number) { super(message); this.status = status }

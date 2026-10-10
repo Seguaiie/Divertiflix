@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { api, call } from '../lib/api'
+import { errorText } from '../lib/errors'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../state/auth'
 import { Avatar } from '../components/Avatar'
@@ -27,7 +28,7 @@ export function ProfilesPage() {
 
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => call(api.GET('/api/profiles')) })
   const refresh = () => qc.invalidateQueries({ queryKey: ['profiles'] })
-  const fail = (e: unknown) => setError((e as Error).message)
+  const fail = (e: unknown) => setError(errorText(e, t, { 409: 'profiles.conflict' }))
   const create = useMutation({ mutationFn: (n: string) => call(api.POST('/api/profiles', { body: { name: n } })), onSuccess: () => { setName(''); setAdding(false); setError(null); void refresh() }, onError: fail })
   const rename = useMutation({ mutationFn: (p: { id: string; name: string }) => call(api.PUT('/api/profiles/{id}', { params: { path: { id: p.id } }, body: { name: p.name } })), onSuccess: () => { setEditing(null); setError(null); void refresh() }, onError: fail })
   const remove = useMutation({ mutationFn: (id: string) => call(api.DELETE('/api/profiles/{id}', { params: { path: { id } } })), onSuccess: () => { setConfirm(null); setError(null); void refresh() }, onError: fail })

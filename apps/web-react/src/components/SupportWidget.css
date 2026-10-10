@@ -29,5 +29,6 @@
   .sp-reply .textarea { min-height: 56px; }
   .sp-reply .icon-btn.accent { width: 46px; height: 46px; background: var(--brand-gradient); color: var(--on-brand); border-color: transparent; }
   .sp-reply .icon-btn.accent:disabled { background: var(--bg-3); color: var(--text-3); border-color: var(--line); }
-  @media (max-width: 720px) { .sp-fab { bottom: calc(76px + var(--dock-h)); } .sp-fab span { display: none; } .sp-fab { padding: 0 14px; } .sp { bottom: calc(76px + var(--dock-h)); } }
+  @media (max-width: 960px) { .sp-fab, .sp { bottom: calc(76px + var(--dock-h)); } }
+  @media (max-width: 720px) { .sp-fab span { display: none; } .sp-fab { padding: 0 14px; } }
 }

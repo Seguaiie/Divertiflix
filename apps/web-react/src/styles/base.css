@@ -13,7 +13,7 @@
 }
 
 @layer base {
-  html { background: radial-gradient(900px 460px at 8% -120px, rgb(var(--accent-rgb) / 0.11), transparent 70%) no-repeat, var(--bg-0); scroll-padding-top: calc(var(--nav-h) + 16px); }
+  html { background: radial-gradient(900px 460px at 8% -120px, rgb(var(--accent-rgb) / 0.11), transparent 70%) no-repeat, var(--bg-0); scroll-padding-top: calc(var(--nav-h) + 16px); scroll-padding-bottom: calc(var(--dock-h) + 96px); }
   body {
     min-height: 100dvh;
     background: var(--bg-0);

@@ -5,6 +5,7 @@ import { useI18n } from '../i18n'
 import { usePlayTitle } from '../hooks/usePlay'
 import { useReducedMotion } from '../hooks/useMedia'
 import type { Card } from '../lib/api'
+import { titleLink } from '../lib/links'
 import { reasonText } from '../lib/reason'
 import { useWatchlistToggle, type Home } from '../state/queries'
 import { Artwork } from './Art'
@@ -82,7 +83,7 @@ export function Hero({ items }: { items: Home['hero'] }) {
             <Play fill="currentColor" aria-hidden />
             {!title.isPlayable ? t('hero.details') : mode === 'continue' ? t('hero.resume') : isBook ? t('hero.listen') : t('hero.play')}
           </button>
-          <Link className="btn btn-glass btn-lg hero-info" to={`/titres/${title.id}`} state={{ background: location }} aria-label={t('hero.more')}><Info aria-hidden /><span>{t('hero.more')}</span></Link>
+          <Link className="btn btn-glass btn-lg hero-info" {...titleLink(location, title.id)} aria-label={t('hero.more')}><Info aria-hidden /><span>{t('hero.more')}</span></Link>
           <HeroListButton card={card} onToggle={add => toggle.mutate({ titleId: title.id, add })} />
         </div>
         {mode === 'continue' && card.progress && (

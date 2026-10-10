@@ -15,6 +15,8 @@ interface DockState {
   rate: number
   buffering: boolean
   play(title: Pick<Title, 'id' | 'name' | 'author' | 'posterUrl'>): Promise<void>
+  /** Met l'écoute en pause sans fermer le lecteur : la lecture d'un film ne doit pas se superposer à un livre audio. */
+  pause(): void
   toggle(): void
   seek(seconds: number): void
   skip(delta: number): void
@@ -64,6 +66,8 @@ export function DockProvider({ children }: { children: ReactNode }) {
   // Un changement de compte ou de profil arrête l'écoute : ce que l'on écoute appartient à un profil.
   useEffect(() => { if (!profileId) { audio.current?.pause(); setCurrent(null) } }, [profileId])
 
+  const pause = useCallback(() => { audio.current?.pause() }, [])
+
   const play = useCallback(async (title: Pick<Title, 'id' | 'name' | 'author' | 'posterUrl'>) => {
     try {
       const pb = await call(api.GET('/api/titles/{id}/playback', { params: { path: { id: title.id }, query: { profileId: profileId ?? undefined } } }))
@@ -80,13 +84,13 @@ export function DockProvider({ children }: { children: ReactNode }) {
   }, [profileId, persist, rate, toast, t])
 
   const value = useMemo<DockState>(() => ({
-    current, playing, position, duration, rate, buffering, play,
+    current, playing, position, duration, rate, buffering, play, pause,
     toggle: () => { const a = audio.current; if (a) void (a.paused ? a.play() : a.pause()) },
     seek: s => { if (audio.current) audio.current.currentTime = Math.max(0, Math.min(s, audio.current.duration || s)) },
     skip: d => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min(a.currentTime + d, a.duration || Infinity)) },
     setRate: r => { setRateState(r); if (audio.current) audio.current.playbackRate = r },
     close: () => { persist(); audio.current?.pause(); if (audio.current) audio.current.removeAttribute('src'); audio.current?.load(); setCurrent(null); setPlaying(false) },
-  }), [current, playing, position, duration, rate, buffering, play, persist])
+  }), [current, playing, position, duration, rate, buffering, play, pause, persist])
 
   return (
     <Ctx.Provider value={value}>

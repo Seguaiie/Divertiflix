@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, ExternalLink, Headphones, Info, Play, Plus, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n'
 import { api, call, type Card, type S } from '../lib/api'
+import { errorText } from '../lib/errors'
 import { reasonText } from '../lib/reason'
 import { useDialog } from '../hooks/useDialog'
 import { usePlayTitle } from '../hooks/usePlay'
@@ -28,7 +30,7 @@ function RequestBlock({ title, request }: { title: S['TitleDto']; request: S['Re
       void qc.invalidateQueries({ queryKey: keys.home(profileId!) })
       void qc.invalidateQueries({ queryKey: keys.myRequests })
     },
-    onError: e => toast.push({ kind: 'error', text: (e as Error).message }),
+    onError: e => toast.push({ kind: 'error', text: errorText(e, t, { 409: 'request.conflict' }) }),
   })
 
   if (!request) {
@@ -66,7 +68,8 @@ export function TitleModal({ id, onClose }: { id: string; onClose(): void }) {
   const title = card?.title
   const labelId = `tm-${id}`
 
-  return (
+  // Sous <body> : un lien direct, un rechargement ou un toast ouvrent la fiche dans <main>, dont le contexte d'empilement la placerait sous la navigation et la barre d'onglets.
+  return createPortal(
     <div className="overlay tm-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="sheet tm" role="dialog" aria-modal="true" aria-labelledby={labelId} ref={ref}>
         <button className="icon-btn tm-close" onClick={onClose} aria-label={t('common.close')}><X /></button>
@@ -130,7 +133,8 @@ export function TitleModal({ id, onClose }: { id: string; onClose(): void }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

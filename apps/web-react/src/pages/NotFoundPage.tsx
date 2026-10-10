@@ -8,7 +8,7 @@ export function NotFoundPage() {
   return (
     <div className="page"><div className="empty">
       <p className="eyebrow">404</p>
-      <h2>{t('notFound.title')}</h2><p>{t('notFound.help')}</p>
+      <h1>{t('notFound.title')}</h1><p>{t('notFound.help')}</p>
       <Link className="btn btn-primary" to="/">{t('nav.home')}</Link>
     </div></div>
   )

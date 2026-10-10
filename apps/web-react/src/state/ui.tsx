@@ -12,7 +12,8 @@ interface UIState {
   request: { open: boolean; prefill: string }
   openRequest(prefill?: string): void
   closeRequest(): void
-  support: { open: boolean; ticketId: string | null }
+  /** `opener` : l'élément qui avait le focus à l'ouverture, pour le lui rendre à la fermeture (le bouton flottant disparaît pendant l'ouverture). */
+  support: { open: boolean; ticketId: string | null; opener: HTMLElement | null }
   openSupport(ticketId?: string | null): void
   closeSupport(): void
 }
@@ -29,11 +30,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [assistantPrompt, setAssistantPrompt] = useState<string | null>(null)
   const [request, setRequest] = useState({ open: false, prefill: '' })
-  const [support, setSupport] = useState<{ open: boolean; ticketId: string | null }>({ open: false, ticketId: null })
+  const [support, setSupport] = useState<UIState['support']>({ open: false, ticketId: null, opener: null })
 
   const openRequest = useCallback((prefill = '') => setRequest({ open: true, prefill }), [])
   const closeRequest = useCallback(() => setRequest(r => ({ ...r, open: false })), [])
-  const openSupport = useCallback((ticketId: string | null = null) => setSupport({ open: true, ticketId }), [])
+  const openSupport = useCallback((ticketId: string | null = null) => {
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null // lu avant le rendu : le déclencheur est encore là
+    setSupport(s => ({ open: true, ticketId, opener: s.open ? s.opener : active })) // rouvrir un billet depuis le panneau ne change pas le déclencheur
+  }, [])
   const closeSupport = useCallback(() => setSupport(s => ({ ...s, open: false })), [])
 
   // Raccourcis globaux : Ctrl/Cmd+K ou « / » (palette), Ctrl/Cmd+J (assistant).

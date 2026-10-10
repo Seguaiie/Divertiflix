@@ -59,6 +59,18 @@ export function patchTitleState(qc: QueryClient, profileId: string, titleId: str
   qc.setQueryData<Card[]>(keys.watchlist(profileId), list => list && (patch.inWatchlist === false ? list.filter(c => c.title.id !== titleId) : list.map(fix)))
 }
 
+/**
+ * À appeler une fois la progression de lecture réellement enregistrée : l'accueil et les fiches la reflètent alors. Une lecture déjà
+ * partie (l'accueil se monte au moment où le lecteur envoie sa position) a pu lire l'ancien état : on l'annule avant de relire,
+ * car invalider seul laisserait aboutir une première lecture encore sans données.
+ */
+export async function refreshAfterProgress(qc: QueryClient, profileId: string) {
+  for (const queryKey of [keys.home(profileId), ['detail', profileId]]) {
+    await qc.cancelQueries({ queryKey })
+    void qc.invalidateQueries({ queryKey })
+  }
+}
+
 function snapshot(qc: QueryClient, profileId: string) {
   return {
     home: qc.getQueryData<Home>(keys.home(profileId)),
@@ -87,7 +99,8 @@ export function useWatchlistToggle() {
       return snap
     },
     onError: (_e, _v, snap) => { if (snap) restore(qc, profileId!, snap) },
-    onSettled: () => { void qc.invalidateQueries({ queryKey: keys.watchlist(profileId!) }) },
+    // La promesse est rendue : la mutation reste « en cours » jusqu'à ce que la liste soit relue, sans retour furtif à l'ancien état.
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.watchlist(profileId!) }),
   })
 }
 

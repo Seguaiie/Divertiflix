@@ -3,6 +3,13 @@ import { useEffect, useRef, type RefObject } from 'react'
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
 /**
+ * Dialogues ouverts, du plus ancien au plus récent (la fiche d'un titre peut s'ouvrir par-dessus l'assistant, la palette par-dessus la fiche).
+ * Seul le dernier réagit à Échap et à Tab ; le fond reste verrouillé tant qu'il en reste un.
+ */
+const stack: object[] = []
+let lock: { overflow: string; padding: string } | null = null
+
+/**
  * Comportement de dialogue accessible : focus piégé, Échap, retour du focus à l'élément d'origine, défilement du fond bloqué.
  * Le conteneur doit porter role="dialog" et aria-modal="true".
  */
@@ -13,12 +20,15 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
   useEffect(() => {
     if (!open) return
     const node = ref.current
+    const me = {}
     const previous = document.activeElement as HTMLElement | null
-    const scrollbar = window.innerWidth - document.documentElement.clientWidth
-    const prevOverflow = document.body.style.overflow
-    const prevPad = document.body.style.paddingRight
-    document.body.style.overflow = 'hidden'
-    if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`
+    stack.push(me)
+    if (!lock) {
+      const scrollbar = window.innerWidth - document.documentElement.clientWidth
+      lock = { overflow: document.body.style.overflow, padding: document.body.style.paddingRight }
+      document.body.style.overflow = 'hidden'
+      if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`
+    }
 
     queueMicrotask(() => {
       const target = (opts.initialFocus ? node?.querySelector<HTMLElement>(opts.initialFocus) : null) ?? node?.querySelector<HTMLElement>(FOCUSABLE) ?? node
@@ -26,6 +36,7 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
     })
 
     const onKey = (e: KeyboardEvent) => {
+      if (stack[stack.length - 1] !== me) return
       if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); return }
       if (e.key !== 'Tab' || !node) return
       const items = [...node.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(el => el.offsetParent !== null || el === document.activeElement)
@@ -37,9 +48,15 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
     document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('keydown', onKey, true)
-      document.body.style.overflow = prevOverflow
-      document.body.style.paddingRight = prevPad
-      previous?.focus?.({ preventScroll: true })
+      const wasTop = stack[stack.length - 1] === me
+      stack.splice(stack.indexOf(me), 1)
+      if (stack.length === 0 && lock) {
+        document.body.style.overflow = lock.overflow
+        document.body.style.paddingRight = lock.padding
+        lock = null
+      }
+      // Fermé sous un autre dialogue (Ctrl+J sous une fiche) : le focus reste dans celui qui est au-dessus.
+      if (wasTop) previous?.focus?.({ preventScroll: true })
     }
   }, [open, ref, opts.initialFocus])
 }

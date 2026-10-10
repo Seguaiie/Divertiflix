@@ -1,13 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Info, Play, Plus, Check, RotateCcw, Send, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { useI18n } from '../i18n'
-import { api, call, type Card, type S } from '../lib/api'
+import { api, ApiError, call, type Card, type S } from '../lib/api'
+import { titleLink } from '../lib/links'
 import { reasonText } from '../lib/reason'
+import { useDialog } from '../hooks/useDialog'
 import { usePlayTitle } from '../hooks/usePlay'
 import { useAuth } from '../state/auth'
-import { useHome, useWatchlistToggle } from '../state/queries'
+import { useHome, useWatchlist, useWatchlistToggle } from '../state/queries'
 import { useUI } from '../state/ui'
 import { Artwork } from './Art'
 import './AssistantPanel.css'
@@ -21,12 +24,16 @@ function AssistantCard({ card }: { card: Card }) {
   const location = useLocation()
   const play = usePlayTitle()
   const toggle = useWatchlistToggle()
+  const watchlist = useWatchlist()
   const title = card.title
+  // L'état vient de la liste du profil (cache partagé), pas de la réponse figée du chat ; pendant l'envoi, on montre déjà le résultat attendu.
+  const listed = watchlist.data ? watchlist.data.some(c => c.title.id === title.id) : card.inWatchlist
+  const inList = toggle.isPending ? toggle.variables.add : listed
   const why = reasonText(card.reason, i18n)
   const book = title.kind === 'Audiobook'
   return (
     <li className="ac">
-      <Link to={`/titres/${title.id}`} state={{ background: location }} className="ac-art" aria-label={t('card.details', { title: title.name })}>
+      <Link {...titleLink(location, title.id)} className="ac-art" aria-label={t('card.details', { title: title.name })}>
         <Artwork src={title.posterUrl} seed={title.id} genre={title.genre} ratio={book ? 'square' : 'poster'} />
       </Link>
       <div className="ac-body">
@@ -35,9 +42,9 @@ function AssistantCard({ card }: { card: Card }) {
         {why && <span className="ac-why">{why}</span>}
         <div className="ac-actions">
           <button className="btn btn-primary btn-sm" onClick={() => play(title)}><Play fill="currentColor" aria-hidden />{book ? t('hero.listen') : t('hero.play')}</button>
-          <button className="icon-btn sm" aria-pressed={card.inWatchlist} onClick={() => toggle.mutate({ titleId: title.id, add: !card.inWatchlist })}
-            aria-label={card.inWatchlist ? t('card.removeFromList', { title: title.name }) : t('card.addToList', { title: title.name })}>{card.inWatchlist ? <Check /> : <Plus />}</button>
-          <Link className="icon-btn sm" to={`/titres/${title.id}`} state={{ background: location }} aria-label={t('card.details', { title: title.name })}><Info /></Link>
+          <button className="icon-btn sm" aria-pressed={inList} onClick={() => toggle.mutate({ titleId: title.id, add: !inList })}
+            aria-label={inList ? t('card.removeFromList', { title: title.name }) : t('card.addToList', { title: title.name })}>{inList ? <Check /> : <Plus />}</button>
+          <Link className="icon-btn sm" {...titleLink(location, title.id)} aria-label={t('card.details', { title: title.name })}><Info /></Link>
         </div>
       </div>
     </li>
@@ -102,7 +109,9 @@ export function AssistantPanel() {
   const [text, setText] = useState('')
   const seq = useRef(0)
   const list = useRef<HTMLDivElement>(null)
-  const input = useRef<HTMLTextAreaElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  // Fenêtre modale : focus piégé, Échap, défilement du fond bloqué et focus rendu au bouton qui l'a ouverte.
+  useDialog(assistantOpen, () => setAssistantOpen(false), panel, { initialFocus: '#as-input' })
 
   const chat = useMutation({
     mutationFn: (message: string) => call(api.POST('/api/assistant/chat', { body: { profileId: profileId!, message, locale: i18n.locale } })),
@@ -111,7 +120,7 @@ export function AssistantPanel() {
       // L'état des cartes (liste, pouces) vient du serveur : on garde le cache de l'accueil cohérent.
       void qc.invalidateQueries({ queryKey: ['watchlist'] })
     },
-    onError: e => setMsgs(m => [...m, { id: ++seq.current, role: 'assistant', error: (e as Error).message === 'network' ? t('assistant.offline') : t('assistant.error') }]),
+    onError: e => setMsgs(m => [...m, { id: ++seq.current, role: 'assistant', error: e instanceof ApiError && e.status === 0 ? t('assistant.offline') : t('assistant.error') }]),
   })
 
   const ask = (message: string) => {
@@ -122,15 +131,8 @@ export function AssistantPanel() {
     chat.mutate(q)
   }
 
-  useEffect(() => { if (assistantOpen) queueMicrotask(() => input.current?.focus()) }, [assistantOpen])
   useEffect(() => { if (assistantOpen && assistantPrompt) { ask(assistantPrompt); clearAssistantPrompt() } }, [assistantOpen, assistantPrompt]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { list.current?.scrollTo({ top: list.current.scrollHeight, behavior: 'smooth' }) }, [msgs.length, chat.isPending])
-  useEffect(() => {
-    if (!assistantOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) setAssistantOpen(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [assistantOpen, setAssistantOpen])
 
   if (!assistantOpen) return null
 
@@ -141,53 +143,57 @@ export function AssistantPanel() {
 
   const onSubmit = (e: FormEvent) => { e.preventDefault(); ask(text) }
 
-  return (
-    <aside className="assistant glass-panel" aria-label={t('assistant.title')}>
-      <header className="as-head">
-        <div>
-          <p className="eyebrow">{t('assistant.eyebrow')}</p>
-          <h2 className="display">{t('assistant.title')}</h2>
+  // Sous <body>, comme la fiche, la palette et la demande : à même z-index, le dernier ouvert est au-dessus, ce qui suit la pile de useDialog.
+  return createPortal(
+    <div className="as-scrim" onMouseDown={e => { if (e.target === e.currentTarget) setAssistantOpen(false) }}>
+      <div className="assistant glass-panel" role="dialog" aria-modal="true" aria-label={t('assistant.title')} ref={panel}>
+        <header className="as-head">
+          <div>
+            <p className="eyebrow">{t('assistant.eyebrow')}</p>
+            <h2 className="display">{t('assistant.title')}</h2>
+          </div>
+          {msgs.length > 0 && <button className="icon-btn plain sm" onClick={() => setMsgs([])} aria-label={t('assistant.clear')} title={t('assistant.clear')}><RotateCcw /></button>}
+          <button className="icon-btn plain sm" onClick={() => setAssistantOpen(false)} aria-label={t('common.close')}><X /></button>
+        </header>
+
+        <div className="as-list" ref={list}>
+          {msgs.length === 0 && (
+            <div className="as-intro">
+              <Sparkles aria-hidden />
+              <h3 className="display">{t('assistant.hello')}</h3>
+              <p>{t('assistant.helloHelp')}</p>
+            </div>
+          )}
+          {msgs.map(m => m.role === 'user' ? (
+            <div key={m.id} className="as-msg user"><p>{m.text}</p></div>
+          ) : (
+            <div key={m.id} className="as-msg bot">
+              {m.error ? <p className="error-text" role="alert">{m.error}</p> : m.res && (
+                <>
+                  <p>{replyText(m.res, i18n)}</p>
+                  {m.res.understood.length > 0 && <ul className="as-chips" aria-label={t('assistant.understood')}>{m.res.understood.map((c, i) => <li key={i} className="tag">{chipLabel(c, i18n)}</li>)}</ul>}
+                  {m.res.cards.length > 0 && <ul className="as-cards">{m.res.cards.map(c => <AssistantCard key={c.title.id} card={c} />)}</ul>}
+                  {m.res.steps.length > 0 && <p className="as-steps">{t('assistant.consulted')} {m.res.steps.map(s => stepText(s, i18n)).join(' · ')}</p>}
+                </>
+              )}
+            </div>
+          ))}
+          {chat.isPending && <div className="as-msg bot" role="status"><p className="as-typing"><span /><span /><span /><span className="visually-hidden">{t('assistant.searching')}</span></p></div>}
         </div>
-        {msgs.length > 0 && <button className="icon-btn plain sm" onClick={() => setMsgs([])} aria-label={t('assistant.clear')} title={t('assistant.clear')}><RotateCcw /></button>}
-        <button className="icon-btn plain sm" onClick={() => setAssistantOpen(false)} aria-label={t('common.close')}><X /></button>
-      </header>
+        <p className="visually-hidden" aria-live="polite">{lastAnswer && !chat.isPending ? replyText(lastAnswer, i18n) : ''}</p>
 
-      <div className="as-list" ref={list}>
-        {msgs.length === 0 && (
-          <div className="as-intro">
-            <Sparkles aria-hidden />
-            <h3 className="display">{t('assistant.hello')}</h3>
-            <p>{t('assistant.helloHelp')}</p>
-          </div>
-        )}
-        {msgs.map(m => m.role === 'user' ? (
-          <div key={m.id} className="as-msg user"><p>{m.text}</p></div>
-        ) : (
-          <div key={m.id} className="as-msg bot">
-            {m.error ? <p className="error-text" role="alert">{m.error}</p> : m.res && (
-              <>
-                <p>{replyText(m.res, i18n)}</p>
-                {m.res.understood.length > 0 && <ul className="as-chips" aria-label={t('assistant.understood')}>{m.res.understood.map((c, i) => <li key={i} className="tag">{chipLabel(c, i18n)}</li>)}</ul>}
-                {m.res.cards.length > 0 && <ul className="as-cards">{m.res.cards.map(c => <AssistantCard key={c.title.id} card={c} />)}</ul>}
-                {m.res.steps.length > 0 && <p className="as-steps">{t('assistant.consulted')} {m.res.steps.map(s => stepText(s, i18n)).join(' · ')}</p>}
-              </>
-            )}
-          </div>
-        ))}
-        {chat.isPending && <div className="as-msg bot" role="status"><p className="as-typing"><span /><span /><span /><span className="visually-hidden">{t('assistant.searching')}</span></p></div>}
+        <div className="as-foot">
+          {msgs.length === 0 && <ul className="as-suggest" aria-label={t('assistant.suggestions')}>{chips.map(c => <li key={c}><button className="chip" onClick={() => ask(c)}>{c}</button></li>)}</ul>}
+          <form onSubmit={onSubmit} className="as-form">
+            <label className="visually-hidden" htmlFor="as-input">{t('assistant.inputLabel')}</label>
+            <textarea id="as-input" className="textarea" rows={1} maxLength={500} value={text} placeholder={t('assistant.placeholder')}
+              onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(text) } }} />
+            <button className="icon-btn accent" type="submit" disabled={!text.trim() || chat.isPending} aria-label={t('assistant.send')}><Send /></button>
+          </form>
+          <p className="as-note">{t('assistant.note')}</p>
+        </div>
       </div>
-      <p className="visually-hidden" aria-live="polite">{lastAnswer && !chat.isPending ? replyText(lastAnswer, i18n) : ''}</p>
-
-      <div className="as-foot">
-        {msgs.length === 0 && <ul className="as-suggest" aria-label={t('assistant.suggestions')}>{chips.map(c => <li key={c}><button className="chip" onClick={() => ask(c)}>{c}</button></li>)}</ul>}
-        <form onSubmit={onSubmit} className="as-form">
-          <label className="visually-hidden" htmlFor="as-input">{t('assistant.inputLabel')}</label>
-          <textarea id="as-input" ref={input} className="textarea" rows={1} maxLength={500} value={text} placeholder={t('assistant.placeholder')}
-            onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(text) } }} />
-          <button className="icon-btn accent" type="submit" disabled={!text.trim() || chat.isPending} aria-label={t('assistant.send')}><Send /></button>
-        </form>
-        <p className="as-note">{t('assistant.note')}</p>
-      </div>
-    </aside>
+    </div>,
+    document.body,
   )
 }

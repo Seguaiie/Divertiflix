@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+import { fr } from '../i18n/fr'
+import { en } from '../i18n/en'
+import { ApiError } from './api'
+import { errorText } from './errors'
+import { isWebUrl, titleLink } from './links'
 import { jwtExpiry } from './jwt'
 import { saveProgress } from './progress'
 import { reasonText } from './reason'
@@ -55,5 +60,62 @@ describe('saveProgress', () => {
   it('une sauvegarde manquée ne lève jamais d\'erreur', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }))
     await expect(saveProgress('p', 't', 5, 50)).resolves.toBeUndefined()
+  })
+})
+
+describe('errorText', () => {
+  const t = (k: string) => `[${k}]`
+  const text = (status: number, overrides?: Record<number, never>) => errorText(new ApiError('Ce titre a déjà été demandé.', status), t, overrides)
+
+  it('traduit selon le statut et ne montre jamais le texte brut du serveur', () => {
+    expect(text(0)).toBe('[error.network]')
+    expect(text(400)).toBe('[error.invalid]')
+    expect(text(429)).toBe('[error.rateLimited]')
+    expect(text(500)).toBe('[error.server]')
+    expect(text(503)).toBe('[error.server]')
+    expect(text(409)).toBe('[error.generic]')
+    expect(text(404)).toBe('[error.generic]')
+  })
+  it('une phrase propre à l\'action l\'emporte sur le statut', () => {
+    expect(text(409, { 409: 'request.conflict' as never })).toBe('[request.conflict]')
+    expect(text(500, { 409: 'request.conflict' as never })).toBe('[error.server]')
+  })
+  it('une erreur inconnue donne le message générique', () => {
+    expect(errorText(new Error('network'), t)).toBe('[error.generic]')
+    expect(errorText(undefined, t)).toBe('[error.generic]')
+  })
+  it('chaque clé utilisée existe dans les deux langues, sans le mot « network »', () => {
+    for (const k of ['error.network', 'error.invalid', 'error.rateLimited', 'error.server', 'error.generic', 'request.conflict', 'support.conflict', 'profiles.conflict'] as const) {
+      expect(fr[k], k).toBeTruthy()
+      expect(en[k], k).toBeTruthy()
+      expect(fr[k]).not.toMatch(/\bnetwork\b/i)
+    }
+  })
+})
+
+describe('isWebUrl', () => {
+  it('accepte http et https, absolus ou relatifs', () => {
+    expect(isWebUrl('https://abs.exemple.test/item/1')).toBe(true)
+    expect(isWebUrl('http://nas.local:13378/item/1')).toBe(true)
+    expect(isWebUrl('/api/media/42')).toBe(true)
+  })
+  it('refuse les schémas qui exécuteraient du code ou n\'ouvrent rien, même déguisés', () => {
+    for (const u of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', '  javascript:alert(1)', 'java\tscript:alert(1)', 'data:text/html,<b>x</b>', 'vbscript:x', 'blob:https://x/1', 'file:///etc/passwd', 'media:abc'])
+      expect(isWebUrl(u), u).toBe(false)
+  })
+})
+
+describe('titleLink', () => {
+  const at = (pathname: string, state?: unknown) => ({ pathname, search: '', hash: '', key: 'k', state }) as never
+  it('depuis une page, la fiche s\'ouvre par-dessus elle et s\'empile', () => {
+    const films = at('/films')
+    expect(titleLink(films, 'b')).toEqual({ to: '/titres/b', replace: false, state: { background: films } })
+  })
+  it('depuis une fiche ouverte sur une page, la nouvelle fiche la remplace et garde la même page derrière', () => {
+    const films = at('/films')
+    expect(titleLink(at('/titres/a', { background: films }), 'b')).toEqual({ to: '/titres/b', replace: true, state: { background: films } })
+  })
+  it('depuis une fiche en lien direct, la nouvelle fiche la remplace sans page d\'origine', () => {
+    expect(titleLink(at('/titres/a'), 'b')).toEqual({ to: '/titres/b', replace: true, state: undefined })
   })
 })

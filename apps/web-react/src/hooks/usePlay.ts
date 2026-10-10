@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, call, type Title } from '../lib/api'
+import { isWebUrl, titleLink } from '../lib/links'
 import { useI18n } from '../i18n'
 import { useDock } from '../state/dock'
 import { useToast } from '../state/toast'
@@ -19,13 +20,17 @@ export function usePlayTitle() {
   const { profileId } = useAuth()
 
   return useCallback((title: Title) => {
-    if (!title.isPlayable) { navigate(`/titres/${title.id}`, { state: { background: location } }); return }
+    if (!title.isPlayable) { const { to, ...opts } = titleLink(location, title.id); navigate(to, opts); return }
     if (title.streamKind === 'Audio') { void dock.play(title); return }
     if (title.streamKind === 'External') {
       // La fenêtre s'ouvre tout de suite (geste de l'utilisateur) puis reçoit l'adresse : sinon le navigateur bloque la fenêtre.
       const win = window.open('', '_blank')
       call(api.GET('/api/titles/{id}/playback', { params: { path: { id: title.id }, query: { profileId: profileId ?? undefined } } }))
-        .then(pb => { if (win) { win.opener = null; win.location.href = pb.url } })
+        .then(pb => {
+          if (!win) return
+          if (!isWebUrl(pb.url)) throw new Error('schéma refusé') // javascript: s'exécuterait avec les droits du portail
+          win.opener = null; win.location.href = pb.url
+        })
         .catch(() => { win?.close(); toast.push({ kind: 'error', text: t('play.error') }) })
       return
     }

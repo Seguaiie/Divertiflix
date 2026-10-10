@@ -3,6 +3,7 @@ import { ArrowLeft, LifeBuoy, Plus, Send, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useI18n } from '../i18n'
 import { api, call, type S } from '../lib/api'
+import { errorText } from '../lib/errors'
 import { keys } from '../state/queries'
 import { useToast } from '../state/toast'
 import { useUI } from '../state/ui'
@@ -20,13 +21,13 @@ function Thread({ id, onBack }: { id: string; onBack(): void }) {
   const { t, ago } = useI18n()
   const qc = useQueryClient()
   const [body, setBody] = useState('')
-  const end = useRef<HTMLDivElement>(null)
+  const msgs = useRef<HTMLUListElement>(null)
   const ticket = useQuery({ queryKey: keys.ticket(id), queryFn: () => call(api.GET('/api/support/tickets/{id}', { params: { path: { id } } })), refetchInterval: 30_000 })
   const reply = useMutation({
     mutationFn: () => call(api.POST('/api/support/tickets/{id}/messages', { params: { path: { id } }, body: { body: body.trim() } })),
     onSuccess: () => { setBody(''); void qc.invalidateQueries({ queryKey: keys.ticket(id) }); void qc.invalidateQueries({ queryKey: keys.tickets }) },
   })
-  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }) }, [ticket.data?.messages.length])
+  useEffect(() => { if (msgs.current) msgs.current.scrollTop = msgs.current.scrollHeight }, [ticket.data?.messages.length])
   const submit = (e: FormEvent) => { e.preventDefault(); if (body.trim()) reply.mutate() }
 
   return (
@@ -35,14 +36,13 @@ function Thread({ id, onBack }: { id: string; onBack(): void }) {
       {ticket.data && (
         <>
           <div className="sp-ticket-head"><h3 className="display">{ticket.data.ticket.subject}</h3><StatusBadge status={ticket.data.ticket.status} /></div>
-          <ul className="sp-msgs" aria-live="polite">
+          <ul className="sp-msgs" aria-live="polite" ref={msgs}>
             {ticket.data.messages.map(m => (
               <li key={m.id} data-staff={m.fromStaff}>
                 <span className="eyebrow">{m.fromStaff ? t('support.staff') : t('support.you')} · <time className="tnum" dateTime={m.at}>{ago(m.at)}</time></span>
                 <p>{m.body}</p>
               </li>
             ))}
-            <div ref={end} />
           </ul>
           {ticket.data.ticket.status === 'Resolved' && <p className="hint">{t('support.resolvedHint')}</p>}
           <form onSubmit={submit} className="sp-reply">
@@ -69,6 +69,7 @@ export function SupportWidget() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
   const panel = useRef<HTMLDivElement>(null)
+  const wasOpen = useRef(false)
 
   const tickets = useQuery({ queryKey: keys.tickets, queryFn: () => call(api.GET('/api/support/tickets')), enabled: support.open })
   const create = useMutation({
@@ -79,16 +80,25 @@ export function SupportWidget() {
       void qc.invalidateQueries({ queryKey: keys.tickets })
       setView(res.ticket.id)
     },
-    onError: e => setError((e as Error).message),
+    onError: e => setError(errorText(e, t, { 409: 'support.conflict' })),
   })
 
-  useEffect(() => { if (support.open) setView(support.ticketId ?? 'list') }, [support.open, support.ticketId])
+  // Dépend de l'objet `support` (neuf à chaque demande d'ouverture) et non de ses champs : rouvrir le même billet après « Retour » doit rouvrir son fil.
+  useEffect(() => { if (support.open) setView(support.ticketId ?? 'list') }, [support])
   useEffect(() => {
     if (!support.open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) closeSupport() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [support.open, closeSupport])
+  // À la fermeture, le focus retourne au déclencheur ; le bouton flottant (déclencheur le plus courant) est un nouvel élément : on le retrouve.
+  useEffect(() => {
+    if (wasOpen.current && !support.open) {
+      const opener = support.opener?.isConnected && support.opener !== document.body ? support.opener : document.querySelector<HTMLElement>('.sp-fab')
+      opener?.focus({ preventScroll: true })
+    }
+    wasOpen.current = support.open
+  }, [support])
   useEffect(() => { if (support.open) panel.current?.querySelector<HTMLElement>('button, input, textarea')?.focus() }, [support.open, view])
 
   const submit = (e: FormEvent) => { e.preventDefault(); if (subject.trim() && message.trim()) create.mutate() }

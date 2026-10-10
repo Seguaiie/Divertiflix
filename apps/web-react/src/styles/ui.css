@@ -72,7 +72,7 @@
     transition: border-color var(--dur-1), background-color var(--dur-1), box-shadow var(--dur-1);
   }
   .textarea { padding: 12px 14px; min-height: 120px; resize: vertical; line-height: 1.5; }
-  .select { appearance: none; padding-right: 38px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b8374' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
+  .select { appearance: none; padding-right: 38px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238d86a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
   .input::placeholder, .textarea::placeholder { color: var(--text-3); }
   .input:hover, .select:hover, .textarea:hover { border-color: var(--text-3); }
   .input:focus-visible, .select:focus-visible, .textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 28%, transparent); }
@@ -97,7 +97,7 @@
 
   /* ------------------------------------------------------------------ Dialogues et panneaux */
   .overlay {
-    position: fixed; inset: 0; z-index: var(--z-modal); background: rgb(5 4 3 / 0.72); backdrop-filter: blur(6px);
+    position: fixed; inset: 0; z-index: var(--z-modal); background: rgb(var(--ink) / 0.72); backdrop-filter: blur(6px);
     animation: fade-in var(--dur-2) var(--ease);
   }
   @keyframes fade-in { from { opacity: 0; } }
@@ -126,7 +126,7 @@
   /* ------------------------------------------------------------------ Divers */
   .kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--line-strong); border-bottom-width: 2px; font-size: 0.6875rem; font-weight: 600; color: var(--text-2); font-family: var(--font-ui); }
   .empty { display: grid; justify-items: center; gap: 14px; padding: 72px 24px; text-align: center; color: var(--text-2); }
-  .empty h2 { font-family: var(--font-display); font-size: 1.9rem; color: var(--text); letter-spacing: -0.01em; }
+  .empty :is(h1, h2) { font-family: var(--font-display); font-size: 1.9rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
   .empty p { max-width: 46ch; }
   .link { color: var(--accent-hi); text-underline-offset: 3px; }
   .link:hover { text-decoration: underline; }

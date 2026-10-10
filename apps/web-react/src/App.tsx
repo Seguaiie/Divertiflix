@@ -44,7 +44,8 @@ function TitleRoute() {
   const navigate = useNavigate()
   const location = useLocation()
   const hasBackground = !!(location.state as { background?: Location } | null)?.background
-  return <TitleModal id={id} onClose={() => (hasBackground ? navigate(-1) : navigate('/', { replace: true }))} />
+  // key : passer à un titre similaire remet la fenêtre à neuf (défilement en haut, focus sur l'action principale).
+  return <TitleModal key={id} id={id} onClose={() => (hasBackground ? navigate(-1) : navigate('/', { replace: true }))} />
 }
 
 function Shell() {
@@ -89,7 +90,7 @@ function Shell() {
   )
 }
 
-function AppRoutes() {
+export function AppRoutes() {
   const location = useLocation()
   const { user } = useAuth()
   const background = (location.state as { background?: Location } | null)?.background
