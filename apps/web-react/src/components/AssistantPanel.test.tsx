@@ -148,7 +148,7 @@ describe('AssistantPanel : fenêtre modale', () => {
 
     fireEvent.mouseDown(dialog)
     expect(screen.getByRole('dialog', { name: 'Assistant' })).toBeInTheDocument()
-    fireEvent.mouseDown(document.querySelector('.as-scrim')!)
+    fireEvent.mouseDown(dialog.parentElement!) // le voile
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

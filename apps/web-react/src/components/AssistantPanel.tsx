@@ -143,9 +143,10 @@ export function AssistantPanel() {
 
   const onSubmit = (e: FormEvent) => { e.preventDefault(); ask(text) }
 
-  // Sous <body>, comme la fiche, la palette et la demande : à même z-index, le dernier ouvert est au-dessus, ce qui suit la pile de useDialog.
+  // Fenêtre modale sous <body>, comme la fiche, la palette et la demande : le fond n'est plus actionnable et un clic sur le voile ferme le panneau.
+  // À même z-index, le dernier ouvert est au-dessus, ce qui suit la pile de useDialog.
   return createPortal(
-    <div className="as-scrim" onMouseDown={e => { if (e.target === e.currentTarget) setAssistantOpen(false) }}>
+    <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) setAssistantOpen(false) }}>
       <div className="assistant glass-panel" role="dialog" aria-modal="true" aria-label={t('assistant.title')} ref={panel}>
         <header className="as-head">
           <div>
