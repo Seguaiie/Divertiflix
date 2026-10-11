@@ -83,7 +83,7 @@
 ## État d'avancement
 - [x] Étape 1 (partielle) : monorepo, API (auth JWT + refresh, catalogue CRUD, seed), Sqlite au départ (remplacée ensuite par PostgreSQL).
 - [x] Profils/liste de lecture (API)
-- [x] Tests xUnit (`dotnet test` dans apps/api ; 257 au 2026-10-10)
+- [x] Tests xUnit (`dotnet test` dans apps/api ; 342 au 2026-10-11)
 - [x] Migrations EF + docker-compose
 - [x] Front React (apps/web-react)
 - [x] Angular back-office (branche etape-3-angular) ; gestion des utilisateurs reportée à l'AD.

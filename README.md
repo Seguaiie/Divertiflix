@@ -48,10 +48,10 @@ Compte administrateur de développement : `root` / `boom123$` (n'existe qu'en d�
 
 | Suite | Commande | Contenu |
 | --- | --- | --- |
-| API (xUnit) | `cd apps/api && dotnet test` | 257 tests : moteur, analyseur de requêtes, accueil, assistant, flux de travail, comptes et sessions, concurrence, synchronisations, temps réel. Base PostgreSQL jetable par classe. |
-| Portail (Vitest) | `npm test` | 120 tests : clés de traduction, client API et session, composants, hooks, pages, charte graphique. |
-| Back-office (Angular) | `cd apps/admin-angular && npx ng test --watch=false` | 68 tests : services, garde-fous de rôle, pages et fenêtres. |
-| Démo hébergée (Vitest) | `cd packages/demo && npx vitest run` | 33 tests du faux serveur. |
+| API (xUnit) | `cd apps/api && dotnet test` | 342 tests : moteur, analyseur de requêtes, accueil, assistant, flux de travail, comptes et sessions, concurrence, synchronisations, temps réel. Base PostgreSQL jetable par classe. |
+| Portail (Vitest) | `npm test` | 159 tests : clés de traduction, client API et session, composants, hooks, pages, charte graphique. |
+| Back-office (Angular) | `cd apps/admin-angular && npx ng test --watch=false` | 96 tests : services, garde-fous de rôle, pages et fenêtres. |
+| Démo hébergée (Vitest) | `cd packages/demo && npx vitest run` | 37 tests du faux serveur. |
 | Bout en bout (Playwright) | `E2E_CHROME=/chemin/chrome npm run e2e` | 14 parcours réels sur la pile complète, dont les notifications en direct entre portail et back-office. |
 
 Les parcours de bout en bout demandent l'API, PostgreSQL et un Chrome capable de lire le H.264 (le Chromium de Playwright ne le lit

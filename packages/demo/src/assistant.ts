@@ -49,7 +49,7 @@ const W_CLASSIC = 'classique|classiques|classic|ancien|anciens|vieux|retro|old'
 /** « tv show » désigne une série, « show » seul non ; les verbes (« écouter ») désignent un livre audio mais ne se nient pas. */
 const KIND_WORDS: { words: string; kind: string; verbs?: string }[] = [
   { words: 'livre audio|livres audio|audiobook|audiobooks|audiolivre|livre|livres|roman|romans', kind: 'Audiobook', verbs: 'ecouter|a ecouter|listen|audio' },
-  { words: 'serie|series|tv show|tv shows|episode|episodes', kind: 'Series' },
+  { words: 'serie|series|tv show|tv shows|episode|episodes|shows?(?! (?:me|us|them|him|her|you|something|anything|some|any|a|an|the|more|all) )', kind: 'Series' },
   { words: 'court metrage|court metrages|short film|short films', kind: 'Movie' },
   { words: 'film|films|movie|movies|cinema', kind: 'Movie' },
 ]
@@ -60,9 +60,9 @@ const NEG_MARKERS = 'pas|sans|aucun|aucune|no|not|without|ni|evite|eviter|avoid|
 const NEG_SKIP = 'trop|de|d|du|des|too|any|very|tres|beaucoup|un|une|le|la|les|of|a|an|the|peu'
 const negTerm = (words: string, after = '') => new RegExp(` (?:${NEG_MARKERS}) (?:(?:${NEG_SKIP}) )*(?:${words})(?= )${after}`)
 const NEG_LONG = negTerm(W_LONG), NEG_RECENT = negTerm(W_RECENT), NEG_CLASSIC = negTerm(W_CLASSIC)
-const NEG_SHORT = negTerm(W_SHORT, '(?! (?:metrage|metrages|film|films) )')   // « court métrage » est un type, pas une durée
+const NEG_SHORT = negTerm(W_SHORT)   // « pas de court métrage » : pas de très court, donc un plancher de durée (le type film reste permis)
 // « pas de série » nie le type seulement s'il termine la proposition : « pas de film d'horreur » nie un genre, pas le type.
-const NEG_KINDS = KIND_WORDS.map(k => ({ kind: k.kind, rx: negTerm(k.words, '(?= (?:$|(?:et|ou|mais|ni|and|or|but|s|svp|stp|please|plait|merci|thanks|ce|tonight|today) ))') }))
+const NEG_KINDS = KIND_WORDS.map(k => ({ kind: k.kind, rx: negTerm(k.words, '(?= (?:$|(?:et|ou|mais|ni|and|or|but|plutot|rather|instead|sinon|otherwise|un(?! peu)|une|an|s|svp|stp|please|plait|merci|thanks|ce|tonight|today) ))') }))
 
 const stem = (w: string) => w.replace(/(s|x)$/, '')
 const toMinutes = (n: string, unit?: string, extra?: string) => (unit && /^(h|heure|heures|hour|hours|hr|hrs)$/.test(unit) ? +n * 60 + (extra ? +extra : 0) : +n)
@@ -74,16 +74,22 @@ function readSpec(src: string) {
   let kinds = new Set<string>()
   let maxMin: number | null = null, minMin: number | null = null, yearFrom: number | null = null, yearTo: number | null = null
   let recent = false, classic = false, short = false, long = false
+  // Les bornes se combinent : la plus stricte l'emporte, au lieu de s'écraser selon l'ordre de lecture.
+  const atMost = (v: number) => { maxMin = maxMin === null ? v : Math.min(maxMin, v) }
+  const atLeast = (v: number) => { minMin = minMin === null ? v : Math.max(minMin, v) }
+  const from = (v: number) => { yearFrom = yearFrom === null ? v : Math.max(yearFrom, v) }
+  const to = (v: number) => { yearTo = yearTo === null ? v : Math.min(yearTo, v) }
   let rest = src
   const consume = (rx: RegExp) => { if (!rx.test(rest)) return false; rest = rest.replace(rx, ''); return true }
 
   // Négations de type, de durée et d'époque, avant les lectures positives (sinon « pas trop long » serait lu comme « long »).
+  // Durée et époque d'abord : « pas de court métrage » est un plancher de durée, il ne doit pas nier le type film.
+  if (consume(NEG_SHORT)) { atLeast(SHORT_MAX + 1); understood.push({ kind: 'minMinutes', label: String(SHORT_MAX + 1) }) }
+  if (consume(NEG_LONG)) { atMost(LONG_MIN - 1); understood.push({ kind: 'maxMinutes', label: String(LONG_MIN - 1) }) }
+  if (consume(NEG_RECENT)) { to(RECENT_FROM - 1); understood.push({ kind: 'before', label: String(RECENT_FROM) }) }
+  if (consume(NEG_CLASSIC)) { from(2000); understood.push({ kind: 'after', label: '1999' }) }
   const negKinds = new Set<string>()
   for (const { kind, rx } of NEG_KINDS) if (consume(rx)) negKinds.add(kind)
-  if (consume(NEG_LONG)) { maxMin = LONG_MIN - 1; understood.push({ kind: 'maxMinutes', label: String(maxMin) }) }
-  if (consume(NEG_SHORT)) { minMin = SHORT_MAX + 1; understood.push({ kind: 'minMinutes', label: String(minMin) }) }
-  if (consume(NEG_RECENT)) { yearTo = RECENT_FROM - 1; understood.push({ kind: 'before', label: String(RECENT_FROM) }) }
-  if (consume(NEG_CLASSIC)) { yearFrom = 2000; understood.push({ kind: 'after', label: '1999' }) }
 
   // « sans X » / « pas de X » : on extrait avant de lire le reste, pour ne pas confondre « sans gore » avec « du gore ».
   for (const m of [...rest.matchAll(/ (?:sans|pas de|no|without|evite|eviter) ([a-z0-9]+)/g)]) {
@@ -112,12 +118,12 @@ function readSpec(src: string) {
   const dmx = new RegExp(` (\\d{1,3}) ?${U}(?: ?(\\d{1,2}))? (?:max|maximum) `).exec(rest)
   const dl = new RegExp(`(?:plus de|au moins|over|more than|at least)\\s+(\\d{1,3})\\s*${U}(?: ?(\\d{1,2}))?`).exec(rest)
   const hit = dm ?? dmx
-  if (hit) { maxMin = toMinutes(hit[1]!, hit[2], hit[3]); understood.push({ kind: 'maxMinutes', label: String(maxMin) }); rest = rest.replace(hit[0], ' ') }
-  if (dl) { minMin = toMinutes(dl[1]!, dl[2], dl[3]); understood.push({ kind: 'minMinutes', label: String(minMin) }); rest = rest.replace(dl[0], ' ') }
-  if (!hit && new RegExp(` (?:${W_SHORT}) `).test(rest)) { short = true; maxMin = SHORT_MAX; understood.push({ kind: 'short', label: String(SHORT_MAX) }) }
-  if (!dl && new RegExp(` (?:${W_LONG}|epique long|long metrage) `).test(rest)) { long = true; minMin = LONG_MIN; understood.push({ kind: 'long', label: String(LONG_MIN) }) }
-  if (new RegExp(` (?:${W_RECENT}) `).test(rest)) { recent = true; yearFrom = RECENT_FROM; understood.push({ kind: 'recent', label: '' }) }
-  if (new RegExp(` (?:${W_CLASSIC}) `).test(rest)) { classic = true; yearTo = 1999; understood.push({ kind: 'classic', label: '1999' }) }
+  if (hit) { const v = toMinutes(hit[1]!, hit[2], hit[3]); atMost(v); understood.push({ kind: 'maxMinutes', label: String(v) }); rest = rest.replace(hit[0], ' ') }
+  if (dl) { const v = toMinutes(dl[1]!, dl[2], dl[3]); atLeast(v); understood.push({ kind: 'minMinutes', label: String(v) }); rest = rest.replace(dl[0], ' ') }
+  if (!hit && new RegExp(` (?:${W_SHORT}) `).test(rest)) { short = true; atMost(SHORT_MAX); understood.push({ kind: 'short', label: String(SHORT_MAX) }) }
+  if (!dl && new RegExp(` (?:${W_LONG}|epique long|long metrage) `).test(rest)) { long = true; atLeast(LONG_MIN); understood.push({ kind: 'long', label: String(LONG_MIN) }) }
+  if (new RegExp(` (?:${W_RECENT}) `).test(rest)) { recent = true; from(RECENT_FROM); understood.push({ kind: 'recent', label: '' }) }
+  if (new RegExp(` (?:${W_CLASSIC}) `).test(rest)) { classic = true; to(1999); understood.push({ kind: 'classic', label: '1999' }) }
 
   for (const [phrase, g] of Object.entries(GENRES)) if (rest.includes(` ${phrase} `) || rest.includes(` ${phrase}s `)) genres.add(g)
   for (const g of genres) understood.push({ kind: 'genre', label: g })

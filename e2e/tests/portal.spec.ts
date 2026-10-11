@@ -27,6 +27,9 @@ async function signInUI(page: Page, email: string) {
   await page.getByRole('button', { name: 'Se connecter' }).click()
   // Nouvel appareil : le sélecteur de profils s'affiche, comme pour une vraie personne.
   await page.getByRole('button', { name: 'Regarder en tant que Camille' }).click()
+  // Les raccourcis (Ctrl+K, Ctrl+J) vivent avec la coque de l'application : on attend qu'elle soit montée.
+  await page.waitForURL(url => url.pathname === '/')
+  await expect(page.locator('main#main')).toBeVisible()
 }
 
 /** Erreurs console et exceptions de la page : un parcours qui « passe » avec une exception cachée ne passe pas. */

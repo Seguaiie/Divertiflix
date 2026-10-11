@@ -11,12 +11,12 @@ Dernière mise à jour : 2026-10-10
 ### Refonte complète (cette session)
 - **API** : durcissement sécurité, moteur de recommandation hybride expliquable, accueil personnalisé, assistant à règles, progression, notes,
   demandes de titres, billets d'aide, notifications en direct, statut des services, statistiques, utilisateurs, médias servis par URL signées,
-  limitation de débit, journal d'audit, rétention. 257 tests xUnit (2026-10-10).
+  limitation de débit, journal d'audit, rétention. 342 tests xUnit (2026-10-10).
 - **Médias de démonstration** générés par ffmpeg (`tools/demo-media`) : affiches, fonds, flux HLS H.264/AAC, livres audio en voix de synthèse.
 - **Portail React** : nouveau système de design, accueil, films, livres audio, fiche, lecteur avec reprise, lecteur audio persistant, assistant,
-  palette Ctrl+K, demandes, aide, notifications, FR/EN. 120 tests Vitest (2026-10-10).
+  palette Ctrl+K, demandes, aide, notifications, FR/EN. 159 tests Vitest (2026-10-10).
 - **Identité visuelle** : logo officiel recréé en SVG (`packages/brand`), jetons de design partagés, favicon et icônes, manifeste.
-- **Back-office Angular** : tableau de bord, catalogue complet, demandes, billets, utilisateurs, accès Admin/Support. 68 tests (2026-10-10).
+- **Back-office Angular** : tableau de bord, catalogue complet, demandes, billets, utilisateurs, accès Admin/Support. 96 tests (2026-10-10).
 - **Bout en bout** : 14 parcours Playwright (portail, back-office, notifications en direct entre les deux).
 - **Infrastructure** : nginx durci (CSP, HSTS, cache), service systemd durci, utilisateur système sans accès Docker, ports en 127.0.0.1,
   pipeline GitLab avec tests avant déploiement.
