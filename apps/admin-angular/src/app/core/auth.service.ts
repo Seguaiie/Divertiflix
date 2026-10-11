@@ -1,15 +1,22 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, finalize, first, firstValueFrom, map, Observable, of, shareReplay, take, tap, timer } from 'rxjs';
+import { catchError, defer, finalize, first, firstValueFrom, from, map, Observable, of, shareReplay, take, tap, timer } from 'rxjs';
 import { jwtExpiry } from './jwt';
 import type { AuthResponse, User } from './models';
 
 const SESSION = 'divertiflix.admin.session';
 const STAFF = ['Admin', 'Support'];
 
-/** Un autre onglet qui vient de gagner la rotation écrit sa session un instant après notre refus : on lui laisse ce délai. */
-const ROTATION_GRACE_MS = 1500;
+/** Verrou partagé par les onglets du navigateur : un seul rafraîchissement à la fois, les autres relisent ensuite la session obtenue. */
+const REFRESH_LOCK = 'divertiflix-admin-refresh';
+
+/**
+ * Sans verrou (navigator.locks n'existe pas sur une page servie en HTTP hors localhost), un autre onglet a pu gagner la rotation sans que
+ * l'on sache où il en est, et sa réponse peut tarder : on lui laisse la tolérance de rejeu de l'API (AuthController.ReplayGrace, 10 s)
+ * avant de conclure à un refus définitif, car celui-ci vide la session de tous les onglets.
+ */
+const ROTATION_GRACE_MS = 10_000;
 
 interface Session { accessToken: string; refreshToken: string; user: User }
 
@@ -25,6 +32,8 @@ export class AuthService {
   readonly user = computed(() => this.session()?.user ?? null);
   readonly isStaff = computed(() => STAFF.includes(this.user()?.role ?? ''));
   readonly isAdmin = computed(() => this.user()?.role === 'Admin');
+  /** Pourquoi l'agent a été renvoyé à la connexion sans l'avoir demandé : le formulaire l'explique. */
+  readonly notice = signal<string | null>(null);
 
   /** Refresh en cours partagé : le refresh token est à usage unique (rotation côté API). */
   private refreshing$?: Observable<string | null>;
@@ -40,6 +49,7 @@ export class AuthService {
 
   /** Seul un compte du personnel garde sa session : un abonné est révoqué aussitôt, sans écraser la session d'un autre onglet. */
   login(email: string, password: string): Observable<User> {
+    this.notice.set(null);
     return this.http.post<AuthResponse>('/api/auth/login', { email, password }).pipe(
       tap(r => (STAFF.includes(r.user.role) ? this.store(r) : this.revoke(r.refreshToken))),
       map(r => r.user),
@@ -76,21 +86,42 @@ export class AuthService {
     this.clear();
   }
 
+  /**
+   * Rotation du jeton, un onglet à la fois quand le navigateur offre des verrous : ceux qui attendent le verrou relisent le stockage
+   * une fois obtenu et adoptent la session du premier, sans appel réseau (et sans que la lenteur de sa réponse y change quoi que ce soit).
+   * Un refus reçu sous verrou est donc définitif.
+   */
   private rotate(sent: string): Observable<string | null> {
+    const locks = navigator.locks as LockManager | undefined;
+    if (!locks) return this.exchange(sent, ROTATION_GRACE_MS);
+    return defer(() => from(locks.request(REFRESH_LOCK, () => firstValueFrom(this.exchange(sent, 0))))).pipe(
+      catchError(() => this.exchange(sent, ROTATION_GRACE_MS)), // verrou refusé par le navigateur (page sandboxée) : on s'en passe
+    );
+  }
+
+  private exchange(sent: string, grace: number): Observable<string | null> {
     // Un autre onglet a déjà fait tourner le jeton : le nôtre est consommé, on adopte le sien au lieu de le rejouer.
     const other = this.newerThan(sent);
     if (other) { this.session.set(other); return of(other.accessToken); }
     return this.http.post<AuthResponse>('/api/auth/refresh', { refreshToken: sent }).pipe(
-      tap(r => this.store(r)),
-      map(r => r.accessToken),
-      catchError(e => (isRejected(e) ? this.lost(sent) : of(null))),
+      map(r => this.accept(r)),
+      catchError(e => (isRejected(e) ? this.lost(sent, grace) : of(null))),
     );
   }
 
+  /** Un compte qui n'est plus du personnel (rôle retiré pendant la session) n'a plus rien à faire ici : retour à la connexion, avec l'explication. */
+  private accept(r: AuthResponse): string | null {
+    if (STAFF.includes(r.user.role)) { this.store(r); return r.accessToken; }
+    this.revoke(r.refreshToken);
+    this.notice.set("Votre rôle a changé : ce compte n'a plus accès au back-office.");
+    this.clear();
+    return null;
+  }
+
   /** Jeton refusé : soit la session est vraiment finie, soit un autre onglet a gagné la rotation au même instant et son jeton est bon. */
-  private lost(sent: string): Observable<string | null> {
+  private lost(sent: string, grace: number): Observable<string | null> {
     return timer(0, 250).pipe(
-      take(ROTATION_GRACE_MS / 250 + 1),
+      take(grace / 250 + 1),
       map(() => this.newerThan(sent)),
       first((s): s is Session => s !== null, null),
       map(winner => {
@@ -109,8 +140,11 @@ export class AuthService {
 
   private follow(): void {
     const stored = this.read();
-    if (stored) this.session.set(stored);
-    else if (this.session()) { this.session.set(null); void this.router.navigate(['/login']); }
+    if (stored) {
+      this.session.set(stored);
+      // Connexion faite dans un autre onglet : le formulaire de celui-ci n'a plus lieu d'être.
+      if (this.isStaff() && this.router.url.startsWith('/login')) void this.router.navigate(['/']);
+    } else if (this.session()) { this.session.set(null); void this.router.navigate(['/login']); }
   }
 
   private revoke(refreshToken: string): void {

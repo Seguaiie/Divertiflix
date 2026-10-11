@@ -9,7 +9,7 @@ const user = (over: Partial<AdminUser>): AdminUser => ({
   id: 'u2', email: 'camille@test.com', role: 'Subscriber', source: 'Local', isActive: true, createdAt: '2026-10-09T12:00:00Z', profiles: 1, ...over,
 });
 
-async function setup() {
+async function setup(items: AdminUser[] = [user({ id: 'u1', email: 'root', role: 'Admin' }), user({})]) {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
   localStorage.setItem('divertiflix.admin.session', JSON.stringify({ accessToken: 'AT', refreshToken: 'RT', user: { id: 'u1', email: 'root', role: 'Admin' } }));
   TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
@@ -17,9 +17,7 @@ async function setup() {
   const ctl = TestBed.inject(HttpTestingController);
   fixture.detectChanges();
   await vi.advanceTimersByTimeAsync(400); // délai de la recherche
-  ctl.expectOne(r => r.url === '/api/admin/users').flush({
-    items: [user({ id: 'u1', email: 'root', role: 'Admin' }), user({})], total: 2, page: 1, pageSize: 15,
-  });
+  ctl.expectOne(r => r.url === '/api/admin/users').flush({ items, total: items.length, page: 1, pageSize: 15 });
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -56,6 +54,29 @@ describe('Users', () => {
     expect(toggle.getAttribute('aria-checked')).toBe('true');
     // La liste est relue pour afficher l'état réel du serveur.
     ctl.expectOne(r => r.url === '/api/admin/users');
+  });
+
+  it('un second changement est ignoré tant que le premier est en cours d\'envoi, puis redevient possible', async () => {
+    const { fixture, ctl, el } = await setup([user({ id: 'u1', email: 'root', role: 'Admin' }), user({}), user({ id: 'u3', email: 'dominique@test.com' })]);
+    const toggles = [...el.querySelectorAll('button[role="switch"]')] as HTMLButtonElement[];
+    toggles[1].click();
+    fixture.detectChanges();
+    const first = ctl.expectOne('/api/admin/users/u2');
+
+    toggles[2].click(); // le premier envoi n'est pas terminé
+    fixture.detectChanges();
+    ctl.expectNone('/api/admin/users/u3');
+    expect(toggles[2].getAttribute('aria-checked')).toBe('true'); // la commande revient à son état : rien n'a été envoyé
+
+    first.flush(user({ isActive: false }));
+    fixture.detectChanges();
+    await vi.advanceTimersByTimeAsync(0);
+    ctl.expectOne(r => r.url === '/api/admin/users').flush({ items: [user({ id: 'u1', email: 'root', role: 'Admin' }), user({ isActive: false }), user({ id: 'u3', email: 'dominique@test.com' })], total: 3, page: 1, pageSize: 15 });
+    fixture.detectChanges();
+
+    toggles[2].click();
+    fixture.detectChanges();
+    expect(ctl.expectOne('/api/admin/users/u3').request.body).toEqual({ isActive: false });
   });
 
   it('un chargement raté affiche une erreur avec « Réessayer », jamais « Aucun compte » (liste vide trompeuse)', async () => {

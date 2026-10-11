@@ -4,8 +4,10 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { LiveService } from './live.service';
 
-// Fausse bibliothèque SignalR : on garde chaque connexion construite pour piloter ses démarrages et ses fermetures.
-interface FakeConnection { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; token: () => unknown; close: () => void }
+// Fausse bibliothèque SignalR : on garde chaque connexion construite pour piloter ses démarrages, ses fermetures et ses évènements.
+interface FakeConnection {
+  start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; token: () => unknown; close: () => void; emit: (name: string, payload: unknown) => void;
+}
 const hub = vi.hoisted(() => ({ made: [] as FakeConnection[], script: [] as ('fail' | 'ok')[] }));
 
 vi.mock('@microsoft/signalr', () => {
@@ -16,12 +18,16 @@ vi.mock('@microsoft/signalr', () => {
     configureLogging() { return this; }
     build() {
       let onClose = () => undefined as void;
+      const handlers = new Map<string, (payload: unknown) => void>();
       const c = {
         start: vi.fn(() => (hub.script.shift() === 'fail' ? Promise.reject(new Error('négociation refusée')) : Promise.resolve())),
-        stop: vi.fn(() => Promise.resolve()),
+        // Comme la vraie bibliothèque : arrêter la connexion déclenche son gestionnaire `onclose`.
+        stop: vi.fn(() => { onClose(); return Promise.resolve(); }),
         token: this.factory,
         close: () => onClose(),
-        on: vi.fn(), onreconnected: vi.fn(), onreconnecting: vi.fn(), onclose: (h: () => void) => { onClose = h; },
+        emit: (name: string, payload: unknown) => handlers.get(name)?.(payload),
+        on: vi.fn((name: string, h: (payload: unknown) => void) => { handlers.set(name, h); }),
+        onreconnected: vi.fn(), onreconnecting: vi.fn(), onclose: (h: () => void) => { onClose = h; },
       };
       hub.made.push(c);
       return c;
@@ -84,6 +90,44 @@ describe('LiveService', () => {
     expect(hub.made[0].start).toHaveBeenCalledTimes(2);
     expect(hub.made[0].stop).toHaveBeenCalled();
     expect(live.connected()).toBe(false);
+  });
+
+  it('après la déconnexion, plus aucun démarrage même longtemps après (la fermeture que provoque stop() ne relance pas)', async () => {
+    const live = TestBed.inject(LiveService);
+    live.start();
+    await flush();
+    expect(hub.made[0].start).toHaveBeenCalledTimes(1);
+
+    live.stop();
+    await flush();
+    expect(hub.made[0].stop).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(120_000);
+    await flush();
+    expect(hub.made[0].start).toHaveBeenCalledTimes(1);
+    expect(hub.made).toHaveLength(1);
+    expect(live.connected()).toBe(false);
+  });
+
+  it('une déconnexion pendant le chargement de la bibliothèque ne laisse aucune connexion', async () => {
+    const live = TestBed.inject(LiveService);
+    live.start();
+    live.stop();
+    await flush();
+    expect(hub.made).toHaveLength(0);
+    expect(live.connected()).toBe(false);
+  });
+
+  it('les évènements s\'accumulent, les compteurs des pages sont avertis, et la déconnexion vide le fil de l\'agent', async () => {
+    const live = TestBed.inject(LiveService);
+    live.start();
+    await flush();
+    hub.made[0].emit('requestCreated', { name: 'Nosferatu' });
+    hub.made[0].emit('titleAdded', { name: 'Metropolis' }); // informatif : n'invite pas les pages à se relire
+    expect(live.events().map(e => e.text)).toEqual(['Nouveau titre au catalogue : Metropolis', 'Nouvelle demande : Nosferatu']);
+    expect(live.tick()).toBe(1);
+
+    live.stop();
+    expect(live.events()).toEqual([]); // l'agent suivant ne voit pas le fil du précédent
   });
 
   it('une connexion qui abandonne ses reconnexions automatiques est relancée', async () => {

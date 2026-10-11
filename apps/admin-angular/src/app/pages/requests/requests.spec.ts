@@ -83,6 +83,62 @@ describe('Requests', () => {
     expect(el.textContent).toContain('Nosferatu');
   });
 
+  it('après une décision qui retire la ligne, le focus clavier revient sur la page au lieu de tomber sur <body>', async () => {
+    const main = document.createElement('main');
+    main.id = 'main';
+    main.tabIndex = -1;
+    document.body.append(main);
+    try {
+      const { fixture, ctl, el } = setup('Admin');
+      ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ id: 'a', status: 'Pending' })]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const approve = [...el.querySelectorAll('button')].find(b => b.textContent!.trim() === 'Approuver')!;
+      approve.focus();
+      expect(document.activeElement).toBe(approve);
+
+      approve.click();
+      ctl.expectOne('/api/admin/requests/a').flush(req({ id: 'a', status: 'Available' }));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ id: 'a', status: 'Available' })]); // plus « à traiter » : la ligne disparaît
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(el.textContent).not.toContain('Nosferatu');
+      expect(document.activeElement).toBe(main);
+    } finally { main.remove(); }
+  });
+
+  it('une décision qui garde la ligne ne déplace pas le focus', async () => {
+    const main = document.createElement('main');
+    main.id = 'main';
+    main.tabIndex = -1;
+    document.body.append(main);
+    try {
+      const { fixture, ctl, el } = setup('Admin');
+      ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ id: 'a', status: 'Pending' })]);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const approve = [...el.querySelectorAll('button')].find(b => b.textContent!.trim() === 'Approuver')!;
+      approve.focus();
+
+      approve.click();
+      ctl.expectOne('/api/admin/requests/a').flush(req({ id: 'a', status: 'Approved' }));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      ctl.expectOne(r => r.url === '/api/admin/requests').flush([req({ id: 'a', status: 'Approved' })]); // toujours à traiter : la ligne reste
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(document.activeElement).toBe(approve);
+    } finally { main.remove(); }
+  });
+
   it('un chargement raté affiche une erreur avec « Réessayer », jamais « Rien à afficher » (liste vide trompeuse)', async () => {
     const { fixture, ctl, el } = setup('Admin');
     ctl.expectOne(r => r.url === '/api/admin/requests').flush({}, { status: 500, statusText: 'Server Error' });

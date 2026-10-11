@@ -1,11 +1,12 @@
 import { Routes } from '@angular/router';
-import { adminGuard, staffGuard } from './core/guards';
+import { adminGuard, guestGuard, staffGuard } from './core/guards';
 
 export const routes: Routes = [
-  { path: 'login', title: 'Connexion · Divertiflix', loadComponent: () => import('./pages/login/login').then(m => m.Login) },
+  { path: 'login', title: 'Connexion · Divertiflix', canActivate: [guestGuard], loadComponent: () => import('./pages/login/login').then(m => m.Login) },
   {
     path: '',
     canActivate: [staffGuard],
+    canActivateChild: [staffGuard], // rejoué à chaque navigation entre pages : une session devenue étrangère au personnel ne navigue plus
     loadComponent: () => import('./pages/layout/layout').then(m => m.Layout),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },

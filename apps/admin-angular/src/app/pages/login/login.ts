@@ -37,14 +37,14 @@ import { HttpErrorResponse } from '@angular/common/http';
           <mat-label>Mot de passe</mat-label>
           <input matInput type="password" formControlName="password" autocomplete="current-password" />
         </mat-form-field>
-        @if (error()) { <p class="error-text" role="alert">{{ error() }}</p> }
+        @if (error() ?? auth.notice(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
         <button matButton="filled" type="submit" [disabled]="form.invalid || busy()">Se connecter</button>
       </form>
     </main>
   `,
 })
 export class Login {
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);

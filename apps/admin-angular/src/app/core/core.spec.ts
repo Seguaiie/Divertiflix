@@ -1,10 +1,12 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, type TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { firstValueFrom } from 'rxjs';
 import { provideRouter, Router } from '@angular/router';
+import { routes } from '../app.routes';
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from './auth.service';
-import { staffGuard } from './guards';
+import { guestGuard, staffGuard } from './guards';
 import type { AuthResponse } from './models';
 
 const auth = (role: 'Admin' | 'Support' | 'Subscriber', at = 'AT', rt = 'RT'): AuthResponse =>
@@ -15,7 +17,7 @@ const KEY = 'divertiflix.admin.session';
 function setup() {
   localStorage.clear();
   TestBed.configureTestingModule({
-    providers: [provideRouter([{ path: 'login', children: [] }]), provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()],
+    providers: [provideRouter([{ path: 'login', children: [] }, { path: '', pathMatch: 'full', children: [] }]), provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()],
   });
   return { http: TestBed.inject(HttpClient), ctl: TestBed.inject(HttpTestingController), svc: TestBed.inject(AuthService) };
 }
@@ -67,7 +69,7 @@ describe('authInterceptor', () => {
     expect(results).toHaveLength(2);
   });
 
-  it('si le serveur refuse le jeton : déconnexion (après le délai laissé à un autre onglet) et erreur propagée', () => {
+  it('si le serveur refuse le jeton : déconnexion (après la tolérance de rejeu de l\'API, 10 s) et erreur propagée', () => {
     vi.useFakeTimers();
     try {
       const { http, ctl, svc } = setup();
@@ -77,7 +79,9 @@ describe('authInterceptor', () => {
       http.get('/api/titles').subscribe({ error: e => (status = e.status) });
       ctl.expectOne('/api/titles').flush({}, { status: 401, statusText: 'Unauthorized' });
       ctl.expectOne('/api/auth/refresh').flush({}, { status: 401, statusText: 'Unauthorized' });
-      vi.advanceTimersByTime(1600);
+      vi.advanceTimersByTime(9_000);
+      expect(svc.user()).not.toBeNull(); // un autre onglet peut encore écrire la session qu'il vient d'obtenir
+      vi.advanceTimersByTime(1_000);
       expect(status).toBe(401);
       expect(svc.user()).toBeNull();
       expect(localStorage.getItem(KEY)).toBeNull();
@@ -144,6 +148,101 @@ describe('authInterceptor', () => {
     } finally { vi.useRealTimers(); }
   });
 
+  it('sans verrou partagé : un gagnant dont la réponse tarde (4 s) ne fait pas vider la session du perdant', () => {
+    vi.useFakeTimers();
+    try {
+      const { http, ctl, svc } = setup();
+      svc.login('root', 'x').subscribe();
+      ctl.expectOne('/api/auth/login').flush(auth('Admin'));
+      let status = 0;
+      http.get('/api/titles').subscribe({ error: e => (status = e.status) });
+      ctl.expectOne('/api/titles').flush({}, { status: 401, statusText: 'Unauthorized' });
+      ctl.expectOne('/api/auth/refresh').flush({}, { status: 401, statusText: 'Unauthorized' });
+      vi.advanceTimersByTime(4_000);
+      // Le gagnant n'a toujours pas écrit sa session : ce n'est pas un refus définitif, le stockage partagé reste intact.
+      expect(svc.user()).not.toBeNull();
+      expect(JSON.parse(localStorage.getItem(KEY)!).refreshToken).toBe('RT');
+      localStorage.setItem(KEY, JSON.stringify({ accessToken: 'AT2', refreshToken: 'RT2', user: { id: '1', email: 'root', role: 'Admin' } }));
+      vi.advanceTimersByTime(250);
+      expect(ctl.expectOne('/api/titles').request.headers.get('Authorization')).toBe('Bearer AT2');
+      expect(status).toBe(0);
+      expect(JSON.parse(localStorage.getItem(KEY)!).refreshToken).toBe('RT2');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('un agent rétrogradé en cours de session revient à la connexion avec un message, et le jeton fraîchement émis est révoqué', async () => {
+    const { http, ctl, svc } = setup();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    svc.login('agent', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Support'));
+    let status = 0;
+    http.get('/api/titles').subscribe({ error: e => (status = e.status) });
+    ctl.expectOne('/api/titles').flush({}, { status: 401, statusText: 'Unauthorized' });
+    // L'API refuse l'ancien jeton (rôle périmé) ; le rafraîchissement donne un jeton au nouveau rôle.
+    ctl.expectOne('/api/auth/refresh').flush(auth('Subscriber', 'AT2', 'RT2'));
+
+    ctl.expectNone('/api/titles'); // aucun rejeu avec un jeton d'abonné : ce serait un 403 en boucle
+    expect(status).toBe(401);
+    expect(svc.user()).toBeNull();
+    expect(svc.isStaff()).toBe(false);
+    expect(localStorage.getItem(KEY)).toBeNull();
+    expect(ctl.expectOne('/api/auth/logout').request.body).toEqual({ refreshToken: 'RT2' });
+    expect(navigate).toHaveBeenCalledWith(['/login']);
+    expect(svc.notice()).toBe('Votre rôle a changé : ce compte n\'a plus accès au back-office.');
+
+    // Une nouvelle tentative de connexion efface l'explication.
+    svc.login('agent', 'x').subscribe();
+    expect(svc.notice()).toBeNull();
+    ctl.expectOne('/api/auth/login');
+  });
+
+  it('un renouvellement d\'avance (temps réel) pour un compte rétrogradé ne rend aucun jeton', async () => {
+    const { ctl, svc } = setup();
+    svc.login('agent', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Support', `h.${btoa(JSON.stringify({ exp: Date.now() / 1000 - 60 }))}.s`));
+    const pending = svc.freshAccessToken();
+    ctl.expectOne('/api/auth/refresh').flush(auth('Subscriber', 'AT2', 'RT2'));
+    await expect(pending).resolves.toBe('');
+    expect(svc.user()).toBeNull();
+  });
+
+  it('un rôle qui change mais reste du personnel (Admin vers Support) garde la session', () => {
+    const { http, ctl, svc } = setup();
+    svc.login('root', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Admin'));
+    http.get('/api/titles').subscribe();
+    ctl.expectOne('/api/titles').flush({}, { status: 401, statusText: 'Unauthorized' });
+    ctl.expectOne('/api/auth/refresh').flush(auth('Support', 'AT2', 'RT2'));
+    expect(svc.isStaff()).toBe(true);
+    expect(svc.isAdmin()).toBe(false);
+    expect(ctl.expectOne('/api/titles').request.headers.get('Authorization')).toBe('Bearer AT2');
+    ctl.expectNone('/api/auth/logout');
+  });
+
+  it('une connexion dans un autre onglet fait quitter la page de connexion', async () => {
+    const { svc } = setup();
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/login');
+    const navigate = vi.spyOn(router, 'navigate');
+    localStorage.setItem(KEY, JSON.stringify({ accessToken: 'AT', refreshToken: 'RT', user: { id: '1', email: 'root', role: 'Admin' } }));
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY }));
+    expect(svc.isStaff()).toBe(true);
+    expect(navigate).toHaveBeenCalledWith(['/']);
+  });
+
+  it('une session renouvelée dans un autre onglet ne déplace pas celui qui travaille ailleurs que sur la page de connexion', async () => {
+    const { ctl, svc } = setup();
+    const router = TestBed.inject(Router);
+    svc.login('root', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Admin'));
+    await router.navigateByUrl('/');
+    const navigate = vi.spyOn(router, 'navigate');
+    localStorage.setItem(KEY, JSON.stringify({ accessToken: 'AT2', refreshToken: 'RT2', user: { id: '1', email: 'root', role: 'Admin' } }));
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY }));
+    expect(svc.accessToken).toBe('AT2');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('suit un autre onglet : session renouvelée, puis déconnexion', () => {
     const { ctl, svc } = setup();
     svc.login('root', 'x').subscribe();
@@ -179,6 +278,75 @@ describe('authInterceptor', () => {
   });
 });
 
+/** Faux gestionnaire de verrous du navigateur : un seul détenteur à la fois, les autres demandes attendent leur tour (comme navigator.locks). */
+function installLocks() {
+  let tail: Promise<unknown> = Promise.resolve();
+  const request = vi.fn((_name: string, work: () => Promise<unknown>) => {
+    const run = tail.then(work);
+    tail = run.catch(() => undefined);
+    return run;
+  });
+  Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
+  return request;
+}
+const pump = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+
+describe('AuthService entre onglets, avec verrou partagé', () => {
+  afterEach(() => { Reflect.deleteProperty(navigator, 'locks'); vi.useRealTimers(); });
+
+  /** Deux « onglets » : deux services qui partagent le stockage local et le client HTTP. */
+  function twoTabs() {
+    const request = installLocks();
+    const { ctl, svc } = setup();
+    svc.login('root', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Admin'));
+    const other = TestBed.runInInjectionContext(() => new AuthService());
+    return { ctl, svc, other, request };
+  }
+
+  it('deux onglets qui rafraîchissent en même temps : un seul appel, l\'autre adopte la session obtenue sans appel réseau', async () => {
+    const { ctl, svc, other, request } = twoTabs();
+    const first = firstValueFrom(svc.refresh());
+    const second = firstValueFrom(other.refresh());
+    await pump();
+
+    // Le second onglet attend le verrou : il n'envoie rien tant que le premier n'a pas écrit sa session, aussi lente soit la réponse.
+    const calls = ctl.match('/api/auth/refresh');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].request.body).toEqual({ refreshToken: 'RT' });
+    expect(request).toHaveBeenCalledTimes(2);
+    calls[0].flush(auth('Admin', 'AT2', 'RT2'));
+    await expect(first).resolves.toBe('AT2');
+    await expect(second).resolves.toBe('AT2');
+    ctl.expectNone('/api/auth/refresh');
+    expect(other.accessToken).toBe('AT2');
+    expect(svc.accessToken).toBe('AT2');
+    expect(JSON.parse(localStorage.getItem(KEY)!).refreshToken).toBe('RT2');
+  });
+
+  it('un refus obtenu sous verrou est définitif : déconnexion immédiate, sans attendre un gagnant qui n\'existe pas', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    const { ctl, svc } = twoTabs();
+    const pending = firstValueFrom(svc.refresh());
+    await pump();
+    ctl.expectOne('/api/auth/refresh').flush({}, { status: 401, statusText: 'Unauthorized' });
+    await pump();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(pending).resolves.toBeNull();
+    expect(svc.user()).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('un verrou refusé par le navigateur (page sandboxée) ne bloque pas le rafraîchissement', async () => {
+    const { ctl, svc, request } = twoTabs();
+    request.mockImplementation(() => Promise.reject(new DOMException('refusé', 'SecurityError')));
+    const pending = firstValueFrom(svc.refresh());
+    await pump();
+    ctl.expectOne('/api/auth/refresh').flush(auth('Admin', 'AT2', 'RT2'));
+    await expect(pending).resolves.toBe('AT2');
+  });
+});
+
 describe('AuthService.freshAccessToken', () => {
   const jwt = (exp: number) => `h.${btoa(JSON.stringify({ exp }))}.s`;
 
@@ -200,6 +368,29 @@ describe('AuthService.freshAccessToken', () => {
     await expect(pending).resolves.toBe('AT2');
   });
 
+  it('le seuil est de 20 s : à 25 s de l\'échéance le jeton est gardé, à 15 s il est renouvelé', async () => {
+    const { ctl, svc } = setup();
+    const near = jwt(Date.now() / 1000 + 25);
+    svc.login('root', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Admin', near));
+    await expect(svc.freshAccessToken()).resolves.toBe(near);
+    ctl.expectNone('/api/auth/refresh');
+
+    localStorage.setItem(KEY, JSON.stringify({ accessToken: jwt(Date.now() / 1000 + 15), refreshToken: 'RT', user: { id: '1', email: 'root', role: 'Admin' } }));
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY }));
+    const pending = svc.freshAccessToken();
+    ctl.expectOne('/api/auth/refresh').flush(auth('Admin', 'AT2', 'RT2'));
+    await expect(pending).resolves.toBe('AT2');
+  });
+
+  it('un jeton dont on ne lit pas l\'échéance est présenté tel quel (le serveur tranche)', async () => {
+    const { ctl, svc } = setup();
+    svc.login('root', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Admin', 'opaque'));
+    await expect(svc.freshAccessToken()).resolves.toBe('opaque');
+    ctl.expectNone('/api/auth/refresh');
+  });
+
   it('renvoie une chaîne vide sans session', async () => {
     const { svc } = setup();
     await expect(svc.freshAccessToken()).resolves.toBe('');
@@ -211,5 +402,33 @@ describe('staffGuard', () => {
     setup();
     const res = TestBed.runInInjectionContext(() => staffGuard({} as never, {} as never));
     expect(TestBed.inject(Router).serializeUrl(res as never)).toBe('/login');
+  });
+});
+
+describe('guestGuard', () => {
+  it('laisse voir la page de connexion sans session du personnel', () => {
+    setup();
+    expect(TestBed.runInInjectionContext(() => guestGuard({} as never, {} as never))).toBe(true);
+  });
+
+  it('renvoie vers le tableau de bord quand une session du personnel est déjà ouverte (autre onglet, rechargement)', () => {
+    const { ctl, svc } = setup();
+    svc.login('root', 'x').subscribe();
+    ctl.expectOne('/api/auth/login').flush(auth('Support'));
+    const res = TestBed.runInInjectionContext(() => guestGuard({} as never, {} as never));
+    expect(TestBed.inject(Router).serializeUrl(res as never)).toBe('/dashboard');
+  });
+});
+
+describe('routes', () => {
+  const route = (path: string) => routes.find(r => r.path === path)!;
+
+  it('la page de connexion est gardée par guestGuard', () => {
+    expect(route('login').canActivate).toEqual([guestGuard]);
+  });
+
+  it('le personnel est vérifié à chaque navigation entre pages, pas seulement à l\'entrée de la console', () => {
+    expect(route('').canActivate).toEqual([staffGuard]);
+    expect(route('').canActivateChild).toEqual([staffGuard]);
   });
 });

@@ -31,9 +31,15 @@ src/app/shared/   icônes SVG intégrées, fenêtre de confirmation, état d'err
 
 ## Règles à connaître
 
-- **Session.** Le jeton de rafraîchissement est à usage unique : un seul rafraîchissement à la fois, et un onglet qui perd la rotation
-  adopte le jeton de l'onglet gagnant (jamais de rejeu d'un jeton consommé, l'API coupe alors toute la session). Seule une réponse 400 ou 401
-  du rafraîchissement vide la session ; un 429, un 5xx ou un réseau coupé la gardent. Connexion et déconnexion se propagent aux autres onglets.
+- **Session.** Le jeton de rafraîchissement est à usage unique : un seul rafraîchissement à la fois. Entre onglets, un verrou du navigateur
+  (`navigator.locks`) fait attendre les autres, qui relisent ensuite le stockage et adoptent la session obtenue sans appel réseau, aussi lente
+  que soit la réponse du premier (jamais de rejeu d'un jeton consommé, l'API coupe alors toute la session). Sans verrou (page servie en HTTP
+  hors localhost), un onglet dont le jeton est refusé attend 10 s, la tolérance de rejeu de l'API, qu'un autre onglet écrive sa session avant
+  de conclure : une session réellement morte met alors ce temps à ramener à la connexion. Seule une réponse 400 ou 401 du rafraîchissement
+  vide la session ; un 429, un 5xx ou un réseau coupé la gardent. Un compte qui n'est plus du personnel au rafraîchissement (agent rétrogradé
+  en cours de session) est renvoyé à la connexion, son nouveau jeton est révoqué et le formulaire l'explique. Connexion et déconnexion se
+  propagent aux autres onglets : une connexion ailleurs fait quitter la page de connexion, qui n'est d'ailleurs pas servie quand une session
+  du personnel est ouverte (`guestGuard`), et `staffGuard` est rejoué à chaque navigation entre pages.
 - **Temps réel.** Le jeton passé à SignalR est renouvelé d'avance s'il est périmé, y compris à chaque reconnexion. Une connexion qui échoue
   est relancée de plus en plus lentement jusqu'à la déconnexion.
 - **Charte.** Jetons de couleur dans `packages/brand/tokens.css`. Le dégradé de marque ne sert qu'aux boutons principaux et aux barres de
