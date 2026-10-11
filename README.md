@@ -15,8 +15,8 @@ demande de titre, aide avec fil de discussion, notifications en direct, françai
 
 **Back-office** (Angular) : tableau de bord (compteurs, état des services, flux en direct), catalogue complet, demandes
 (approuver, télécharger, rendre disponible, refuser avec raison), billets d'aide (réponse depuis le fil), utilisateurs (rôles,
-activation). Deux rôles : Admin (tout) et Support (lecture du catalogue, des demandes et des billets, réponses aux billets ; ni les
-comptes ni les décisions sur les demandes).
+activation). Deux rôles : Admin (tout) et Support (lecture du catalogue, des demandes et des billets avec le courriel de leurs auteurs,
+réponses aux billets ; ni la liste des comptes ni les décisions sur les demandes).
 
 **API** (ASP.NET Core 9) : authentification JWT avec jetons de rafraîchissement à usage unique, recommandations, assistant,
 demandes, billets, notifications SignalR, synchronisation Active Directory et Audiobookshelf, médias servis par URL signées,
@@ -97,9 +97,21 @@ les secrets dans `/opt/divertiflix/.env` (permissions 600), démarre l'infrastru
 service systemd durci et nginx (en-têtes de sécurité, CSP stricte, cache des fichiers à empreinte, WebSocket pour le temps réel,
 limitation de débit par adresse IPv4 ou par préfixe /64 en IPv6, journal d'accès où les jetons de flux et de SignalR sont masqués).
 L'API reste en service pendant la compilation et n'est arrêtée que le temps de remplacer ses fichiers. Le mot de passe administrateur
-généré s'affiche à la fin dans un terminal ; sinon il est dans `/opt/divertiflix/.env`. Avec `DOMAIN` et `CERTBOT_EMAIL`, HTTPS
-Let's Encrypt est configuré ; ces deux variables ne sont pas mémorisées, il faut les redonner à chaque exécution (dans le pipeline :
-variables CI/CD du projet), sinon nginx repasse en HTTP seul. Le pipeline GitLab exécute les tests avant tout déploiement.
+généré s'affiche à la fin dans un terminal ; sinon il est dans `/opt/divertiflix/.env`. Le pipeline GitLab exécute les tests avant tout
+déploiement.
+
+HTTPS : avec `DOMAIN` et `CERTBOT_EMAIL`, donnés une première fois, le script configure Let's Encrypt. Ces deux valeurs ne sont pas des
+secrets : elles sont enregistrées dans `/opt/divertiflix/.env` et relues aux exécutions suivantes, donc le pipeline n'a besoin d'aucune
+variable pour garder HTTPS (nginx est pourtant réécrit à chaque exécution). Un serveur installé avant cette mémorisation est reconnu à
+son unique certificat de `/etc/letsencrypt/live/` ; avec plusieurs certificats, le script s'arrête avant de toucher à nginx et demande
+`DOMAIN`. Un certificat déjà émis n'est jamais supprimé ni réémis : le script le réinstalle tel quel dans le site réécrit (`certbot
+install`, sans contacter Let's Encrypt, sans passage par un nginx en HTTP seul ; le renouvellement reste celui de `certbot.timer`), et
+si cette réinstallation échoue il remet l'ancien site HTTPS en place et se termine en erreur (le job du pipeline échoue). Sans domaine,
+ou avec un domaine sans e-mail ni certificat, le site reste en HTTP. Seule la variable `FORCE_HTTP=1` ramène nginx en HTTP seul : elle vaut
+pour l'exécution où elle est donnée (la garder dans les variables CI/CD pour que ce soit durable), le certificat reste sur le disque, et
+l'exécution suivante sans elle rétablit HTTPS. Elle supprime l'en-tête HSTS : les navigateurs qui l'ont retenu (un an) n'atteignent plus
+le site tant que HTTPS n'est pas rétabli. La version de nginx est masquée pour tous les serveurs, y compris le bloc du port 80 que
+certbot ajoute pour la redirection (directive `server_tokens` au niveau `http`).
 
 ## Contenus de démonstration et licences
 

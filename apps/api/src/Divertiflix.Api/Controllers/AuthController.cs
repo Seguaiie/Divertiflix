@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/auth"), EnableRateLimiting("auth")]
-public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginThrottle throttle, Audit audit) : ControllerBase
+public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginThrottle throttle, Audit audit, AccountGuard accounts) : ControllerBase
 {
     private static readonly PasswordHasher<User> Hasher = new();
     // Hash factice : un compte inexistant coûte autant de temps qu'un mauvais mot de passe (pas d'énumération par chronométrage).
@@ -42,7 +42,10 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginT
     {
         var email = req.Email.Trim().ToLowerInvariant();
         var source = ClientAddress.Key(HttpContext.Connection.RemoteIpAddress);
-        if (throttle.LockedFor(email, source) is { } wait)
+        // La tentative est réservée avant de lire le compte et de vérifier le mot de passe (~50 ms) : des appels simultanés ne passent pas
+        // tous le contrôle avant le premier échec. Sans verdict (erreur de base), la réservation est libérée à la sortie sans compter d'échec.
+        using var attempt = throttle.Begin(email, source, out var wait);
+        if (attempt is null)
         {
             Response.Headers.RetryAfter = ((int)Math.Ceiling(wait.TotalSeconds)).ToString();
             return this.Err(429, "Trop d'échecs de connexion, réessayez dans un instant.");
@@ -51,10 +54,10 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginT
         var verdict = Hasher.VerifyHashedPassword(user ?? new User(), user?.PasswordHash ?? DummyHash, req.Password);
         if (user is null || !user.IsActive || verdict == PasswordVerificationResult.Failed)
         {
-            throttle.Failed(email, source);
+            attempt.Failed();
             return this.Err(401, "Identifiants invalides.");
         }
-        throttle.Succeeded(email, source);
+        attempt.Succeeded();
         return await IssueAsync(user);
     }
 
@@ -102,8 +105,9 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginT
     }
 
     /// <summary>
-    /// Coupe toutes les sessions du compte (appareil perdu, jeton volé). Les jetons d'accès déjà émis restent valables
-    /// jusqu'à leur échéance (15 min) mais ne peuvent plus être renouvelés.
+    /// Coupe toutes les sessions du compte (appareil perdu, jeton volé) et ses connexions temps réel. Les jetons d'accès déjà émis restent
+    /// valables jusqu'à leur échéance (15 min) mais ne peuvent plus être renouvelés ; les URL de flux déjà émises (6 h) ne sont liées à aucune
+    /// session et restent valables jusqu'à leur échéance.
     /// </summary>
     [HttpPost("logout-all"), Authorize]
     public async Task<IActionResult> LogoutAll()
@@ -113,6 +117,7 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginT
         await db.RefreshTokens.Where(r => r.UserId == me && r.RevokedAt == null).ExecuteUpdateAsync(s => s.SetProperty(r => r.RevokedAt, now));
         audit.Record(me, "auth.logoutAll", me.ToString("N"));
         await db.SaveChangesAsync();
+        accounts.Changed(me);   // connexions temps réel coupées ; un client qui détient encore un jeton d'accès valable peut se reconnecter jusqu'à son échéance
         return NoContent();
     }
 

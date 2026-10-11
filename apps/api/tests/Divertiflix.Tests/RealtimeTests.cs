@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using Divertiflix.Api.Auth;
 using Divertiflix.Api.Dtos;
 using Divertiflix.Domain;
+using Divertiflix.Infrastructure;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Divertiflix.Tests;
 
@@ -94,6 +98,49 @@ public class RealtimeTests(ApiFactory f) : IClassFixture<ApiFactory>
         msg.Headers.Add("X-Sync-Key", ApiFactory.SyncKey);
         await f.CreateClient().SendAsync(msg);
         Assert.False(await Received(got.Task, 800));
+    }
+
+    [Fact]
+    public async Task Logout_all_cuts_the_realtime_connections_of_the_account()
+    {
+        var (client, auth) = await f.RegisterAsync();
+        await using var conn = await ConnectAsync(auth.AccessToken);
+        var closed = new TaskCompletionSource();
+        conn.Closed += _ => { closed.TrySetResult(); return Task.CompletedTask; };
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/auth/logout-all", (object?)null)).StatusCode);
+        Assert.Same(closed.Task, await Task.WhenAny(closed.Task, Task.Delay(5000)));
+    }
+
+    private async Task SyncAsync(params DirectoryAccountDto[] accounts)
+    {
+        var msg = new HttpRequestMessage(HttpMethod.Post, "/api/admin/directory-sync?force=true") { Content = JsonContent.Create(new DirectorySyncRequest([.. accounts]), options: Json.Options) };
+        msg.Headers.Add("X-Sync-Key", ApiFactory.SyncKey);
+        Assert.Equal(HttpStatusCode.OK, (await f.CreateClient().SendAsync(msg)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_role_change_by_directory_sync_cuts_the_realtime_connection_of_that_account()
+    {
+        var email = $"rc{Guid.NewGuid():N}@corp.test";
+        await SyncAsync(new DirectoryAccountDto(email, "RC", ["Divertiflix-Support"]));
+        try
+        {
+            // Un compte d'annuaire n'a pas de mot de passe utilisable : on lui donne un jeton comme le ferait un futur échange Kerberos/LDAP.
+            string token;
+            using (var scope = f.Services.CreateScope())
+            {
+                var user = await scope.ServiceProvider.GetRequiredService<DivertiflixDbContext>().Users.SingleAsync(u => u.Email == email);
+                token = scope.ServiceProvider.GetRequiredService<TokenService>().CreateAccessToken(user);
+            }
+            await using var conn = await ConnectAsync(token);
+            var closed = new TaskCompletionSource();
+            conn.Closed += _ => { closed.TrySetResult(); return Task.CompletedTask; };
+
+            await SyncAsync(new DirectoryAccountDto(email, "RC", []));   // plus dans le groupe Support : le rôle change, le compte reste actif
+            Assert.Same(closed.Task, await Task.WhenAny(closed.Task, Task.Delay(5000)));
+        }
+        finally { await SyncAsync(); }   // l'annuaire se vide : le compte part, les autres tests de la classe synchronisent sans garde-fou de masse
     }
 
     [Fact]

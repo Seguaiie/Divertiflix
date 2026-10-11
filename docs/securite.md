@@ -24,30 +24,40 @@
   qui perd la rotation adopte le jeton de l'onglet gagnant. Les jetons
   révoqués sont purgés après 7 jours : au-delà, un jeton très ancien est simplement refusé, sans alerte.
 - Déconnexion : le jeton de rafraîchissement est révoqué côté serveur. `POST /api/auth/logout-all` (authentifié) révoque tous les jetons du
-  compte (appareil perdu, jeton volé) ; les jetons d'accès déjà émis restent valables jusqu'à leur échéance (15 min au plus) sans pouvoir être
-  renouvelés. Il n'existe pas encore de changement ni de réinitialisation de mot de passe.
+  compte (appareil perdu, jeton volé) et coupe ses connexions temps réel ; les jetons d'accès déjà émis restent valables jusqu'à leur
+  échéance (15 min au plus) sans pouvoir être renouvelés (un client qui en détient un peut rouvrir une connexion temps réel dans ce délai).
+  **Les URL de flux déjà émises restent valables jusqu'à leur échéance (6 h) après `logout-all`** : elles ne sont liées à aucune session
+  (voir « Flux média » plus bas). Il n'existe pas encore de changement ni de réinitialisation de mot de passe.
 - Échecs de connexion : compteur par courriel, existant ou non (la réponse reste la même), en mémoire. À partir de 5 échecs en 15 minutes, le
   courriel est verrouillé 30 s, puis 1, 2, 4 et au plus 5 min (réponse 429 avec `Retry-After`) ; les tentatives refusées pendant un verrou ne le
-  prolongent pas. Le verrou ne vaut que pour les adresses dont aucune connexion réussie n'est connue pour ce compte (les 8 dernières sont
-  retenues 30 jours) : un attaquant ne peut donc pas empêcher en continu l'administrateur de se connecter depuis ses lieux habituels. L'état
-  est perdu au redémarrage et propre à chaque instance.
+  prolongent pas. La tentative est **réservée avant** la vérification du mot de passe et les tentatives en cours comptent comme des échecs
+  possibles : une rafale simultanée sur un courriel ne fait jamais vérifier plus de 5 mots de passe, les autres appels reçoivent 429. Le verrou
+  ne vaut que pour les adresses dont aucune connexion réussie n'est connue pour ce compte (les 8 dernières sont retenues 30 jours) : un
+  attaquant ne peut donc pas empêcher en continu l'administrateur de se connecter depuis ses lieux habituels. L'état est perdu au
+  redémarrage et propre à chaque instance ; il est borné à 50 000 courriels (au-delà, les moins récemment touchés sont oubliés, jamais les écritures).
 - Un compte désactivé perd ses sessions renouvelables, et aussi ses droits sur le champ (jeton d'accès refusé, connexions temps réel coupées,
   flux média refusés). La désactivation et la révocation des jetons sont enregistrées ensemble ou pas du tout.
 - Un compte local ne peut pas être repris par une synchronisation Active Directory. La désactivation de masse est bloquée par une garde.
-  Un compte invalide dans le lot (courriel inutilisable) est ignoré et compté (`errors`) sans empêcher les départs et les changements de
+  Un compte invalide dans le lot (courriel inutilisable, ou entrée vide) est ignoré et compté (`errors`) sans empêcher les départs et les changements de
   rôle des autres ; un nom d'affichage trop long est abrégé à 50 caractères.
 
 ## Autorisation
 
 - Rôles Abonné, Support, Admin vérifiés par l'API (l'interface ne fait que masquer). La liste des comptes, comme leur modification, est
-  réservée à l'Admin : le Support lit le reste de la console (statistiques, demandes, billets, catalogue) sans voir les courriels des comptes.
+  réservée à l'Admin : le Support lit le reste de la console (statistiques, demandes, billets, catalogue). Il voit le courriel de l'auteur d'une
+  demande ou d'un billet (il en a besoin pour répondre), mais pas la liste des comptes.
 - Le dernier administrateur actif ne peut ni se rétrograder ni se désactiver, et **personne ne peut changer son propre rôle ni l'état de son
-  compte** (une session coupée ne peut donc pas se rétablir elle-même).
+  compte** (une session coupée ne peut donc pas se rétablir elle-même). Le contrôle se fait sous verrou : deux administrateurs qui se retirent
+  les droits en même temps ne l'emportent pas tous les deux, le second reçoit 409.
+- Rétablir un administrateur si plus aucun n'est actif (le Seeder ne remet au démarrage que le mot de passe de `root`, jamais son rôle ni son état) :
+  `UPDATE "Users" SET "Role" = 'Admin', "IsActive" = true WHERE "Email" = 'root';` dans PostgreSQL, puis se reconnecter (l'ancien jeton porte l'ancien rôle).
 - Le groupe SignalR du personnel est rempli à la connexion d'après le rôle du jeton, revalidé à ce moment. Chaque connexion est suivie par
   utilisateur : désactiver un compte ou changer son rôle la coupe aussitôt (le client se reconnecte avec un jeton à jour).
 - Flux média : le jeton signé vit 6 heures, car la liste HLS et tous ses segments en dépendent (une durée courte casserait les longues
   lectures). L'état du compte est donc vérifié à **chaque** requête de flux (cache de 5 s, vidé par les écritures) : un compte désactivé ne
-  reçoit plus rien, et son jeton de flux n'est plus qu'un morceau de texte inerte.
+  reçoit plus rien, et son jeton de flux n'est plus qu'un morceau de texte inerte. En revanche le jeton n'est lié ni à une session ni à un
+  jeton d'accès : tant que le compte est actif, une URL de flux déjà émise (copiée, volée) reste valable jusqu'à son échéance, même après
+  `logout-all`.
 - Les routes de synchronisation machine à machine exigent une clé partagée comparée en temps constant ; sans clé configurée, elles sont fermées.
 
 ## Limitation de débit
@@ -66,6 +76,10 @@ complète la limite par adresse contre une attaque répartie sur beaucoup d'adre
 - Adresses de lecture et d'images : seuls les schémas `http`, `https` et le préfixe `media:` sont acceptés pour la source de lecture ; les
   visuels acceptent aussi un chemin du site (`/api/media/art/...`). Contrôle à l'administration du catalogue et à la synchronisation
   Audiobookshelf (400 sinon). Une source enregistrée avant ce contrôle avec un autre schéma (`javascript:`) n'est jamais remise au lecteur.
+- Écritures qui lisent puis décident (plafonds, doublons, transitions d'état, dernier administrateur) : sérialisées par clé. Le tour
+  s'attend dans le processus (une seule instance d'API est supposée), sans retenir de connexion à la base, puis un verrou consultatif
+  PostgreSQL prend le relais pour la sûreté entre instances : une rafale d'écritures sur le même verrou reçoit des réponses normales
+  (201, 409, 429), elle n'épuise ni le pool de connexions ni PostgreSQL.
 - Journal d'audit : cible et détail sont abrégés à la longueur des colonnes (200 et 300), un courriel long ne fait plus échouer l'action journalisée.
 - Aucun détail de la chaîne d'approvisionnement (torrents, indexeurs) n'est exposé : les demandes ne montrent que des états.
 - Minimisation (Loi 25) : le moteur ne conserve que des signaux (titre, poids, date) ; l'assistant n'enregistre aucune conversation ;

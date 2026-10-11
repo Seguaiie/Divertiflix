@@ -30,4 +30,30 @@ public class MigrationTests
         }
         finally { await db.Database.EnsureDeletedAsync(); }
     }
+
+    private sealed record TokenRow(Guid Id, Guid FamilyId, DateTime SessionExpiresAt);
+
+    [Fact]
+    public async Task Existing_refresh_tokens_each_become_their_own_family_and_keep_a_fresh_absolute_session_end()
+    {
+        await using var db = new DivertiflixDbContext(new DbContextOptionsBuilder<DivertiflixDbContext>().UseNpgsql(ApiFactory.NewConnectionString()).Options);
+        try
+        {
+            var migrator = db.GetService<IMigrator>();
+            await migrator.MigrateAsync("PortalFoundation");   // la migration juste avant les familles de sessions
+            var userId = Guid.NewGuid();
+            await db.Database.ExecuteSqlAsync($"""INSERT INTO "Users" ("Id", "Email", "PasswordHash", "Role", "Source", "IsActive", "CreatedAt") VALUES ({userId}, 'jetons@test.com', 'x', 'Subscriber', 'Local', true, now())""");
+            // Un jeton vivant, un expiré, un révoqué : tous reçoivent leur propre famille (sinon l'identifiant nul commun ferait couper les sessions de tout le monde).
+            foreach (var (hash, expires, revoked) in new (string, string, string)[] { ("vivant", "now() + interval '14 days'", "NULL"), ("expire", "now() - interval '1 day'", "NULL"), ("revoque", "now() + interval '14 days'", "now()") })
+                await db.Database.ExecuteSqlRawAsync($"""INSERT INTO "RefreshTokens" ("Id", "UserId", "TokenHash", "ExpiresAt", "RevokedAt") VALUES ('{Guid.NewGuid()}', '{userId}', '{hash}', {expires}, {revoked})""");
+            await migrator.MigrateAsync("SessionFamilies");
+
+            var rows = await db.Database.SqlQuery<TokenRow>($"""SELECT "Id", "FamilyId", "SessionExpiresAt" FROM "RefreshTokens" """).ToListAsync();
+            Assert.Equal(3, rows.Count);
+            Assert.All(rows, r => Assert.Equal(r.Id, r.FamilyId));                              // une famille par jeton
+            Assert.Equal(3, rows.Select(r => r.FamilyId).Distinct().Count());
+            Assert.All(rows, r => Assert.True(r.SessionExpiresAt > DateTime.UtcNow.AddDays(59)));   // et personne n'est déconnecté au déploiement
+        }
+        finally { await db.Database.EnsureDeletedAsync(); }
+    }
 }

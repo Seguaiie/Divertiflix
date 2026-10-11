@@ -38,7 +38,7 @@ public class SupportController(DivertiflixDbContext db, Notifier notifier, IHubC
     public async Task<ActionResult<TicketDetailDto>> Create(TicketCreate req)
     {
         var uid = User.UserId();
-        await using var tx = await db.BeginLockedAsync($"tickets.create:{uid}");   // le plafond se lit puis s'écrit : un verrou par abonné
+        await using var tx = await db.BeginLockedAsync($"tickets.create:{uid}", HttpContext.RequestAborted);   // le plafond se lit puis s'écrit : un verrou par abonné
         if (await db.Tickets.CountAsync(t => t.UserId == uid && t.Status != TicketStatus.Resolved) >= MaxOpenPerUser)
             return this.Err(409, $"Maximum {MaxOpenPerUser} billets ouverts. Répondez à un billet existant.");
         var t = new SupportTicket { UserId = uid, Subject = req.Subject.Trim(), Category = req.Category };
@@ -57,6 +57,7 @@ public class SupportController(DivertiflixDbContext db, Notifier notifier, IHubC
     {
         var uid = User.UserId();
         var staff = User.IsStaff();
+        await using var tx = await db.BeginLockedAsync($"ticket:{id}", HttpContext.RequestAborted);   // même verrou que le changement de statut : une réponse n'écrase pas « résolu »
         var t = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id && (t.UserId == uid || staff));
         if (t is null) return NotFound();
         var fromStaff = staff && t.UserId != uid;
@@ -68,6 +69,7 @@ public class SupportController(DivertiflixDbContext db, Notifier notifier, IHubC
         audit.Record(uid, fromStaff ? "ticket.staffReply" : "ticket.reply", t.Subject);
         Notification? n = fromStaff ? notifier.Add(t.UserId, "ticket.reply", t.Subject, null, $"/?aide={t.Id}") : null;
         await db.SaveChangesAsync();
+        await tx.CommitAsync();
         if (n is not null) await notifier.PushAsync(n);
         else await hub.Clients.Group(NotificationsHub.StaffGroup).SendAsync("ticketReplied", new { t.Id, t.Subject });
         return new TicketMessageDto(m.Id, m.FromStaff, m.Body, m.At);

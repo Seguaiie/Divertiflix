@@ -34,6 +34,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
     // ------------------------------------------------------------------ Comptes (Admin uniquement)
 
     // La liste des comptes (courriels, rôles) n'est pas utile au Support : l'API la réserve à l'Admin, comme la page du back-office.
+    // Le Support voit tout de même le courriel de l'auteur d'une demande ou d'un billet (il en a besoin pour répondre), pas l'annuaire des comptes.
     [HttpGet("users"), Authorize(Roles = "Admin")]
     public async Task<PagedResult<AdminUserDto>> Users([FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
@@ -50,6 +51,9 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
     [HttpPut("users/{id:guid}"), Authorize(Roles = "Admin")]
     public async Task<ActionResult<AdminUserDto>> UpdateUser(Guid id, AdminUserUpdate req)
     {
+        // Le garde-fou « il reste un administrateur actif » compte puis écrit : deux administrateurs qui se retirent les droits en même temps le
+        // passeraient tous les deux. Les modifications de comptes passent donc l'une après l'autre, et l'utilisateur est lu sous le verrou.
+        await using var tx = await db.BeginLockedAsync("users.admins", HttpContext.RequestAborted);
         var user = await db.Users.Include(u => u.Profiles).FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound();
         var me = User.UserId();
@@ -66,7 +70,6 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
         if (req.IsActive is { } active) user.IsActive = active;
         audit.Record(me, "user.update", user.Email, $"role={user.Role} active={user.IsActive}");
         // Un compte désactivé perd ses sessions renouvelables immédiatement, et jamais sans que la désactivation soit enregistrée.
-        await using var tx = await db.Database.BeginTransactionAsync();
         await db.SaveChangesAsync();
         if (req.IsActive == false)
         {
@@ -101,7 +104,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
     public async Task<ActionResult<AdminRequestDto>> UpdateRequest(Guid id, RequestStatusUpdate req)
     {
         // La transition se juge sur l'état lu : deux décisions simultanées passent l'une après l'autre (la seconde voit « Approved vers Approved »).
-        await using var tx = await db.BeginLockedAsync($"request:{id}");
+        await using var tx = await db.BeginLockedAsync($"request:{id}", HttpContext.RequestAborted);
         var r = await db.Requests.Include(r => r.User).FirstOrDefaultAsync(r => r.Id == id);
         if (r is null) return NotFound();
         if (!Transitions.TryGetValue(r.Status, out var allowed) || !allowed.Contains(req.Status))
@@ -142,7 +145,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
     [HttpPut("tickets/{id:guid}/status")]
     public async Task<ActionResult<TicketSummaryDto>> UpdateTicket(Guid id, TicketStatusUpdate req)
     {
-        await using var tx = await db.BeginLockedAsync($"ticket:{id}");   // « résolu » ne prévient l'abonné qu'une fois, même si deux agents le fixent ensemble
+        await using var tx = await db.BeginLockedAsync($"ticket:{id}", HttpContext.RequestAborted);   // « résolu » ne prévient l'abonné qu'une fois, même si deux agents le fixent ensemble
         var t = await db.Tickets.FirstOrDefaultAsync(t => t.Id == id);
         if (t is null) return NotFound();
         var wasResolved = t.Status == TicketStatus.Resolved;

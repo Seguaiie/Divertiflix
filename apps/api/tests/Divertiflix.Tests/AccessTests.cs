@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Divertiflix.Api.Auth;
 using Divertiflix.Api.Dtos;
 using Divertiflix.Domain;
 using Divertiflix.Infrastructure;
@@ -279,6 +280,19 @@ public class LoginProtectionTests(ApiFactory f) : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, (await c.PostAsync("/api/auth/login", new LoginRequest(reg.User.Email, "Passw0rd!"))).StatusCode);
     }
 
+    [Fact]
+    public async Task A_simultaneous_burst_on_one_email_checks_no_more_passwords_than_the_threshold()
+    {
+        // La tentative est réservée avant la vérification du mot de passe : sans cela, tous les appels arrivés ensemble passaient le contrôle
+        // avant que le premier échec soit enregistré (le seuil de 5 ne valait que pour des essais l'un après l'autre).
+        var (_, real) = await f.RegisterAsync();
+        var c = f.CreateClient();
+        var codes = await ConcurrencyTests.TogetherAsync(40, i => c.PostAsync("/api/auth/login", new LoginRequest(real.User.Email, "mauvais-" + i)));
+        var verified = codes.Count(code => code == HttpStatusCode.Unauthorized);
+        Assert.InRange(verified, 1, LoginThrottle.Threshold);
+        Assert.Equal(40 - verified, codes.Count(code => code == HttpStatusCode.TooManyRequests));
+    }
+
     [Theory]
     [InlineData("password")]
     [InlineData("PASSWORD123")]
@@ -433,6 +447,21 @@ public class DirectorySyncResilienceTests(ApiFactory f) : IClassFixture<ApiFacto
         using var scope = f.Services.CreateScope();
         var name = await scope.ServiceProvider.GetRequiredService<DivertiflixDbContext>().Profiles.Where(p => p.UserId == newcomerId).Select(p => p.Name).SingleAsync();
         Assert.Equal(longName.Trim()[..50], name);
+    }
+
+    [Fact]
+    public async Task A_null_entry_in_the_list_is_counted_as_an_invalid_account_and_the_others_still_apply()
+    {
+        // System.Text.Json accepte un null dans la liste malgré son type : l'élément est un compte invalide comme un autre, pas un 500.
+        var email = $"nul{Guid.NewGuid():N}@corp.test";
+        var msg = new HttpRequestMessage(HttpMethod.Post, "/api/admin/directory-sync?force=true")
+        { Content = new StringContent($$"""{"accounts":[null,{"email":"{{email}}","displayName":"Ok","groups":[null]}]}""", System.Text.Encoding.UTF8, "application/json") };
+        msg.Headers.Add("X-Sync-Key", ApiFactory.SyncKey);
+        var res = await f.CreateClient().SendAsync(msg);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var result = (await res.Content.ReadAsync<DirectorySyncResult>())!;
+        Assert.Equal(1, result.Errors);
+        Assert.Equal(1, result.Created);
     }
 
     [Fact]

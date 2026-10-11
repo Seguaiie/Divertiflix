@@ -19,7 +19,7 @@ namespace Divertiflix.Api.Controllers;
 /// appelé de machine à machine avec une clé partagée.
 /// Garde-fous : un compte local n'est jamais repris (pas d'élévation de privilèges par courriel identique) et une
 /// synchronisation qui désactiverait trop de comptes à la fois est refusée, sauf ?force=true.
-/// Un compte invalide (courriel inutilisable) est ignoré et compté (« errors ») sans faire échouer les autres ; les changements
+/// Un compte invalide (courriel inutilisable, ou entrée vide) est ignoré et compté (« errors ») sans faire échouer les autres ; les changements
 /// et la révocation des jetons sont enregistrés ensemble ou pas du tout.
 /// </summary>
 [ApiController, Route("api/admin/directory-sync"), EnableRateLimiting("sync")]
@@ -46,8 +46,10 @@ public class DirectorySyncController(DivertiflixDbContext db, IConfiguration con
         var maxRatio = config.GetValue<double?>("DirectorySync:MaxDeactivationRatio") ?? 0.5;
         var hasher = new PasswordHasher<User>();
 
-        var errors = req.Accounts.Count(a => !UsableEmail(EmailOf(a)));
-        var accounts = req.Accounts.Where(a => UsableEmail(EmailOf(a))).GroupBy(EmailOf).Select(g => g.Last()).ToList();
+        // Un élément null (System.Text.Json l'accepte dans la liste) est un compte invalide comme un autre.
+        var usable = req.Accounts.Where(a => a is not null && UsableEmail(EmailOf(a))).ToList();
+        var errors = req.Accounts.Count - usable.Count;
+        var accounts = usable.GroupBy(EmailOf).Select(g => g.Last()).ToList();
         var seen = accounts.Select(EmailOf).ToHashSet();
         var existing = await db.Users.Where(u => u.Source == AccountSource.ActiveDirectory).ToListAsync();
         var byEmail = existing.ToDictionary(u => u.Email);

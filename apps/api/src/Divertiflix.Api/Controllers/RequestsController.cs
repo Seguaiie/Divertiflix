@@ -40,7 +40,7 @@ public class RequestsController(DivertiflixDbContext db, IHubContext<Notificatio
         }
         // Plafond et anti-doublon lisent puis écrivent : sans verrou, des appels simultanés passent tous (double-clic, nouvelle tentative réseau).
         // Le doublon se juge sur tout le catalogue de demandes, pas sur l'auteur : un seul verrou pour la création.
-        await using var tx = await db.BeginLockedAsync("requests.create");
+        await using var tx = await db.BeginLockedAsync("requests.create", HttpContext.RequestAborted);
         var open = new[] { RequestStatus.Pending, RequestStatus.Approved, RequestStatus.Downloading };
         if (await db.Requests.CountAsync(r => r.UserId == userId && open.Contains(r.Status)) >= MaxOpenPerUser)
             return this.Err(409, $"Maximum {MaxOpenPerUser} demandes en cours.");
@@ -61,7 +61,7 @@ public class RequestsController(DivertiflixDbContext db, IHubContext<Notificatio
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id)
     {
-        await using var tx = await db.BeginLockedAsync($"request:{id}");   // même verrou que la décision du personnel : l'un ou l'autre, jamais les deux
+        await using var tx = await db.BeginLockedAsync($"request:{id}", HttpContext.RequestAborted);   // même verrou que la décision du personnel : l'un ou l'autre, jamais les deux
         var r = await db.Requests.FirstOrDefaultAsync(r => r.Id == id && r.UserId == User.UserId());
         if (r is null) return NotFound();
         if (r.Status != RequestStatus.Pending) return this.Err(409, "Seules les demandes en attente peuvent être annulées.");
