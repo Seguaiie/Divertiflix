@@ -2,10 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Info, Play, Plus, Check, RotateCcw, Send, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { api, ApiError, call, type Card, type S } from '../lib/api'
 import { titleLink } from '../lib/links'
+import { useRealLocation } from '../hooks/useRealLocation'
 import { reasonText } from '../lib/reason'
 import { useDialog } from '../hooks/useDialog'
 import { usePlayTitle } from '../hooks/usePlay'
@@ -21,7 +22,7 @@ interface Msg { id: number; role: 'user' | 'assistant'; text?: string; res?: Cha
 function AssistantCard({ card }: { card: Card }) {
   const i18n = useI18n()
   const { t, genre, duration } = i18n
-  const location = useLocation()
+  const location = useRealLocation()
   const play = usePlayTitle()
   const toggle = useWatchlistToggle()
   const watchlist = useWatchlist()
@@ -131,6 +132,14 @@ export function AssistantPanel() {
     chat.mutate(q)
   }
 
+  // Ctrl/Cmd+J ouvre ou ferme le panneau : l'écouteur vit avec lui, donc seulement là où il est monté (ni sur la lecture ni sur la connexion).
+  useEffect(() => {
+    const onShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setAssistantOpen(!assistantOpen) }
+    }
+    window.addEventListener('keydown', onShortcut)
+    return () => window.removeEventListener('keydown', onShortcut)
+  }, [assistantOpen, setAssistantOpen])
   useEffect(() => { if (assistantOpen && assistantPrompt) { ask(assistantPrompt); clearAssistantPrompt() } }, [assistantOpen, assistantPrompt]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { list.current?.scrollTo({ top: list.current.scrollHeight, behavior: 'smooth' }) }, [msgs.length, chat.isPending])
 

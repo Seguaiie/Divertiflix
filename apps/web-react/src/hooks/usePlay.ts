@@ -1,7 +1,8 @@
 import { useCallback } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api, call, type Title } from '../lib/api'
 import { isWebUrl, titleLink } from '../lib/links'
+import { useRealLocation } from './useRealLocation'
 import { useI18n } from '../i18n'
 import { useDock } from '../state/dock'
 import { useToast } from '../state/toast'
@@ -13,7 +14,7 @@ import { useAuth } from '../state/auth'
  */
 export function usePlayTitle() {
   const navigate = useNavigate()
-  const location = useLocation()
+  const location = useRealLocation()
   const dock = useDock()
   const toast = useToast()
   const { t } = useI18n()

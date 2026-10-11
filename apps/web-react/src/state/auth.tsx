@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, call, LOGOUT_EVENT, session, type AuthResponse, type User } from '../lib/api'
+import { api, call, LOGOUT_EVENT, onSessionChange, session, type AuthResponse, type User } from '../lib/api'
 
 const PROFILE_KEY = (userId: string) => `divertiflix.profile.${userId}`
 
@@ -43,6 +43,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('divertiflix:user', onUser)
     return () => { window.removeEventListener(LOGOUT_EVENT, onLogout); window.removeEventListener('divertiflix:user', onUser) }
   }, [qc])
+
+  // Un autre onglet ferme la session, ou en ouvre une pour un autre compte : celui-ci le suit, sans jamais montrer ni envoyer les
+  // données de l'ancien compte avec les jetons du nouveau. Le même compte renouvelé (jetons neufs) ne change rien d'autre que l'utilisateur.
+  const userId = user?.id ?? null
+  useEffect(() => onSessionChange(next => {
+    if ((next?.id ?? null) === userId) { if (next) setUser(next); return }
+    qc.clear()
+    setUser(next); setProfileId(readProfile(next))
+  }), [qc, userId])
 
   const accept = useCallback((a: AuthResponse) => {
     qc.clear()

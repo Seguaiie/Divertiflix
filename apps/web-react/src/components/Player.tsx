@@ -29,6 +29,10 @@ interface Props {
   similar: Card[]
   onBack(): void
   onRetry(): void
+  /** La relecture de l'URL demandée par « Réessayer » est en cours : le bouton le montre et n'accepte pas un second clic. */
+  retrying?: boolean
+  /** Change à chaque relecture réussie de l'URL : la source repart même si l'adresse est la même (média non signé), sans quoi « Réessayer » ne ferait rien. */
+  attempt?: number
 }
 
 /**
@@ -36,7 +40,7 @@ interface Props {
  * raccourcis clavier, qualité / vitesse / sous-titres / pistes audio quand le flux en propose, picture-in-picture,
  * et enregistrement de la progression (toutes les 10 s, à la pause, et même à la fermeture de l'onglet).
  */
-export function Player({ profileId, title, playback, similar, onBack, onRetry }: Props) {
+export function Player({ profileId, title, playback, similar, onBack, onRetry, retrying, attempt }: Props) {
   const { t, clock } = useI18n()
   const qc = useQueryClient()
   const { pause: pauseDock } = useDock()
@@ -93,9 +97,13 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
           })
           h.on(HlsLib.Events.SUBTITLE_TRACKS_UPDATED, (_e, d) => setSubs(d.subtitleTracks.map((s, index) => ({ index, label: s.name || s.lang || `#${index + 1}` }))))
           h.on(HlsLib.Events.AUDIO_TRACKS_UPDATED, (_e, d) => setAudios(d.audioTracks.length > 1 ? d.audioTracks.map((a, index) => ({ index, label: a.name || a.lang || `#${index + 1}` })) : []))
+          // Un manifeste ou une liste de niveaux en échec (404, 403 d'une URL signée expirée, 5xx) est signalé une seule fois, et startLoad() ne
+          // les recharge pas : aucun autre évènement ne viendrait et le spinner resterait. L'échec est donc terminal ; « Réessayer » relit une URL neuve.
+          const D = HlsLib.ErrorDetails
+          const noRestart = new Set<string>([D.MANIFEST_LOAD_ERROR, D.MANIFEST_LOAD_TIMEOUT, D.MANIFEST_PARSING_ERROR, D.LEVEL_EMPTY_ERROR, D.LEVEL_LOAD_ERROR, D.LEVEL_LOAD_TIMEOUT, D.LEVEL_PARSING_ERROR])
           h.on(HlsLib.Events.ERROR, (_e, d) => {
             if (!d.fatal) return
-            if (d.type === HlsLib.ErrorTypes.NETWORK_ERROR && netRetries++ < 2) h.startLoad()
+            if (d.type === HlsLib.ErrorTypes.NETWORK_ERROR && !noRestart.has(d.details) && netRetries++ < 2) h.startLoad()
             else if (d.type === HlsLib.ErrorTypes.MEDIA_ERROR && mediaRetries++ < 2) h.recoverMediaError()
             else setError(true)
           })
@@ -107,7 +115,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
     }
     void init()
     return () => { cancelled = true; hls.current?.destroy(); hls.current = null; v.removeAttribute('src'); v.load() }
-  }, [playback.url, playback.kind, playback.startSeconds])
+  }, [playback.url, playback.kind, playback.startSeconds, attempt])
 
   // ------------------------------------------------------------------ Progression
   /** Envoie la position ; la promesse se résout quand le serveur a répondu (jamais rejetée). */
@@ -270,7 +278,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
           if (v.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1))
         }}
         onEnded={() => { setEnded(true); setPlaying(false); void flush(true, true) }}
-        onError={() => { if (playback.kind !== 'Hls') setError(true) }}
+        onError={() => { if (!hls.current) setError(true) }} // avec hls.js, c'est lui qui juge des erreurs de la balise ; sans lui (MP4, HLS natif de Safari), elles sont fatales
       />
 
       <div className="pl-top" inert={overlay || undefined}>
@@ -375,7 +383,7 @@ export function Player({ profileId, title, playback, similar, onBack, onRetry }:
           <h2 id="pl-error-title" className="display">{t('player.errorTitle')}</h2>
           <p>{t('player.errorHelp')}</p>
           <div className="pl-end-actions">
-            <button className="btn btn-primary" onClick={onRetry} data-autofocus><RotateCcw aria-hidden />{t('common.retry')}</button>
+            <button className="btn btn-primary" onClick={onRetry} disabled={retrying} data-autofocus>{retrying ? <span className="spinner" aria-hidden /> : <RotateCcw aria-hidden />}{t('common.retry')}</button>
             <button className="btn btn-glass" onClick={onBack}>{t('player.back')}</button>
           </div>
         </div>

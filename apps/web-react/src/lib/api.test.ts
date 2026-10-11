@@ -125,6 +125,84 @@ describe('refresh : la session ne meurt que si le serveur refuse le jeton', () =
   })
 })
 
+describe('refresh : session absente ou fermée pendant le vol', () => {
+  const start = (over: Partial<AuthResponse> = {}) => localStorage.setItem('divertiflix.session', JSON.stringify(makeSession({ refreshToken: 'r1', accessToken: 'vieux', ...over })))
+  const onLogout = vi.fn()
+  const listen = () => { onLogout.mockClear(); window.addEventListener(LOGOUT_EVENT, onLogout) }
+  afterEach(() => { window.removeEventListener(LOGOUT_EVENT, onLogout); vi.unstubAllGlobals() })
+
+  it('sans session dans le stockage (fermée dans un autre onglet), prévient l\'interface au lieu de se taire', async () => {
+    listen()
+    const fetchSpy = vi.fn(async () => json(200, makeSession()))
+    vi.stubGlobal('fetch', fetchSpy)
+    expect(await refresh()).toBeNull()
+    expect(onLogout).toHaveBeenCalledTimes(1)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('un onglet qui perd le verrou et trouve la session vidée par le gagnant prévient aussi l\'interface', async () => {
+    start(); listen()
+    let release!: () => void
+    const gate = new Promise<void>(r => { release = r })
+    vi.stubGlobal('navigator', { ...navigator, locks: { request: vi.fn(async (_n: string, cb: () => Promise<unknown>) => { await gate; return cb() }) } })
+    const fetchSpy = vi.fn(async () => json(200, makeSession()))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const pending = refresh()
+    localStorage.removeItem('divertiflix.session') // le gagnant a reçu un 401 et vidé la session
+    release()
+
+    expect(await pending).toBeNull()
+    expect(onLogout).toHaveBeenCalledTimes(1)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('se déconnecter pendant le vol ne rétablit pas la session, et le nouveau jeton est révoqué côté serveur', async () => {
+    start(); listen()
+    let answer!: () => void
+    const held = new Promise<void>(r => { answer = r })
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input).endsWith('/api/auth/logout')) return new Response(null, { status: 204 })
+      await held // le serveur a fait la rotation (r1 consommé), la réponse tarde
+      return json(200, makeSession({ accessToken: 'neuf', refreshToken: 'r2' }))
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const pending = refresh()
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    session.clear() // « Se déconnecter » : le stockage est vidé et r1 (déjà consommé) est révoqué sans effet
+    answer()
+
+    expect(await pending).toBeNull()
+    expect(session.get()).toBeNull()
+    const revoke = fetchSpy.mock.calls.find(([u]) => String(u).endsWith('/api/auth/logout'))
+    expect(revoke).toBeTruthy()
+    expect(JSON.parse(String(revoke![1]!.body))).toEqual({ refreshToken: 'r2' })
+    expect(onLogout).not.toHaveBeenCalled() // la déconnexion a déjà été traitée par celui qui l'a demandée
+  })
+
+  it('une autre session ouverte entre-temps (autre compte) n\'est pas écrasée par la réponse en retard', async () => {
+    start()
+    let answer!: () => void
+    const held = new Promise<void>(r => { answer = r })
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input).endsWith('/api/auth/logout')) return new Response(null, { status: 204 })
+      await held
+      return json(200, makeSession({ accessToken: 'neuf', refreshToken: 'r2' }))
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const pending = refresh()
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1))
+    localStorage.setItem('divertiflix.session', JSON.stringify(makeSession({ accessToken: 'yvonne', refreshToken: 'ry' })))
+    answer()
+    await pending
+
+    expect(session.get()).toMatchObject({ accessToken: 'yvonne', refreshToken: 'ry' })
+    expect(fetchSpy.mock.calls.some(([u]) => String(u).endsWith('/api/auth/logout'))).toBe(true)
+  })
+})
+
 describe('refresh : verrou refusé', () => {
   it('si navigator.locks refuse (page sandboxée), le refresh a lieu quand même', async () => {
     localStorage.setItem('divertiflix.session', JSON.stringify(makeSession({ refreshToken: 'r1' })))

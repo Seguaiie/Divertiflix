@@ -1,15 +1,39 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { S } from '../lib/api'
 import { makeCard, makeTitle, mockApi, PROFILE_ID, renderApp, signIn } from '../test/utils'
 import { Player } from './Player'
 
+// hls.js simulé : les tests n'ont besoin que de ses évènements d'erreur et de ce que le lecteur lui demande en retour.
+const hls = vi.hoisted(() => {
+  const state = { supported: true, handlers: {} as Record<string, (event: string, data: unknown) => void>, startLoad: 0, recover: 0, loadSource: [] as string[] }
+  class FakeHls {
+    static isSupported = () => state.supported
+    static Events = { MANIFEST_PARSED: 'manifestParsed', SUBTITLE_TRACKS_UPDATED: 'subtitleTracks', AUDIO_TRACKS_UPDATED: 'audioTracks', ERROR: 'hlsError' }
+    static ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' }
+    static ErrorDetails = {
+      MANIFEST_LOAD_ERROR: 'manifestLoadError', MANIFEST_LOAD_TIMEOUT: 'manifestLoadTimeOut', MANIFEST_PARSING_ERROR: 'manifestParsingError',
+      LEVEL_EMPTY_ERROR: 'levelEmptyError', LEVEL_LOAD_ERROR: 'levelLoadError', LEVEL_LOAD_TIMEOUT: 'levelLoadTimeOut', LEVEL_PARSING_ERROR: 'levelParsingError',
+      FRAG_LOAD_ERROR: 'fragLoadError',
+    }
+    on(event: string, cb: (event: string, data: unknown) => void) { state.handlers[event] = cb }
+    loadSource(url: string) { state.loadSource.push(url) }
+    attachMedia() {}
+    startLoad() { state.startLoad++ }
+    recoverMediaError() { state.recover++ }
+    destroy() {}
+  }
+  return { state, FakeHls }
+})
+vi.mock('hls.js', () => ({ default: hls.FakeHls }))
+
 const title = makeTitle({ streamKind: 'Video' })
 const playback = { titleId: title.id, url: 'https://media.test/film.mp4', kind: 'Video', startSeconds: 0, expiresAt: '2030-01-01T00:00:00Z' } as S['PlaybackDto']
 const next = makeCard({}, { id: '22222222-2222-4222-8222-222222222222', name: 'Brume d\'automne' })
 
 beforeEach(() => {
+  Object.assign(hls.state, { supported: true, handlers: {}, startLoad: 0, recover: 0, loadSource: [] })
   signIn()
   // jsdom ne lit pas les médias : on neutralise ce qu'il n'implémente pas.
   vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
@@ -71,6 +95,70 @@ describe('Player : erreur de lecture', () => {
 
     await user.keyboard('{Enter}')
     expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('Player : lecture HLS en échec', () => {
+  const hlsPlayback = { ...playback, url: '/api/media/stream/jeton/film/index.m3u8', kind: 'Hls' } as S['PlaybackDto']
+  function watchHls() {
+    mockApi({})
+    renderApp(<Player profileId={PROFILE_ID} title={makeTitle({ streamKind: 'Hls' })} playback={hlsPlayback} similar={[]} onBack={() => {}} onRetry={() => {}} />)
+    return vi.waitFor(() => expect(hls.state.handlers['hlsError']).toBeTypeOf('function'))
+  }
+  const fail = (details: string, type = 'networkError') => act(() => hls.state.handlers['hlsError']!('hlsError', { fatal: true, type, details }))
+
+  it.each(['manifestLoadError', 'manifestLoadTimeOut', 'manifestParsingError', 'levelLoadError', 'levelEmptyError'])(
+    'une erreur fatale %s (404, 403 ou 5xx du manifeste) montre tout de suite la boîte d\'erreur avec « Réessayer », jamais un spinner infini',
+    async details => {
+      await watchHls()
+      expect(screen.getByRole('status')).toBeInTheDocument() // le spinner de chargement, en attendant le manifeste
+
+      await fail(details)
+
+      expect(screen.getByRole('alertdialog', { name: 'La lecture a échoué' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Réessayer' })).toHaveFocus()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(hls.state.startLoad).toBe(0) // startLoad() ne relance pas le manifeste : inutile de s'y fier
+    },
+  )
+
+  it('une erreur de segment est retentée deux fois avant d\'être déclarée', async () => {
+    await watchHls()
+    await fail('fragLoadError'); await fail('fragLoadError')
+    expect(hls.state.startLoad).toBe(2)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    await fail('fragLoadError')
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('une erreur de média est reprise deux fois, puis déclarée', async () => {
+    await watchHls()
+    await fail('bufferAppendError', 'mediaError'); await fail('bufferAppendError', 'mediaError')
+    expect(hls.state.recover).toBe(2)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    await fail('bufferAppendError', 'mediaError')
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  })
+
+  it('en lecture HLS native (Safari), une erreur de la balise vidéo montre aussi la boîte d\'erreur', async () => {
+    hls.state.supported = false
+    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('maybe')
+    mockApi({})
+    renderApp(<Player profileId={PROFILE_ID} title={makeTitle({ streamKind: 'Hls' })} playback={hlsPlayback} similar={[]} onBack={() => {}} onRetry={() => {}} />)
+    const video = screen.getByLabelText('Lueur Boréale', { selector: 'video' }) as HTMLVideoElement
+    await vi.waitFor(() => expect(video.getAttribute('src')).toBe(hlsPlayback.url))
+
+    fireEvent.error(video)
+
+    expect(screen.getByRole('alertdialog', { name: 'La lecture a échoué' })).toBeInTheDocument()
+  })
+
+  it('avec hls.js, une erreur de la balise vidéo ne double pas celles que hls.js traite lui-même', async () => {
+    await watchHls()
+    fireEvent.error(screen.getByLabelText('Lueur Boréale', { selector: 'video' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })
 

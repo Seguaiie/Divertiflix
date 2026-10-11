@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 
 interface UIState {
   assistantOpen: boolean
@@ -16,14 +16,11 @@ interface UIState {
   support: { open: boolean; ticketId: string | null; opener: HTMLElement | null }
   openSupport(ticketId?: string | null): void
   closeSupport(): void
+  /** Ferme tous les dialogues : la coque qui les porte disparaît (lecture, connexion), ils ne doivent pas s'y retrouver ouverts au retour. */
+  closeAll(): void
 }
 
 const Ctx = createContext<UIState | null>(null)
-
-const isTyping = (t: EventTarget | null) => {
-  const el = t as HTMLElement | null
-  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
-}
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const [assistantOpen, setAssistantOpen] = useState(false)
@@ -40,24 +37,17 @@ export function UIProvider({ children }: { children: ReactNode }) {
   }, [])
   const closeSupport = useCallback(() => setSupport(s => ({ ...s, open: false })), [])
 
-  // Raccourcis globaux : Ctrl/Cmd+K ou « / » (palette), Ctrl/Cmd+J (assistant).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen(o => !o) }
-      else if (mod && e.key.toLowerCase() === 'j') { e.preventDefault(); setAssistantOpen(o => !o) }
-      else if (e.key === '/' && !mod && !isTyping(e.target)) { e.preventDefault(); setPaletteOpen(true) }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+  const closeAll = useCallback(() => {
+    setAssistantOpen(false); setPaletteOpen(false); setAssistantPrompt(null)
+    setRequest({ open: false, prefill: '' }); setSupport({ open: false, ticketId: null, opener: null })
   }, [])
 
   const askAssistant = useCallback((message: string) => { setAssistantPrompt(message); setAssistantOpen(true) }, [])
   const clearAssistantPrompt = useCallback(() => setAssistantPrompt(null), [])
 
   const value = useMemo<UIState>(() => ({
-    assistantOpen, setAssistantOpen, askAssistant, assistantPrompt, clearAssistantPrompt, paletteOpen, setPaletteOpen, request, openRequest, closeRequest, support, openSupport, closeSupport,
-  }), [assistantOpen, assistantPrompt, askAssistant, clearAssistantPrompt, paletteOpen, request, support, openRequest, closeRequest, openSupport, closeSupport])
+    assistantOpen, setAssistantOpen, askAssistant, assistantPrompt, clearAssistantPrompt, paletteOpen, setPaletteOpen, request, openRequest, closeRequest, support, openSupport, closeSupport, closeAll,
+  }), [assistantOpen, assistantPrompt, askAssistant, clearAssistantPrompt, paletteOpen, request, support, openRequest, closeRequest, openSupport, closeSupport, closeAll])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

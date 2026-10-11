@@ -7,6 +7,8 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
  * Seul le dernier réagit à Échap et à Tab ; le fond reste verrouillé tant qu'il en reste un.
  */
 const stack: object[] = []
+/** L'élément qui avait le focus avant le premier dialogue : repli quand le déclencheur du dernier a disparu (fiche remplacée par une autre depuis l'assistant). */
+let origin: HTMLElement | null = null
 let lock: { overflow: string; padding: string } | null = null
 
 /**
@@ -22,6 +24,7 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
     const node = ref.current
     const me = {}
     const previous = document.activeElement as HTMLElement | null
+    if (stack.length === 0) origin = previous
     stack.push(me)
     if (!lock) {
       const scrollbar = window.innerWidth - document.documentElement.clientWidth
@@ -50,13 +53,16 @@ export function useDialog(open: boolean, onClose: () => void, ref: RefObject<HTM
       document.removeEventListener('keydown', onKey, true)
       const wasTop = stack[stack.length - 1] === me
       stack.splice(stack.indexOf(me), 1)
-      if (stack.length === 0 && lock) {
+      const last = stack.length === 0
+      if (last && lock) {
         document.body.style.overflow = lock.overflow
         document.body.style.paddingRight = lock.padding
         lock = null
       }
       // Fermé sous un autre dialogue (Ctrl+J sous une fiche) : le focus reste dans celui qui est au-dessus.
-      if (wasTop) previous?.focus?.({ preventScroll: true })
+      // Le déclencheur a pu disparaître entre-temps : le dernier dialogue fermé rend alors le focus à celui du premier ouvert.
+      if (wasTop) (previous?.isConnected ? previous : last ? origin : null)?.focus?.({ preventScroll: true })
+      if (last) origin = null
     }
   }, [open, ref, opts.initialFocus])
 }

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams, type Location } from 'react-router-dom'
+import { RealLocation } from './hooks/useRealLocation'
 import { I18nProvider, useI18n } from './i18n'
 import { AudioDock } from './components/AudioDock'
 import { CommandPalette } from './components/CommandPalette'
@@ -35,7 +36,8 @@ function Gate({ children }: { children: ReactNode }) {
   const location = useLocation()
   if (!user) return <Navigate to="/connexion" replace state={{ from: location }} />
   if (!profileId) return <Navigate to="/profils" replace />
-  return children
+  // key : un autre compte (ouvert dans un autre onglet) repart d'un écran neuf, sans la conversation de l'assistant ni le billet ouvert du précédent.
+  return <Fragment key={user.id}>{children}</Fragment>
 }
 
 /** Fiche d'un titre en fenêtre par-dessus la page courante ; un lien direct ouvre la même fiche sur l'accueil. */
@@ -52,8 +54,11 @@ function Shell() {
   const { t } = useI18n()
   const location = useLocation()
   const main = useRef<HTMLElement>(null)
-  const { support, openSupport } = useUI()
+  const { support, openSupport, closeAll } = useUI()
   const { user } = useAuth()
+
+  // Les dialogues vivent dans la coque : en la quittant (lecture, connexion, autre compte), aucun ne doit rester « ouvert » pour resurgir au retour.
+  useEffect(() => closeAll, [closeAll])
 
   // Navigation SPA : le focus revient en haut du contenu et les lecteurs d'écran annoncent le changement de page.
   const path = (location.state as { background?: Location } | null)?.background?.pathname ?? location.pathname
@@ -95,7 +100,7 @@ export function AppRoutes() {
   const { user } = useAuth()
   const background = (location.state as { background?: Location } | null)?.background
   return (
-    <>
+    <RealLocation.Provider value={location}>
       <Routes location={background ?? location}>
         <Route path="/connexion" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/profils" element={user ? <ProfilesPage /> : <Navigate to="/connexion" replace />} />
@@ -114,7 +119,7 @@ export function AppRoutes() {
           <Route path="/titres/:id" element={<TitleRoute />} />
         </Routes>
       )}
-    </>
+    </RealLocation.Provider>
   )
 }
 

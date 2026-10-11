@@ -36,18 +36,20 @@ export function WatchPage() {
     if (title && playback.data?.kind === 'Audio') { void dock.play(title); back() }
   }, [title, playback.data?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // L'écran d'erreur n'a de sens que sans rien à montrer : une relecture en arrière-plan qui échoue ne remplace pas un film en cours.
-  if ((detail.isError && !detail.data) || (playback.isError && !playback.data)) {
+  // Une relecture de la fiche en arrière-plan qui échoue ne remplace pas un film en cours. L'URL de lecture, elle, n'est relue que sur
+  // « Réessayer » : son échec doit se voir, sinon la boîte d'erreur du lecteur resterait identique, sans aucune réponse au clic.
+  if ((detail.isError && !detail.data) || playback.isError) {
     const unavailable = playback.error instanceof ApiError && playback.error.status === 409
+    const busy = playback.isFetching || detail.isFetching // après une première lecture réussie, une relecture qui échoue garde l'état d'erreur : le bouton doit montrer qu'il travaille
     return (
       <div className="player" style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
         <div className="empty"><h2>{unavailable ? t('player.unavailable') : t('player.errorTitle')}</h2><p>{unavailable ? t('player.unavailableHelp') : t('player.errorHelp')}</p>
-          <div className="row-flex"><button className="btn btn-primary" onClick={back}>{t('player.back')}</button>{!unavailable && <button className="btn btn-glass" onClick={() => { void playback.refetch(); void detail.refetch() }}>{t('common.retry')}</button>}</div></div>
+          <div className="row-flex"><button className="btn btn-primary" onClick={back}>{t('player.back')}</button>{!unavailable && <button className="btn btn-glass" disabled={busy} onClick={() => { void playback.refetch(); void detail.refetch() }}>{busy && <span className="spinner" aria-hidden />}{t('common.retry')}</button>}</div></div>
       </div>
     )
   }
   if (!title || !playback.data || !profileId || playback.data.kind === 'Audio') {
     return <div className="player" style={{ display: 'grid', placeItems: 'center' }} role="status"><span className="spinner" style={{ width: 44, height: 44 }} /><span className="visually-hidden">{t('common.loading')}</span></div>
   }
-  return <Player key={title.id} profileId={profileId} title={title} playback={playback.data} similar={detail.data?.similar ?? []} onBack={back} onRetry={() => void playback.refetch()} />
+  return <Player key={title.id} profileId={profileId} title={title} playback={playback.data} similar={detail.data?.similar ?? []} onBack={back} onRetry={() => void playback.refetch()} retrying={playback.isFetching} attempt={playback.dataUpdatedAt} />
 }

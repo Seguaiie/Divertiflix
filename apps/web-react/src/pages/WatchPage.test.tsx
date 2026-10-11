@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeCard, mockApi, PROFILE_ID, renderApp, signIn } from '../test/utils'
@@ -57,6 +58,93 @@ describe('WatchPage : retour du réseau', () => {
     mockApi({ [`/api/titles/${ID}/detail`]: detail, [`/api/titles/${ID}/playback`]: { status: 503, body: {} } })
     watch()
     expect(await screen.findByText('La lecture a échoué')).toBeInTheDocument()
+  })
+})
+
+describe('WatchPage : « Réessayer » dans la boîte d\'erreur du lecteur', () => {
+  const sameUrl = () => ({ titleId: ID, url: 'https://media.test/film.mp4', kind: 'Video', startSeconds: 0, expiresAt: '2030-01-01T00:00:00Z' })
+
+  it('si la relecture de l\'URL échoue, la page le dit au lieu de rester identique', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    const { calls } = mockApi({ [`/api/titles/${ID}/detail`]: detail, [`/api/titles/${ID}/playback`]: () => (++n === 1 ? sameUrl() : { status: 503, body: {} }) })
+    watch()
+    fireEvent.error(await screen.findByLabelText(card.title.name, { selector: 'video' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Réessayer' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()) // la boîte du lecteur a cédé la place à l'écran d'erreur de la page
+    expect(screen.getByText('La lecture a échoué')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retour' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeEnabled()
+    expect(count(calls, '/playback')).toBe(2)
+  })
+
+  it('sur l\'écran d\'erreur de la page, « Réessayer » travaille visiblement puis relance la lecture', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    let release!: () => void
+    const held = new Promise<void>(r => { release = r })
+    mockApi({
+      [`/api/titles/${ID}/detail`]: detail,
+      [`/api/titles/${ID}/playback`]: async () => { n++; if (n === 2) return { status: 503, body: {} }; if (n === 3) await held; return sameUrl() },
+    })
+    watch()
+    fireEvent.error(await screen.findByLabelText(card.title.name, { selector: 'video' }))
+    await user.click(await screen.findByRole('button', { name: 'Réessayer' })) // 2e appel : 503, écran d'erreur de la page
+    await screen.findByText('La lecture a échoué')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Réessayer' })).toBeEnabled())
+
+    await user.click(screen.getByRole('button', { name: 'Réessayer' })) // 3e appel : en cours
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeDisabled()
+
+    release()
+    expect(await screen.findByLabelText(card.title.name, { selector: 'video' })).toBeInTheDocument() // la lecture est revenue
+  })
+
+  it('un titre devenu indisponible (409) le dit, sans proposer de réessayer', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    mockApi({ [`/api/titles/${ID}/detail`]: detail, [`/api/titles/${ID}/playback`]: () => (++n === 1 ? sameUrl() : { status: 409, body: {} }) })
+    watch()
+    fireEvent.error(await screen.findByLabelText(card.title.name, { selector: 'video' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Réessayer' }))
+
+    expect(await screen.findByText('Pas encore disponible')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument()
+  })
+
+  it('pendant la relecture, le bouton est occupé (pas de double envoi)', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    let release!: () => void
+    const held = new Promise<void>(r => { release = r })
+    mockApi({ [`/api/titles/${ID}/detail`]: detail, [`/api/titles/${ID}/playback`]: async () => { if (++n > 1) await held; return sameUrl() } })
+    watch()
+    fireEvent.error(await screen.findByLabelText(card.title.name, { selector: 'video' }))
+
+    await user.click(await screen.findByRole('button', { name: 'Réessayer' }))
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeDisabled()
+
+    release()
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+  })
+
+  it('une URL relue identique (média non signé) relance quand même la source', async () => {
+    const user = userEvent.setup()
+    const { calls } = mockApi({ [`/api/titles/${ID}/detail`]: detail, [`/api/titles/${ID}/playback`]: sameUrl })
+    watch()
+    const video = await screen.findByLabelText(card.title.name, { selector: 'video' }) as HTMLVideoElement
+    fireEvent.error(video)
+    const loads = vi.mocked(HTMLMediaElement.prototype.load).mock.calls.length
+
+    await user.click(await screen.findByRole('button', { name: 'Réessayer' }))
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(count(calls, '/playback')).toBe(2)
+    expect(vi.mocked(HTMLMediaElement.prototype.load).mock.calls.length).toBe(loads + 1) // la source a été défaite puis reposée
+    expect(screen.getByLabelText(card.title.name, { selector: 'video' })).toBe(video) // sans remplacer le lecteur
   })
 })
 

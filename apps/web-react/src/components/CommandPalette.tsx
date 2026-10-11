@@ -2,10 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import { BookOpen, Clapperboard, Home, LifeBuoy, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { api, call, type Title } from '../lib/api'
 import { titleLink } from '../lib/links'
+import { useRealLocation } from '../hooks/useRealLocation'
 import { useDebounced } from '../hooks/useDebounced'
 import { useDialog } from '../hooks/useDialog'
 import { useAuth } from '../state/auth'
@@ -14,6 +15,10 @@ import { Artwork } from './Art'
 import './CommandPalette.css'
 
 interface Item { id: string; kind: 'action' | 'title' | 'ask'; label: string; hint?: string; icon?: typeof Home; title?: Title; run(): void }
+const isTyping = (t: EventTarget | null) => {
+  const el = t as HTMLElement | null
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+}
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /** Palette de commandes (Ctrl/Cmd+K ou « / ») : recherche de titres et actions, entièrement au clavier (combobox ARIA). */
@@ -22,7 +27,7 @@ export function CommandPalette() {
   const ui = useUI()
   const { selectProfile, logout, isStaff } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
+  const location = useRealLocation()
   const ref = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const [q, setQ] = useState('')
@@ -37,6 +42,18 @@ export function CommandPalette() {
     queryFn: () => call(api.GET('/api/titles', { params: { query: { q: dq, pageSize: 7, sort: 'name' } } })),
     placeholderData: prev => prev,
   })
+
+  // Raccourcis d'ouverture : l'écouteur vit avec la palette, donc seulement là où elle est montée (ni sur la lecture ni sur la connexion).
+  const { paletteOpen, setPaletteOpen } = ui
+  useEffect(() => {
+    const onShortcut = (e: globalThis.KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen(!paletteOpen) }
+      else if (e.key === '/' && !mod && !isTyping(e.target)) { e.preventDefault(); setPaletteOpen(true) }
+    }
+    window.addEventListener('keydown', onShortcut)
+    return () => window.removeEventListener('keydown', onShortcut)
+  }, [paletteOpen, setPaletteOpen])
 
   useEffect(() => { if (!ui.paletteOpen) { setQ(''); setActive(0) } }, [ui.paletteOpen])
   useEffect(() => setActive(0), [dq, results.data])

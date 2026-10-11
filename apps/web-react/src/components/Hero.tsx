@@ -1,11 +1,12 @@
 import { Check, Info, Pause, Play, Plus, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { usePlayTitle } from '../hooks/usePlay'
 import { useReducedMotion } from '../hooks/useMedia'
 import type { Card } from '../lib/api'
 import { titleLink } from '../lib/links'
+import { useRealLocation } from '../hooks/useRealLocation'
 import { reasonText } from '../lib/reason'
 import { useWatchlistToggle, type Home } from '../state/queries'
 import { Artwork } from './Art'
@@ -26,7 +27,7 @@ export function Hero({ items }: { items: Home['hero'] }) {
   const i18n = useI18n()
   const { t, genre, duration, plural } = i18n
   const reduced = useReducedMotion()
-  const location = useLocation()
+  const location = useRealLocation()
   const play = usePlayTitle()
   const toggle = useWatchlistToggle()
   const [index, setIndex] = useState(0)

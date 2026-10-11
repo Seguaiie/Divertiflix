@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AppRoutes } from '../App'
@@ -51,6 +51,80 @@ describe('fiche d\'un titre : titres similaires', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Brume d\'automne' })).toBeInTheDocument()
     expect(dialogs()).toHaveLength(1)
+  })
+})
+
+describe('fiche d\'un titre : ouverte depuis l\'assistant ou la palette par-dessus une fiche', () => {
+  const chat = { reply: 'found', param: null, unknownTitle: null, understood: [], steps: [], cards: [B] }
+  const sheet = (name: string) => [...dialogs()].filter(d => d.querySelector('h2')?.textContent === name)
+
+  async function openAssistantOverSheet(user: ReturnType<typeof userEvent.setup>) {
+    mockApi({
+      '/api/profiles': [{ id: PROFILE_ID, name: 'Camille' }], '/api/titles/genres': [], '/api/home': { hero: [], rows: [] },
+      '/api/titles': { items: [A.title, B.title], page: 1, pageSize: 24, total: 2 },
+      [`/api/profiles/${PROFILE_ID}/watchlist`]: [],
+      [`/api/titles/${A.title.id}/detail`]: detail(A, []), [`/api/titles/${B.title.id}/detail`]: detail(B, []),
+      'POST /api/assistant/chat': chat,
+    })
+    renderApp(<AppRoutes />, { route: '/films' })
+    await user.click(await screen.findByRole('link', { name: /Atlas de poche/ }))
+    await screen.findByRole('heading', { level: 2, name: 'Atlas de poche' })
+    await user.keyboard('{Control>}j{/Control}')
+    await user.type(await screen.findByLabelText('Votre message à l\'assistant'), 'un film{Enter}')
+    const assistant = await screen.findByRole('dialog', { name: /Assistant/ })
+    await user.click((await within(assistant).findAllByRole('link', { name: /Brume d'automne/ }))[1]!) // l'icône « Détails » de la carte
+    await screen.findByRole('heading', { level: 2, name: 'Brume d\'automne' })
+    return assistant
+  }
+
+  it('« Détails » remplace la fiche au lieu de s\'empiler : un seul Échap la ferme, sans ressortir la première', async () => {
+    const user = userEvent.setup()
+    const assistant = await openAssistantOverSheet(user)
+
+    expect(sheet('Atlas de poche')).toHaveLength(0) // remplacée, pas recouverte
+    expect(sheet('Brume d\'automne')).toHaveLength(1)
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(sheet('Brume d\'automne')).toHaveLength(0))
+    expect(sheet('Atlas de poche')).toHaveLength(0) // l'ancienne fiche ne revient pas au-dessus de l'assistant
+    expect(assistant).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Films' })).toBeInTheDocument() // retour à la page d'origine
+  })
+
+  it('le focus reste dans l\'assistant à la fermeture de la fiche, puis la fermeture de l\'assistant ne le perd pas dans un vide', async () => {
+    const user = userEvent.setup()
+    const assistant = await openAssistantOverSheet(user)
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(sheet('Brume d\'automne')).toHaveLength(0))
+    expect(assistant.contains(document.activeElement)).toBe(true)
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('link', { name: /Atlas de poche/ })).toHaveFocus() // la carte qui avait ouvert la première fiche, pas <body>
+  })
+
+  it('depuis la palette, ouvrir un titre par-dessus une fiche la remplace aussi', async () => {
+    const user = userEvent.setup()
+    mockApi({
+      '/api/profiles': [{ id: PROFILE_ID, name: 'Camille' }], '/api/titles/genres': [],
+      '/api/titles': { items: [A.title, B.title], page: 1, pageSize: 24, total: 2 },
+      [`/api/profiles/${PROFILE_ID}/watchlist`]: [],
+      [`/api/titles/${A.title.id}/detail`]: detail(A, []), [`/api/titles/${B.title.id}/detail`]: detail(B, []),
+    })
+    renderApp(<AppRoutes />, { route: '/films' })
+    await user.click(await screen.findByRole('link', { name: /Atlas de poche/ }))
+    await screen.findByRole('heading', { level: 2, name: 'Atlas de poche' })
+
+    await user.keyboard('{Control>}k{/Control}')
+    await user.type(within(await screen.findByRole('dialog', { name: 'Palette de commandes' })).getByRole('combobox'), 'brume')
+    await user.click(await screen.findByRole('option', { name: /Brume d'automne/ }))
+    await screen.findByRole('heading', { level: 2, name: 'Brume d\'automne' })
+    expect(sheet('Atlas de poche')).toHaveLength(0)
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { level: 1, name: 'Films' })).toBeInTheDocument()
   })
 })
 

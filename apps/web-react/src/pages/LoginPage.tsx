@@ -2,6 +2,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useI18n } from '../i18n'
 import { ApiError } from '../lib/api'
+import { passwordRefusal } from '../lib/errors'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../state/auth'
 import { GeneratedArt } from '../components/Art'
@@ -43,7 +44,7 @@ export function LoginPage() {
         : status === 401 ? t('auth.invalid')
         : status === 429 ? t('auth.tooMany')
         : status === 409 ? t('auth.emailTaken')
-        : status === 400 ? t('auth.checkFields')
+        : status === 400 ? t(passwordRefusal(err) ?? 'auth.checkFields')
         : t('auth.generic'),
       )
     } finally { setBusy(false) }

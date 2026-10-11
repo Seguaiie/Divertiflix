@@ -1,8 +1,9 @@
 import { Check, Headphones, Info, Play, Plus, ThumbsDown, ThumbsUp } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { Card } from '../lib/api'
 import { titleLink } from '../lib/links'
+import { useRealLocation } from '../hooks/useRealLocation'
 import { reasonText } from '../lib/reason'
 import { usePlayTitle } from '../hooks/usePlay'
 import { useRate, useWatchlistToggle } from '../state/queries'
@@ -16,7 +17,7 @@ import './PosterCard.css'
 export function PosterCard({ card, showReason = false, rated = true }: { card: Card; showReason?: boolean; rated?: boolean }) {
   const i18n = useI18n()
   const { t, genre, duration } = i18n
-  const location = useLocation()
+  const location = useRealLocation()
   const play = usePlayTitle()
   const toggle = useWatchlistToggle()
   const rate = useRate()

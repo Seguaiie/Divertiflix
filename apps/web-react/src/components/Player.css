@@ -47,7 +47,10 @@
   .pl-menu button[aria-checked='true'] { color: var(--text); }
   .pl-menu button[aria-checked='true']::before { content: ''; position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
-  .pl-end { position: absolute; z-index: 5; inset: 0; display: grid; align-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; background: radial-gradient(ellipse at center, rgb(var(--ink) / 0.78), rgb(0 0 0 / 0.94)); animation: fade-in var(--dur-3) var(--ease); }
+  /* Défilable et centré « en sécurité » : les marges automatiques des extrémités centrent ce qui tient et laissent défiler ce qui déborde (téléphone en paysage), sans couper le haut. */
+  .pl-end { position: absolute; z-index: 5; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 24px; text-align: center; overflow-y: auto; overscroll-behavior: contain; background: radial-gradient(ellipse at center, rgb(var(--ink) / 0.78), rgb(0 0 0 / 0.94)); animation: fade-in var(--dur-3) var(--ease); }
+  .pl-end > :first-child { margin-top: auto; }
+  .pl-end > :last-child { margin-bottom: auto; }
   .pl-end h2 { font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1; }
   .pl-end p:not(.eyebrow) { color: var(--text-2); max-width: 44ch; }
   .pl-end .eyebrow { color: var(--accent-hi); }
@@ -58,4 +61,13 @@
   .pl-end-list a:hover { color: var(--text); }
   .pl-end-art { position: relative; display: block; width: 100%; aspect-ratio: 2 / 3; border-radius: var(--radius-sm); overflow: hidden; box-shadow: 0 0 0 1px var(--line-strong); }
   @media (max-width: 720px) { .pl-pip, .pl-volume input { display: none; } .pl-bar .icon-btn { width: 40px; height: 40px; } .pl-time { margin-left: 4px; } }
+  /* Téléphone en paysage : la boîte doit tenir sans défiler (affiches plus petites, espaces réduits) et masquer tout à fait les commandes inertes dessous. */
+  @media (max-height: 480px) {
+    .pl-end { gap: 8px; padding: 12px var(--gutter); background: radial-gradient(ellipse at center, rgb(var(--ink)), #000); }
+    .pl-end h2 { font-size: clamp(1.5rem, 4vw, 2rem); }
+    .pl-end-actions { margin-top: 0; }
+    .pl-end-next { margin-top: 8px; }
+    .pl-end-list { gap: 12px; }
+    .pl-end-list a { width: 72px; gap: 4px; font-size: 0.8rem; }
+  }
 }

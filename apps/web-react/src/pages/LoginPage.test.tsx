@@ -31,6 +31,52 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: 'Se connecter' })).toBeEnabled()
   })
 
+  describe('inscription : refus du mot de passe par la politique de l\'API', () => {
+    const refusal = (detail: string) => ({ status: 400, body: { title: 'Bad Request', status: 400, detail, error: detail } })
+    async function register(response: unknown, locale: 'fr' | 'en' = 'fr') {
+      const user = userEvent.setup()
+      mockApi({ 'POST /api/auth/register': response })
+      renderApp(<LoginPage />, { locale })
+      await user.click(screen.getByRole('tab', { name: locale === 'fr' ? 'Inscription' : 'Sign up' }))
+      await user.type(screen.getByLabelText(locale === 'fr' ? 'Courriel' : 'Email'), 'camille@test.com')
+      await user.type(screen.getByLabelText(locale === 'fr' ? 'Mot de passe' : 'Password'), 'password1')
+      await user.type(screen.getByLabelText(locale === 'fr' ? 'Nom du premier profil' : 'First profile name'), 'Camille')
+      await user.click(screen.getByRole('button', { name: locale === 'fr' ? 'Créer mon compte' : 'Create my account' }))
+      return screen.findByRole('alert')
+    }
+
+    it('« trop courant » dit exactement cela, pas « 8 caractères minimum »', async () => {
+      const alert = await register(refusal('Ce mot de passe est trop courant : choisissez-en un moins prévisible.'))
+      expect(alert).toHaveTextContent('Ce mot de passe est trop courant : choisissez-en un moins prévisible.')
+      expect(alert).not.toHaveTextContent('8 caractères')
+    })
+
+    it('« ne doit pas être votre courriel » dit exactement cela', async () => {
+      expect(await register(refusal('Le mot de passe ne doit pas être votre courriel.'))).toHaveTextContent('Le mot de passe ne doit pas être votre courriel.')
+    })
+
+    it('les deux motifs sont traduits en anglais, quelle que soit la langue du message du serveur', async () => {
+      expect(await register(refusal('Ce mot de passe est trop courant : choisissez-en un moins prévisible.'), 'en')).toHaveTextContent('This password is too common')
+    })
+
+    it('une autre 400 garde le message général, qui ne prétend plus que la longueur est seule en cause', async () => {
+      const alert = await register(refusal('Courriel invalide.'))
+      expect(alert).toHaveTextContent('Vérifiez les champs')
+      expect(alert).toHaveTextContent('courriel valide')
+    })
+
+    it('le courriel déjà pris (409) reste distingué', async () => {
+      expect(await register({ status: 409, body: { detail: 'Courriel déjà utilisé.' } })).toHaveTextContent('Ce courriel est déjà utilisé.')
+    })
+
+    it('l\'aide du champ annonce les deux règles', async () => {
+      const user = userEvent.setup()
+      renderApp(<LoginPage />)
+      await user.click(screen.getByRole('tab', { name: 'Inscription' }))
+      expect(screen.getByText(/mots de passe courants et votre courriel/)).toBeInTheDocument()
+    })
+  })
+
   it('bascule vers la création de compte avec le nom du profil', async () => {
     const user = userEvent.setup()
     renderApp(<LoginPage />)

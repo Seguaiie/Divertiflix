@@ -63,8 +63,9 @@ export function DockProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('pagehide', onHide)
   }, [persist])
 
-  // Un changement de compte ou de profil arrête l'écoute : ce que l'on écoute appartient à un profil.
-  useEffect(() => { if (!profileId) { audio.current?.pause(); setCurrent(null) } }, [profileId])
+  // Un changement de compte ou de profil arrête l'écoute : ce que l'on écoute appartient à un profil. Y compris d'un profil directement à un autre
+  // (un autre compte ouvert dans un autre onglet), sinon la position du livre serait enregistrée dans le profil du nouveau compte.
+  useEffect(() => { audio.current?.pause(); setCurrent(null) }, [profileId])
 
   const pause = useCallback(() => { audio.current?.pause() }, [])
 

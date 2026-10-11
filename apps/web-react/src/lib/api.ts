@@ -27,6 +27,23 @@ export const session = {
   clear() { try { localStorage.removeItem(KEY) } catch { /* stockage indisponible */ } },
 }
 
+/**
+ * Prévient quand un AUTRE onglet ouvre, change ou ferme la session (l'évènement `storage` ne part jamais dans l'onglet qui écrit) :
+ * l'utilisateur lu dans le stockage, ou null si plus aucune session.
+ */
+export function onSessionChange(fn: (user: User | null) => void): () => void {
+  const on = (e: StorageEvent) => { if (e.key === null || e.key === KEY) fn(session.get()?.user ?? null) } // key null : localStorage.clear()
+  window.addEventListener('storage', on)
+  return () => window.removeEventListener('storage', on)
+}
+
+const logoutEvent = () => window.dispatchEvent(new Event(LOGOUT_EVENT))
+
+/** Révoque un jeton de rafraîchissement que plus personne ne détient (réponse arrivée après une déconnexion), sans attendre ni échouer. */
+function revoke(refreshToken: string) {
+  void fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken }) }).catch(() => undefined)
+}
+
 let refreshing: Promise<string | null> | null = null
 
 /**
@@ -44,14 +61,16 @@ function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
  * Un seul refresh à la fois : le jeton de rafraîchissement est à usage unique (rotation côté API).
  * Seul un 400 ou un 401 signifie que ce jeton est mort : un 429 ou un 5xx (limiteur, redéploiement) est passager, la session reste.
  * Entre onglets, celui qui perd la course reçoit un 401 alors que le gagnant a déjà écrit la session suivante : on la reprend.
+ * Une session absente du stockage (fermée ou révoquée dans un autre onglet) déconnecte celui-ci aussi ; une réponse qui arrive
+ * après une déconnexion, ou après l'ouverture d'une autre session, est jetée et son nouveau jeton révoqué.
  */
 export function refresh(): Promise<string | null> {
   refreshing ??= (async () => {
     const before = session.get()
-    if (!before) return null
+    if (!before) { logoutEvent(); return null }
     return withRefreshLock(async () => {
       const s = session.get()
-      if (!s) return null
+      if (!s) { logoutEvent(); return null }
       if (s.refreshToken !== before.refreshToken) return s.accessToken // un autre onglet a renouvelé pendant l'attente du verrou
       try {
         const res = await fetch('/api/auth/refresh', {
@@ -60,10 +79,13 @@ export function refresh(): Promise<string | null> {
         if (res.status === 400 || res.status === 401) {
           const now = session.get()
           if (now && now.refreshToken !== s.refreshToken) return now.accessToken // sans verrou, l'autre onglet a gagné la rotation
-          session.clear(); window.dispatchEvent(new Event(LOGOUT_EVENT)); return null
+          session.clear(); logoutEvent(); return null
         }
         if (!res.ok) return null // panne passagère : on garde la session, on réessaiera
         const data = (await res.json()) as AuthResponse
+        // Le serveur a fait la rotation : si la session a été fermée ou remplacée pendant le vol, ce jeton n'est à personne.
+        const now = session.get()
+        if (now?.refreshToken !== s.refreshToken) { revoke(data.refreshToken); return now?.accessToken ?? null }
         session.set(data) // met aussi à jour l'utilisateur : un rôle modifié côté serveur se voit sans reconnexion
         window.dispatchEvent(new CustomEvent('divertiflix:user', { detail: data.user }))
         return data.accessToken
