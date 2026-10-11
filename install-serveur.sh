@@ -9,19 +9,24 @@
 #   4. PostgreSQL / Mosquitto / Redis via docker compose (ports liés à 127.0.0.1)
 #   5. build de l'API (.NET), du front React et du back-office Angular
 #   6. service systemd divertiflix-api + site nginx (React sur /, Angular sur /admin/, API sur /api)
-#   7. HTTPS Let's Encrypt si DOMAIN et CERTBOT_EMAIL sont fournis
+#   7. HTTPS Let's Encrypt si DOMAIN et CERTBOT_EMAIL sont connus (fournis une fois, puis relus dans .env)
 #
 # Variables d'environnement :
-#   DOMAIN=            nom de domaine du site (sinon accès par IP en HTTP)
-#   CERTBOT_EMAIL=     e-mail pour Let's Encrypt (avec DOMAIN → HTTPS automatique)
+#   DOMAIN=            nom de domaine du site (sinon accès par IP en HTTP) ; mémorisé dans .env
+#   CERTBOT_EMAIL=     e-mail pour Let's Encrypt (avec DOMAIN → HTTPS automatique) ; mémorisé dans .env
+#   FORCE_HTTP=1       demande explicite de HTTP seul pour cette exécution (voir ci-dessous) ; jamais mémorisée
 #   ADMIN_LOGIN=root   login du compte administrateur créé au premier démarrage
 #   ADMIN_PASSWORD=    mot de passe du compte administrateur (sinon généré aléatoirement)
 #   ENABLE_FIREWALL=1  ufw : SSH, 80, 443 ouverts
 #   MQTT_BIND=127.0.0.1  adresse d'écoute de Mosquitto (mettre 0.0.0.0 pour les ESP32, voir note en bas) ; mémorisée dans .env
 #   APP_USER=divertiflix
 # Idempotent : relancer le script redéploie la dernière version sans toucher aux secrets ni à la base.
-# DOMAIN et CERTBOT_EMAIL ne sont pas mémorisés : le site nginx est réécrit à chaque exécution, donc une relance sans eux repasse en HTTP
-# seul (le pipeline GitLab doit les recevoir comme variables CI/CD du projet pour garder HTTPS).
+# HTTPS : le site nginx est réécrit à chaque exécution, mais DOMAIN et CERTBOT_EMAIL (ni l'un ni l'autre n'est un secret) sont enregistrés
+# dans .env quand ils sont fournis et relus quand ils manquent : une relance sans variables (le pipeline GitLab) garde donc HTTPS. Sans
+# DOMAIN ni .env, l'unique certificat Let's Encrypt présent sur le serveur désigne le domaine (serveur installé avant cette mémorisation).
+# Un certificat déjà émis pour le domaine n'est jamais supprimé ni réémis : il est réinstallé tel quel dans le site réécrit (certbot install,
+# sans réseau), et si cela échoue le script restaure l'ancien site et s'arrête en erreur plutôt que de laisser nginx en HTTP seul.
+# Seul FORCE_HTTP=1 laisse nginx en HTTP seul : les navigateurs qui ont retenu HSTS (un an) n'atteignent alors plus le site.
 set -euo pipefail
 
 [ "$(id -u)" -eq 0 ] || { echo "Lance ce script avec sudo."; exit 1; }
@@ -33,6 +38,7 @@ SRC_DIR=$(cd "$(dirname "$0")" && pwd)
 
 DOMAIN=${DOMAIN:-}
 CERTBOT_EMAIL=${CERTBOT_EMAIL:-}
+FORCE_HTTP=${FORCE_HTTP:-0}
 ADMIN_LOGIN=${ADMIN_LOGIN:-root}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
 ENABLE_FIREWALL=${ENABLE_FIREWALL:-1}
@@ -114,18 +120,53 @@ EOF
   )   # umask 077 : le fichier n'est jamais lisible par un autre compte, meme un instant
   chown "$APP_USER":"$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 fi
+# Réglages non secrets gardés dans .env : env_get lit la valeur enregistrée, env_set la remplace.
+env_get() { grep "^$1=" "$ENV_FILE" | cut -d= -f2- || true; }
+env_set() { sed -i "/^$1=/d" "$ENV_FILE"; echo "$1=$2" >> "$ENV_FILE"; }
 # Adresse d'écoute de Mosquitto : changée seulement quand MQTT_BIND est fourni. Un redéploiement sans la variable (le pipeline GitLab)
 # garde la valeur enregistrée au lieu de refermer le port que l'on avait ouvert aux ESP32.
-if [ -n "$MQTT_BIND_ASKED" ]; then
-  sed -i '/^MQTT_BIND=/d' "$ENV_FILE"
-  echo "MQTT_BIND=$MQTT_BIND" >> "$ENV_FILE"
-fi
-MQTT_BIND=$(grep '^MQTT_BIND=' "$ENV_FILE" | cut -d= -f2- || true)
+if [ -n "$MQTT_BIND_ASKED" ]; then env_set MQTT_BIND "$MQTT_BIND"; fi
+MQTT_BIND=$(env_get MQTT_BIND)
 MQTT_BIND=${MQTT_BIND:-127.0.0.1}
+
+# HTTPS. nginx est réécrit à chaque exécution : une relance sans DOMAIN ni CERTBOT_EMAIL (le pipeline GitLab) le repasserait en HTTP seul, et
+# les navigateurs qui ont retenu HSTS (un an) n'atteindraient plus le site. Ces deux valeurs ne sont pas des secrets : enregistrées dans .env
+# quand elles sont fournies, relues quand elles manquent.
+[ -n "$DOMAIN" ] || DOMAIN=$(env_get DOMAIN)
+[ -n "$CERTBOT_EMAIL" ] || CERTBOT_EMAIL=$(env_get CERTBOT_EMAIL)
+LE_LIVE=/etc/letsencrypt/live
+if [ -z "$DOMAIN" ] && [ "$FORCE_HTTP" != 1 ]; then
+  # Serveur installé avant cette mémorisation (DOMAIN donné à la main, jamais enregistré) : son unique certificat désigne le domaine.
+  certs=()
+  for f in "$LE_LIVE"/*/fullchain.pem; do
+    if [ -f "$f" ]; then certs+=("$(basename "$(dirname "$f")")"); fi
+  done
+  if [ "${#certs[@]}" -gt 1 ]; then
+    echo "Plusieurs certificats Let's Encrypt (${certs[*]}) : indique le domaine du site avec DOMAIN=..., ou FORCE_HTTP=1 pour rester en HTTP seul."
+    exit 1
+  fi
+  if [ "${#certs[@]}" -eq 1 ]; then DOMAIN=${certs[0]}; fi
+fi
+# Ces valeurs finissent dans .env (lu par systemd et docker compose) et dans la configuration nginx : caractères d'un nom d'hôte ou d'une
+# adresse courante seulement.
+case $DOMAIN in *[!A-Za-z0-9.-]*) echo "DOMAIN invalide : $DOMAIN"; exit 1;; esac
+case $CERTBOT_EMAIL in *[!A-Za-z0-9.@_+-]*) echo "CERTBOT_EMAIL invalide : $CERTBOT_EMAIL"; exit 1;; esac
+if [ -n "$DOMAIN" ]; then env_set DOMAIN "$DOMAIN"; fi
+if [ -n "$CERTBOT_EMAIL" ]; then env_set CERTBOT_EMAIL "$CERTBOT_EMAIL"; fi
+# HTTPS_MODE : « reuse » = certificat déjà émis pour le domaine (réinstallé tel quel, jamais supprimé ni réémis) ; « issue » = à demander à
+# Let's Encrypt ; vide = HTTP seul (pas de domaine, pas d'e-mail, ou FORCE_HTTP=1 : la seule demande qui y ramène un site déjà en HTTPS).
+HTTPS_MODE=
+if [ "$FORCE_HTTP" = 1 ]; then
+  echo ">> FORCE_HTTP=1 : nginx reste en HTTP seul. Les navigateurs qui ont retenu HSTS (un an) n'atteindront plus le site."
+elif [ -n "$DOMAIN" ] && [ -f "$LE_LIVE/$DOMAIN/fullchain.pem" ]; then
+  HTTPS_MODE=reuse
+elif [ -n "$DOMAIN" ] && [ -n "$CERTBOT_EMAIL" ]; then
+  HTTPS_MODE=issue
+fi
 # Origine autorisée (CORS) : mise à jour à chaque exécution
 sed -i '/^Cors__Origins__0=/d' "$ENV_FILE"
 if [ -n "$DOMAIN" ]; then
-  scheme=http; [ -n "$CERTBOT_EMAIL" ] && scheme=https
+  if [ -n "$HTTPS_MODE" ]; then scheme=https; else scheme=http; fi
   echo "Cors__Origins__0=$scheme://$DOMAIN" >> "$ENV_FILE"
 fi
 
@@ -231,12 +272,17 @@ add_header Cross-Origin-Opener-Policy "same-origin" always;
 add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; media-src 'self' blob: https://*.mux.com; connect-src 'self' wss://$host ws://$host https://*.mux.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;
 HDR
   # HSTS seulement quand HTTPS est prévu : un navigateur retient l'engagement un an.
-  if [ -n "$DOMAIN" ] && [ -n "$CERTBOT_EMAIL" ]; then
+  if [ -n "$HTTPS_MODE" ]; then
     echo 'add_header Strict-Transport-Security "max-age=31536000" always;'
   fi
 } > /etc/nginx/snippets/divertiflix-security.conf
 
 cat > /etc/nginx/conf.d/divertiflix-http.conf <<'HTTPCONF'
+# Version de nginx masquée (en-tête Server, pages d'erreur) pour tous les serveurs : au niveau http, la directive couvre aussi le serveur du
+# port 80 que certbot ajoute pour la redirection vers HTTPS, qui n'hérite de rien du bloc « server » ci-dessous. Le nginx.conf d'Ubuntu ne
+# l'active pas (ligne commentée) : pas de doublon, contrairement à gzip.
+server_tokens off;
+
 map $http_upgrade $connection_upgrade { default upgrade; '' close; }
 
 # Clé de la limitation de débit : l'adresse IPv4 telle quelle, le préfixe /64 en IPv6 (un abonné y contrôle 2^64 adresses : limiter
@@ -265,13 +311,17 @@ log_format divertiflix '$remote_addr - $remote_user [$time_local] "$request_meth
 HTTPCONF
 rm -f /etc/nginx/conf.d/divertiflix-upgrade.conf
 
-cat > /etc/nginx/sites-available/divertiflix <<EOF
+# Site actuel gardé de côté : si la réinstallation du certificat échoue plus bas, on le remet (il porte les blocs HTTPS de certbot).
+SITE=/etc/nginx/sites-available/divertiflix
+SITE_PREV=$(mktemp)
+trap 'rm -f "$SITE_PREV"' EXIT
+cp -p "$SITE" "$SITE_PREV" 2>/dev/null || : > "$SITE_PREV"
+cat > "$SITE" <<EOF
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name ${DOMAIN:-_};
     client_max_body_size 10m;
-    server_tokens off;
     access_log /var/log/nginx/access.log divertiflix;
 
     # La compression est réglée ici et non au niveau http : le nginx.conf d'Ubuntu y active déjà gzip, et une seconde
@@ -361,7 +411,11 @@ rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/divertiflix /etc/nginx/sites-enabled/divertiflix
 nginx -t
 systemctl enable nginx
-systemctl reload nginx || systemctl restart nginx
+if [ "$HTTPS_MODE" = reuse ] && systemctl is-active --quiet nginx; then
+  :   # certbot install (section 7) recharge nginx avec les blocs HTTPS : pas de rechargement en HTTP seul entre-temps
+else
+  systemctl reload nginx || systemctl restart nginx
+fi
 
 # ---------------------------------------------------------------- 7. Pare-feu et HTTPS
 if [ "$ENABLE_FIREWALL" = 1 ]; then
@@ -370,16 +424,35 @@ if [ "$ENABLE_FIREWALL" = 1 ]; then
   ufw allow 443/tcp
   ufw --force enable
 fi
-if [ -n "$DOMAIN" ] && [ -n "$CERTBOT_EMAIL" ]; then
-  certbot --nginx -d "$DOMAIN" -m "$CERTBOT_EMAIL" --agree-tos --no-eff-email --redirect --non-interactive \
-    || echo "!! Certbot a échoué (le DNS de $DOMAIN pointe-t-il vers ce serveur ?). Relance le script ensuite."
+SCHEME=http
+if [ "$HTTPS_MODE" = reuse ]; then
+  # Certificat déjà émis : réinstallé tel quel dans le site réécrit. certbot install ne contacte pas Let's Encrypt (une panne ou une limite de
+  # débit de leur côté ne coupe pas HTTPS) et ne touche pas au certificat ; le renouvellement reste celui de certbot (certbot.timer).
+  if certbot install --nginx --cert-name "$DOMAIN" --redirect --non-interactive; then
+    SCHEME=https
+  else
+    echo "!! Réinstallation du certificat de $DOMAIN dans nginx impossible (voir /var/log/letsencrypt/letsencrypt.log)."
+    # Ne jamais laisser le site en HTTP seul : l'ancien site (avec ses blocs HTTPS) est remis en place.
+    if grep -q ssl_certificate "$SITE_PREV"; then
+      cp -p "$SITE_PREV" "$SITE"
+      nginx -t && { systemctl reload nginx || systemctl restart nginx; }
+      echo "!! L'ancien site nginx (HTTPS) a été remis en place."
+    fi
+    exit 1
+  fi
+elif [ "$HTTPS_MODE" = issue ]; then
+  if certbot --nginx -d "$DOMAIN" -m "$CERTBOT_EMAIL" --agree-tos --no-eff-email --redirect --non-interactive; then
+    SCHEME=https
+  else
+    echo "!! Certbot a échoué (le DNS de $DOMAIN pointe-t-il vers ce serveur ?). Relance le script ensuite."
+  fi
 fi
 
 # ---------------------------------------------------------------- Résumé
 echo
 echo ">> Terminé."
 echo "   API      : $(systemctl is-active divertiflix-api)  (journalctl -u divertiflix-api -f)"
-echo "   Site     : http://${DOMAIN:-<IP du serveur>}/        Back-office : http://${DOMAIN:-<IP du serveur>}/admin/"
+echo "   Site     : $SCHEME://${DOMAIN:-<IP du serveur>}/        Back-office : $SCHEME://${DOMAIN:-<IP du serveur>}/admin/"
 if [ "$NEW_SECRETS" = 1 ]; then
   # Le mot de passe généré ne s'affiche que dans un terminal : lancé par le pipeline, le script écrirait ce secret dans le journal du job.
   if [ -z "$ADMIN_PASSWORD" ] && [ -t 1 ]; then

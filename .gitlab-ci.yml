@@ -43,7 +43,8 @@ deploy:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   # Aucun déploiement si un test échoue : la production ne reçoit que du code vérifié.
-  # Le script exige root et ne mémorise ni DOMAIN ni CERTBOT_EMAIL : le runner doit pouvoir l'exécuter en root, et ces deux variables
-  # doivent être définies dans les variables CI/CD du projet (GitLab les passe au script), sinon nginx repasse en HTTP seul à chaque déploiement.
+  # Le script exige root : le runner doit pouvoir l'exécuter en root. DOMAIN et CERTBOT_EMAIL ne sont pas des secrets : le script les
+  # enregistre dans /opt/divertiflix/.env au premier passage où il les reçoit (variables CI/CD du projet ou lancement à la main) et les
+  # relit ensuite, donc ce job n'a pas à les porter pour garder HTTPS. FORCE_HTTP=1 (variable CI/CD) est la seule façon de repasser nginx en HTTP seul.
   script:
     - bash install-serveur.sh

@@ -129,4 +129,21 @@
   (« Missing: @divertiflix/demo@0.0.0 from lock file »). Après tout ajout d'un espace de travail : `npm install --package-lock-only`, puis
   `npm ci --dry-run` pour vérifier que le fichier de verrouillage est à jour.
 - **`MQTT_BIND`** est mémorisé dans `/opt/divertiflix/.env` : un redéploiement sans la variable (le pipeline) ne referme plus le port.
+- **Relance du pipeline sans `DOMAIN` ni `CERTBOT_EMAIL`** : `install-serveur.sh` réécrit le site nginx en HTTP seul à chaque exécution et ne
+  rappelait certbot que si les deux variables étaient données ; une relance sans elles supprimait les blocs HTTPS et l'en-tête HSTS, et les
+  navigateurs qui l'avaient retenu (un an) n'atteignaient plus le site. `DOMAIN` et `CERTBOT_EMAIL` ne sont pas des secrets : ils sont enregistrés
+  dans `.env` et relus (comme `MQTT_BIND`) ; sans eux, l'unique certificat de `/etc/letsencrypt/live/` désigne le domaine (plusieurs : erreur
+  avant toute modification). Avec un certificat existant, le script ne rappelle pas Let's Encrypt : `certbot install --nginx --cert-name
+  DOMAIN --redirect` le replace dans le site réécrit, nginx n'est pas rechargé en HTTP seul entre-temps, et en cas d'échec l'ancien site est
+  restauré puis le script sort en erreur. Seul `FORCE_HTTP=1` (une exécution, jamais mémorisé) laisse nginx en HTTP seul. Tester sans serveur :
+  exécution à blanc du script (fausses commandes `apt-get`, `systemctl`, `docker`, `dotnet`, `npm`, chemins `/etc/...` redirigés dans un dossier),
+  vrai nginx 1.24 extrait d'un `.deb` et vrai certbot en venv (`--nginx-server-root`, `--nginx-ctl`, `--config-dir`, `--work-dir`, `--logs-dir` dans
+  le dossier) sur un certificat auto-signé monté à la main (`archive/`, liens `live/`, `renewal/DOMAINE.conf`) ; si le noyau n'a pas IPv6, tester
+  une copie de la configuration sans les lignes `listen [::]`.
+- **`server_tokens off` dans le bloc `server` ne suffit pas** : `certbot --nginx` crée un second bloc `server` pour le port 80 (redirection
+  301 et 404) qui n'hérite de rien, et nginx y affichait sa version (en-tête `Server` et pied des pages d'erreur). La directive est dans
+  `conf.d/divertiflix-http.conf`, au niveau `http` (le `nginx.conf` d'Ubuntu la garde en commentaire : pas de doublon, contrairement à `gzip`).
+  Le journal d'accès par défaut (`combined`) s'applique en revanche toujours à ce bloc : il ne reçoit des requêtes qu'en clair, où un jeton
+  circule déjà sur le réseau ; non corrigé, car un second `access_log` au niveau `http` ajoute une ligne en double sans masquer l'autre
+  (mesuré), et `access_log off;` éteindrait le journal de tout autre site hébergé sur la machine.
 - **Node pour Angular 22** : le CLI exige Node 22.22.3 au moins (et non 22.22.0).
