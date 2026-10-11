@@ -104,7 +104,7 @@ test('assistant : une demande libre renvoie des titres avec leur raison', async 
   await signInUI(page, email)
   await expect(page.locator('.hero-title')).toBeVisible()
   await page.keyboard.press('Control+j')
-  const panel = page.getByRole('complementary', { name: 'Assistant' }).or(page.locator('.assistant'))
+  const panel = page.getByRole('dialog', { name: 'Assistant' })
   await expect(panel).toBeVisible()
   await panel.getByLabel('Votre message à l\'assistant').fill('un drame court')
   await page.keyboard.press('Enter')

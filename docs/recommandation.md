@@ -42,8 +42,13 @@ Analyseur à règles (`QueryParser`) au-dessus du moteur : genres, ambiances, du
 (« années 80 », « récent »), type (« film », « série », « livre audio »), exclusions (« sans gore »), « comme X ». Les négations sont lues
 avant les contraintes qu'elles retournent : « pas trop long » plafonne la durée juste sous le seuil du « long » (et non l'inverse), « pas trop
 court » fixe un plancher, « pas récent » et « pas classique » prennent l'époque opposée, et « pas de série » ou « no movies » gardent les autres
-types. Une négation de type ne vaut que si elle termine la proposition : « pas de film d'horreur » exclut le genre, pas les films. « show »
-seul n'est pas un type (« show me something funny »), « tv show » désigne une série.
+types. « Pas de court métrage » est un plancher de durée, pas la négation du type film. Une négation de type ne vaut que si elle termine la
+proposition (ponctuation, « mais », « plutôt », « un ») : « pas de film d'horreur » exclut le genre, pas les films, et « pas de série, plutôt
+un documentaire » demande le documentaire. Une négation de genre ou d'ambiance s'arrête au même endroit (« pas de gore, plutôt une comédie »).
+Ce qui suit une négation de durée ou d'époque, jusqu'à un mot d'arrêt, est du bavardage et non un critère (« pas trop long hein ») : un mot
+libre inconnu viderait la réponse. Les bornes de durée et d'époque se combinent, la plus stricte l'emporte (« un classique pas trop récent »
+reste avant 2000), et une puce n'annonce qu'une borne réellement appliquée. En anglais, « show » est une série comme nom (« a show »,
+« some shows »), pas comme verbe (« show me something funny »), et « tv show » désigne toujours une série.
 
 Si aucun titre ne respecte tous les critères, l'assistant assouplit durée et époque et le dit ; les raisons des cartes n'affichent alors plus
 ces critères levés, seulement ce que le titre respecte vraiment. Un « comme X » inconnu est avoué. Aucune conversation n'est conservée : la

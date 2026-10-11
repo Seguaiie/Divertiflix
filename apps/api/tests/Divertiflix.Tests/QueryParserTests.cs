@@ -135,6 +135,105 @@ public class QueryParserTests
         Assert.Null(c.YearTo);
     }
 
+    [Theory]
+    [InlineData("un film pas trop long hein")]
+    [InlineData("un film pas trop long, j'ai sommeil")]
+    [InlineData("not too long, something fun")]
+    [InlineData("un film pas trop long quand même")]
+    [InlineData("un film pas trop long demain je travaille")]
+    [InlineData("pas trop long, j'ai deux heures")]
+    [InlineData("pas de long métrage")]
+    public void Chatter_after_a_read_negation_is_not_free_text(string msg)
+    {
+        // Un mot libre inconnu viderait la réponse (« nothing ») : après une négation lue, le bavardage est ignoré,
+        // comme l'ancienne boucle de négation l'avalait.
+        var p = Parser.Parse(msg);
+        Assert.Equal("", p.Spec.Text);
+        Assert.Equal(Parser.LongMin - 1, p.Spec.Constraints.MaxMinutes);
+        Assert.Equal(Intent.Recommend, p.Intent);
+    }
+
+    [Theory]
+    [InlineData("no new releases", "")]
+    [InlineData("old movies, not new ones", "")]
+    [InlineData("pas récent du tout", "")]
+    public void The_object_of_a_negated_expression_is_not_free_text(string msg, string text) =>
+        Assert.Equal(text, Parser.Parse(msg).Spec.Text);
+
+    [Fact]
+    public void Words_before_a_negation_and_recognized_criteria_after_it_still_count()
+    {
+        Assert.Contains("dragons", Parser.Parse("un film sur les dragons pas trop long").Spec.Text);
+        var after = Parser.Parse("pas trop long, quelque chose de drôle");
+        Assert.Contains("humour", after.Spec.BoostTags);       // « drôle » reste demandé : il suit la négation sans en faire partie
+        Assert.Empty(after.Spec.AvoidTags);
+        var genre = Parser.Parse("un film de science fiction pas trop long");
+        Assert.Contains("Science-fiction", genre.Spec.BoostGenres);
+        Assert.Empty(genre.Spec.AvoidGenres);
+        // Un mot d'arrêt rend la parole : ce qui suit « mais » est lu normalement.
+        Assert.Contains("zxqvbn", Parser.Parse("un film pas trop long mais zxqvbn").Spec.Text);
+    }
+
+    [Theory]
+    [InlineData("un long métrage")]
+    public void Feature_film_wording_is_not_free_text(string msg) =>
+        Assert.Equal("", Parser.Parse(msg).Spec.Text);
+
+    [Theory]
+    [InlineData("un classique pas trop récent", 1999)]
+    [InlineData("old movies, not new ones", 1999)]
+    [InlineData("un classique des années 80", 1989)]
+    public void A_negation_and_a_positive_bound_on_the_same_field_keep_the_tighter_one(string msg, int yearTo)
+    {
+        // Avant : la négation lue d'abord (≤ 2022) écrasait « classique » (≤ 1999), dont la puce restait affichée.
+        var p = Parser.Parse(msg);
+        Assert.Equal(yearTo, p.Spec.Constraints.YearTo);
+        AssertChipsAreApplied(p);
+    }
+
+    [Fact]
+    public void Bounds_from_several_expressions_are_combined_never_overwritten()
+    {
+        Assert.Equal(Now.Year - 3, Parser.Parse("récent, depuis 2020").Spec.Constraints.YearFrom);
+        Assert.Equal(Now.Year - 3, Parser.Parse("depuis 2020, récent").Spec.Constraints.YearFrom);
+        Assert.Equal(Parser.LongMin - 1, Parser.Parse("pas trop long, moins de 3 heures").Spec.Constraints.MaxMinutes);
+        Assert.Equal(10, Parser.Parse("pas trop long, moins de 10 minutes").Spec.Constraints.MaxMinutes);
+        Assert.Equal(Math.Min(Parser.ShortMax, 100), Parser.Parse("un film court, moins de 100 minutes").Spec.Constraints.MaxMinutes);
+        Assert.Equal(Now.Year - 3, Parser.Parse("pas classique, plutôt récent").Spec.Constraints.YearFrom);
+        var range = Parser.Parse("pas trop récent mais pas trop vieux").Spec.Constraints;
+        Assert.Equal((2000, Now.Year - 4), (range.YearFrom, range.YearTo));
+        var decade = Parser.Parse("années 80 avant 1985").Spec.Constraints;
+        Assert.Equal((1980, 1984), (decade.YearFrom, decade.YearTo));
+    }
+
+    [Theory]
+    [InlineData("un classique pas trop récent")]
+    [InlineData("pas classique, plutôt récent")]
+    [InlineData("un film court, moins de 100 minutes")]
+    [InlineData("un film long mais pas trop long")]
+    [InlineData("pas trop long, moins de 3 heures")]
+    [InlineData("récent, depuis 2020")]
+    [InlineData("un film d'horreur pas trop gore, court, comme Hereditary mais plus léger")]
+    public void Chips_only_announce_bounds_that_are_applied(string msg) => AssertChipsAreApplied(Parser.Parse(msg));
+
+    private static void AssertChipsAreApplied(ParsedQuery p)
+    {
+        var c = p.Spec.Constraints;
+        foreach (var chip in p.Chips)
+        {
+            var applied = chip.Kind switch
+            {
+                "maxMinutes" or "short" => c.MaxMinutes <= int.Parse(chip.Label),
+                "minMinutes" or "long" => c.MinMinutes >= int.Parse(chip.Label),
+                "recent" or "after" => c.YearFrom >= int.Parse(chip.Label),
+                "classic" => c.YearTo <= int.Parse(chip.Label),
+                "before" => c.YearTo < int.Parse(chip.Label),
+                _ => true,
+            };
+            Assert.True(applied, $"la puce {chip.Kind}:{chip.Label} annonce une borne que la requête n'applique pas");
+        }
+    }
+
     [Fact]
     public void Plain_long_short_recent_and_classic_are_unchanged()
     {
@@ -163,8 +262,101 @@ public class QueryParserTests
     [InlineData("pas de série ce soir", new[] { TitleKind.Movie, TitleKind.Audiobook })]
     [InlineData("pas de série s'il vous plaît", new[] { TitleKind.Movie, TitleKind.Audiobook })]
     [InlineData("pas de série mais un film", new[] { TitleKind.Movie })]
+    [InlineData("pas de série, plutôt une comédie", new[] { TitleKind.Movie, TitleKind.Audiobook })]
+    [InlineData("pas de série : un film d'animation", new[] { TitleKind.Movie })]
+    [InlineData("pas de film, un livre audio", new[] { TitleKind.Audiobook })]
+    [InlineData("pas de série, un film", new[] { TitleKind.Movie })]
+    [InlineData("no series, a movie", new[] { TitleKind.Movie })]
+    [InlineData("pas de série. J'ai envie de rire", new[] { TitleKind.Movie, TitleKind.Audiobook })]
+    [InlineData("no movies, rather an audiobook", new[] { TitleKind.Audiobook })]
     public void Negated_content_type_ends_the_clause(string msg, TitleKind[] expected) =>
         Assert.Equal(expected.OrderBy(k => k), Parser.Parse(msg).Spec.Constraints.Kinds!.OrderBy(k => k));
+
+    [Fact]
+    public void The_genre_after_a_negated_type_is_wanted_not_avoided()
+    {
+        // Avant : « pas de série, plutôt une comédie » laissait la série demandée et retournait la comédie en exclusion.
+        var p = Parser.Parse("pas de série, plutôt une comédie");
+        Assert.Contains("Comédie", p.Spec.BoostGenres);
+        Assert.Empty(p.Spec.AvoidGenres);
+        Assert.Null(p.Spec.Constraints.ExcludeGenres);
+        Assert.DoesNotContain(p.Chips, c => c.Kind == "kind" && c.Label == "Series");
+    }
+
+    [Fact]
+    public void Punctuation_does_not_break_a_title_reference()
+    {
+        // La ponctuation sépare les propositions, mais un titre du catalogue tapé avec sa ponctuation reste reconnu.
+        var p = Parser.Parse("comme Peur, douce");
+        Assert.Equal(Intent.Similar, p.Intent);
+        Assert.Equal("", p.Spec.Text);
+    }
+
+    [Fact]
+    public void A_requested_type_that_is_also_negated_does_not_empty_the_request()
+    {
+        // Demandé et nié à la fois : le type nié est écarté, les autres restent permis (jamais « aucun critère »).
+        var p = Parser.Parse("un film mais pas de film");
+        Assert.Equal(Intent.Recommend, p.Intent);
+        Assert.DoesNotContain(TitleKind.Movie, p.Spec.Constraints.Kinds!);
+        Assert.Equal(Intent.Recommend, Parser.Parse("un film d'horreur, pas de film").Intent);
+    }
+
+    [Theory]
+    [InlineData("no series today")]
+    [InlineData("pas de série stp")]
+    [InlineData("no series but a movie")]
+    [InlineData("no movies please")]
+    [InlineData("pas de série ce soir")]
+    public void The_words_that_end_a_negated_type_are_not_free_text(string msg) =>
+        Assert.Equal("", Parser.Parse(msg).Spec.Text);   // un mot libre inconnu viderait la réponse
+
+    [Theory]
+    [InlineData("pas de film à l'eau de rose")]
+    [InlineData("pas de série à la télé")]
+    public void The_french_preposition_a_does_not_end_a_negated_type(string msg)
+    {
+        // « à » est une préposition, pas un début de nouvelle demande : le type n'est pas nié, et ce qui suit n'est pas du texte libre.
+        var p = Parser.Parse(msg);
+        Assert.Equal("", p.Spec.Text);
+        Assert.Equal(Intent.Recommend, p.Intent);
+    }
+
+    [Theory]
+    [InlineData("pas de gore, plutôt une comédie")]
+    [InlineData("pas de gore plutôt une comédie")]
+    [InlineData("sans gore, une comédie")]
+    [InlineData("not too dark, rather a comedy")]
+    [InlineData("pas d'horreur, une comédie")]
+    public void A_new_request_ends_the_scope_of_a_negation(string msg)
+    {
+        // Avant : la négation avalait la suite et « une comédie » ressortait en genre évité (ou exclu).
+        var p = Parser.Parse(msg);
+        Assert.Contains("Comédie", p.Spec.BoostGenres);
+        Assert.DoesNotContain("Comédie", p.Spec.AvoidGenres);
+        Assert.True(p.Spec.Constraints.ExcludeGenres?.Contains("comedie") != true);
+    }
+
+    [Fact]
+    public void A_negation_still_covers_a_list_of_terms()
+    {
+        var p = Parser.Parse("sans gore, sombre");
+        Assert.Contains("gore", p.Spec.Constraints.ExcludeKeywords!);
+        Assert.Contains("sombre", p.Spec.Constraints.ExcludeKeywords!);
+        Assert.Empty(p.Spec.BoostTags);
+    }
+
+    [Theory]
+    [InlineData("comme Dune: Part Two", "dune part two")]
+    [InlineData("like Spider-Man: No Way Home", "spider man no way home")]
+    [InlineData("comme Hereditary mais plus léger", "hereditary")]
+    public void Punctuation_does_not_cut_an_unknown_title(string msg, string title)
+    {
+        // Le titre inconnu est lu sans ponctuation : ses mots ne deviennent ni du texte libre ni une recherche vide.
+        var p = Parser.Parse(msg);
+        Assert.Equal(title, p.UnknownTitle);
+        Assert.Equal("", p.Spec.Text);
+    }
 
     [Theory]
     [InlineData("pas de film d'horreur")]
@@ -174,6 +366,31 @@ public class QueryParserTests
         // Le qualificatif nie un genre ou une ambiance ; le type, lui, reste demandé.
         var p = Parser.Parse(msg);
         Assert.Equal([TitleKind.Movie], p.Spec.Constraints.Kinds!);
+    }
+
+    [Theory]
+    [InlineData("pas de court métrage")]
+    [InlineData("un film mais pas de court métrage")]
+    [InlineData("un film, pas de court métrage")]
+    [InlineData("no short films")]
+    [InlineData("sans court-métrage")]
+    public void Negated_short_film_is_a_duration_floor_not_a_negated_type(string msg)
+    {
+        // « court métrage » nié veut dire « pas court », pas « pas de films » : le type Movie n'est jamais écarté.
+        var p = Parser.Parse(msg);
+        Assert.Equal(Intent.Recommend, p.Intent);
+        Assert.Equal(Parser.ShortMax + 1, p.Spec.Constraints.MinMinutes);
+        Assert.True(p.Spec.Constraints.Kinds is null || p.Spec.Constraints.Kinds.Contains(TitleKind.Movie));
+        Assert.Equal("", p.Spec.Text);
+        Assert.DoesNotContain(p.Chips, c => c.Kind == "kind" && c.Label != "Movie");
+    }
+
+    [Fact]
+    public void A_movie_request_with_a_negated_short_film_keeps_the_movie_type()
+    {
+        var p = Parser.Parse("un film, pas de court métrage");
+        Assert.Equal([TitleKind.Movie], p.Spec.Constraints.Kinds!);
+        Assert.Contains(p.Chips, c => c.Kind == "kind" && c.Label == "Movie");
     }
 
     [Fact]
@@ -187,6 +404,28 @@ public class QueryParserTests
     [InlineData("show me something funny")]
     [InlineData("show me a funny one")]
     public void Show_alone_is_not_a_request_for_series(string msg) =>
+        Assert.Null(Parser.Parse(msg).Spec.Constraints.Kinds);
+
+    [Theory]
+    [InlineData("recommend a show")]
+    [InlineData("some shows tonight")]
+    [InlineData("I want some shows tonight")]
+    [InlineData("a show about space")]
+    [InlineData("recommend a funny show")]
+    [InlineData("bonjour, a show ce soir")]
+    [InlineData("je cherche a show svp")]
+    public void Show_as_a_noun_is_a_series(string msg)
+    {
+        var p = Parser.Parse(msg);
+        Assert.Equal([TitleKind.Series], p.Spec.Constraints.Kinds!);
+        Assert.Equal(Intent.Recommend, p.Intent);
+    }
+
+    [Theory]
+    [InlineData("show me a funny one")]
+    [InlineData("can you show us something scary")]
+    [InlineData("show them a comedy")]
+    public void Show_as_a_verb_is_not_a_series(string msg) =>
         Assert.Null(Parser.Parse(msg).Spec.Constraints.Kinds);
 
     [Fact]

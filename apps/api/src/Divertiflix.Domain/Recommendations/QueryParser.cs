@@ -65,13 +65,17 @@ public sealed class QueryParser
 
     private static readonly HashSet<string> NegMarkers = ["pas", "sans", "aucun", "aucune", "no", "not", "without", "ni", "evite", "eviter", "avoid", "non", "jamais"];
     private static readonly HashSet<string> NegSkip = ["trop", "de", "d", "du", "des", "too", "any", "very", "tres", "beaucoup", "un", "une", "le", "la", "les", "of", "a", "an", "the", "peu"];
-    private static readonly HashSet<string> NegStop = ["et", "mais", "ou", "avec", "plus", "and", "but", "or", "comme", "like", "qui", "que", "pour", "for", "with"];
+    private static readonly HashSet<string> NegStop = ["et", "mais", "ou", "avec", "plus", "and", "but", "or", "comme", "like", "qui", "que", "pour", "for", "with", "plutot", "rather", "instead", "sinon", "otherwise"];
+    // Une virgule suivie d'un article ouvre une nouvelle demande (« pas d'horreur, une comédie ») : la négation ne s'étend pas jusque-là.
+    // « a » n'en est pas un : « à » normalisé s'écrit pareil (« pas de gore, à l'eau de rose »).
+    private static readonly HashSet<string> NewRequest = ["un", "une", "an", "some", "quelque", "something"];
     private static readonly HashSet<string> Filler = [
         "quelque","quelques","chose","soir","ce","film","films","truc","regarder","voir","envie","veux","voudrais","cherche","propose","suggere","donne","moi","mettre",
         "bon","bien","super","cool","something","watch","want","looking","give","show","shows","recommend","suggest","night","tonight","movie","movies","please","svp","plait","un","une",
         "des","j","ai","aimerais","pourrais","tu","peux","can","you","some","need","find","trouve","trouver","avoir","etre","faire","idee","ideas","suggestion","suggestions","pour","ca","cela","ceci",
         "plus","moins","mais","vraiment","un peu","genre","style","esprit","comme","like","similar","similaire","semblable","aime","aimes","regarde","vu","deja",
         "bonjour","bonsoir","salut","hello","hey","coucou","merci","thanks","aide","aider","help","peux","peut","pouvez","puis","vous","hi","sil","tout","toi",
+        "metrage","metrages","plutot","rather","instead","sinon","otherwise","stp","today","but",
     ];
 
     // Mots qui désignent une durée, une époque ou un type, partagés par la lecture directe (« court ») et la négation (« pas trop court »).
@@ -80,11 +84,12 @@ public sealed class QueryParser
     private const string RecentWords = "recent|recents|recente|recentes|nouveau|nouveaute|nouveautes|new|latest";
     private const string ClassicWords = "classique|classiques|classic|ancien|anciens|vieux|retro|old";
 
-    // « tv show » désigne une série, « show » seul non (« show me something funny »). Les verbes (« écouter ») ne se nient pas : Positive les isole.
+    // « show » est une série comme nom (« a show », « some shows »), pas comme verbe (« show me something funny », « show us a comedy »).
+    // Les verbes (« écouter ») ne se nient pas : Positive les isole.
     private static readonly (string Words, TitleKind Kind, string Label, string Positive)[] KindWords =
     [
         ("livre audio|livres audio|audiobook|audiobooks|livre|livres|roman|romans", TitleKind.Audiobook, "Audiobook", "|ecouter|listen"),
-        ("serie|series|tv show|tv shows|episodes?", TitleKind.Series, "Series", ""),
+        ("serie|series|tv show|tv shows|shows?(?! (?:me|us|them|him|her|you|something|anything|some|any|a|an|the|more|all) )|episodes?", TitleKind.Series, "Series", ""),
         ("court metrage|court metrages|short film|short films", TitleKind.Movie, "Movie", ""),
         ("film|films|movie|movies|cinema", TitleKind.Movie, "Movie", ""),
     ];
@@ -93,10 +98,19 @@ public sealed class QueryParser
     private static readonly string NegLead = $" (?:{string.Join('|', NegMarkers)}) (?:(?:{string.Join('|', NegSkip)}) )*";
     private static Regex NegTerm(string words, string after = "") => new($"{NegLead}(?:{words})(?= ){after}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex NegLong = NegTerm(LongWords), NegRecent = NegTerm(RecentWords), NegClassic = NegTerm(ClassicWords);
-    private static readonly Regex NegShort = NegTerm(ShortWords, "(?! (?:metrage|metrages|film|films) )");   // « court métrage » est un type
+    private static readonly Regex NegShort = NegTerm(ShortWords);   // « pas de court métrage » est une durée plancher : « métrage » reste dans la queue de la négation, le type Movie n'est jamais nié
     // « pas de série » nie le type seulement s'il termine la proposition : « pas de film d'horreur » ou « pas de film triste » nient un genre, pas le type.
+    // La fin d'une proposition est la ponctuation (devenue « puis », voir Clause), une conjonction ou un début de nouvelle demande (« un », « plutôt »).
     private static readonly (Regex Rx, TitleKind Kind)[] NegKinds = [.. KindWords.Select(k =>
-        (NegTerm(k.Words, "(?= (?:$|(?:et|ou|mais|ni|and|or|but|s|svp|stp|please|plait|merci|thanks|ce|tonight|today) ))"), k.Kind))];
+        (NegTerm(k.Words, "(?= (?:$|(?:puis|et|ou|mais|ni|and|or|but|plutot|rather|instead|sinon|otherwise|un(?! peu)|une|an|s|svp|stp|please|plait|merci|thanks|ce|tonight|today) ))"), k.Kind))];
+
+    // La ponctuation de proposition (« pas de série, plutôt un film ») disparaît à la normalisation : elle devient un mot, « puis », que les motifs savent lire.
+    private const string Clause = "puis";
+    private static readonly Regex ClauseBreaks = new(@"[,;:.!?()]+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    // Mot-témoin laissé à la place d'une négation de durée ou d'époque déjà lue (« pas trop long »). Les mots inconnus qui la suivent (« hein », « j ai sommeil »,
+    // « ones » dans « not new ones ») sont du bavardage : l'ancienne boucle de négation les avalait, et un mot libre inconnu viderait la réponse.
+    private const string NegRead = "xneg";
 
     private static readonly HashSet<string> SurprisePhrases = ["surprends moi", "surprend moi", "surprise moi", "surprise me", "au hasard", "random", "n importe quoi", "peu importe", "choisis pour moi", "pick for me", "choose for me"];
 
@@ -125,8 +139,8 @@ public sealed class QueryParser
 
     public ParsedQuery Parse(string message)
     {
-        var norm = Text.Normalize(message);
-        var padded = $" {norm} ";
+        var plain = $" {Text.Normalize(message)} ";                                                        // pour les titres et la surprise, que la ponctuation ne doit pas couper
+        var padded = $" {Text.Normalize(ClauseBreaks.Replace(message, $" {Clause} "))} ";                  // pour le reste : la ponctuation y est un mot
         var chips = new List<Chip>();
         var boostTags = new List<string>(); var boostGenres = new List<string>();
         var avoidTags = new List<string>(); var avoidGenres = new List<string>();
@@ -137,35 +151,39 @@ public sealed class QueryParser
         Guid? similar = null; string? unknownTitle = null;
 
         // 1. Surprise.
-        var surprise = SurprisePhrases.Any(p => padded.Contains($" {p} "));
+        var surprise = SurprisePhrases.Any(p => plain.Contains($" {p} "));
 
         // 2. Référence à un titre du catalogue (la plus longue correspondance gagne).
-        var hit = _catalog.Select(c => (C: c, N: Text.Normalize(c.Name))).Where(x => x.N.Length >= 3 && padded.Contains($" {x.N} ") && IsReference(padded, x.N))
+        var hit = _catalog.Select(c => (C: c, N: Text.Normalize(c.Name))).Where(x => x.N.Length >= 3 && plain.Contains($" {x.N} ") && IsReference(plain, x.N))
             .OrderByDescending(x => x.N.Length).Cast<(CatalogItem C, string N)?>().FirstOrDefault();
         if (hit is { } h)
         {
             similar = h.C.Id; chips.Add(new Chip("similar", h.C.Name));
-            padded = padded.Replace($" {h.N} ", " ");
+            padded = RemoveWords(padded, h.N);
         }
         else
         {
-            var m = Regex.Match(padded, @" (?:comme|like|similar to|similaire a|dans le style de|dans l esprit de) (?<t>[a-z0-9 ]{3,40}?)(?= mais | but | avec | and | et | pour |\s*$)");
+            // Lu sur le texte sans ponctuation : un titre inconnu peut en contenir (« comme Dune: Part Two »).
+            var m = Regex.Match(plain, @" (?:comme|like|similar to|similaire a|dans le style de|dans l esprit de) (?<t>[a-z0-9 ]{3,40}?)(?= mais | but | avec | and | et | pour |\s*$)");
             if (m.Success)
             {
                 unknownTitle = m.Groups["t"].Value.Trim();
-                padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " ");   // ses mots ne doivent pas devenir des critères de recherche
+                padded = RemoveWords(padded, m.Value.Trim());   // ses mots ne doivent pas devenir des critères de recherche
             }
         }
 
         // 3. Négations de durée, d'époque et de type, lues avant les contraintes elles-mêmes (sinon « pas trop long » serait lu comme « long ») :
         // « pas trop long » reste sous le seuil du long, « pas récent » avant les années récentes, « pas de série » garde les autres types.
-        bool Consume(Regex rx) { if (!rx.IsMatch(padded)) return false; padded = rx.Replace(padded, ""); return true; }   // le motif porte l'espace de tête : un seul espace reste entre les mots
+        // Le motif porte l'espace de tête : un seul espace reste entre les mots. `mark` remplace la négation lue (voir NegRead).
+        bool Consume(Regex rx, string mark = "") { if (!rx.IsMatch(padded)) return false; padded = rx.Replace(padded, mark); return true; }
+        const string Read = " " + NegRead;
+        // « court métrage » nié est une durée : lu avant les types, que NegKinds ne verra donc jamais nier « court métrage » comme un type.
+        if (Consume(NegShort, Read)) { minMin = _shortMax + 1; chips.Add(new Chip("minMinutes", minMin.Value.ToString(CultureInfo.InvariantCulture))); labels.Add($"≥ {minMin} min"); }
+        if (Consume(NegLong, Read)) { maxMin = _longMin - 1; chips.Add(new Chip("maxMinutes", maxMin.Value.ToString(CultureInfo.InvariantCulture))); labels.Add($"≤ {maxMin} min"); }
+        if (Consume(NegRecent, Read)) { yTo = _currentYear - 4; chips.Add(new Chip("before", (_currentYear - 3).ToString(CultureInfo.InvariantCulture))); labels.Add($"< {_currentYear - 3}"); }
+        if (Consume(NegClassic, Read)) { yFrom = 2000; chips.Add(new Chip("after", "1999")); labels.Add("> 1999"); }
         var negKinds = new HashSet<TitleKind>();
         foreach (var (rx, kind) in NegKinds) if (Consume(rx)) negKinds.Add(kind);
-        if (Consume(NegLong)) { maxMin = _longMin - 1; chips.Add(new Chip("maxMinutes", maxMin.Value.ToString(CultureInfo.InvariantCulture))); labels.Add($"≤ {maxMin} min"); }
-        if (Consume(NegShort)) { minMin = _shortMax + 1; chips.Add(new Chip("minMinutes", minMin.Value.ToString(CultureInfo.InvariantCulture))); labels.Add($"≥ {minMin} min"); }
-        if (Consume(NegRecent)) { yTo = _currentYear - 4; chips.Add(new Chip("before", (_currentYear - 3).ToString(CultureInfo.InvariantCulture))); labels.Add($"< {_currentYear - 3}"); }
-        if (Consume(NegClassic)) { yFrom = 2000; chips.Add(new Chip("after", "1999")); labels.Add("> 1999"); }
 
         // 3a. Type de contenu (avant « court » : « court métrage » est un type, pas une durée).
         foreach (var (alts, kind, label, verbs) in KindWords)
@@ -175,8 +193,8 @@ public sealed class QueryParser
         }
         if (negKinds.Count > 0)
         {
-            // Un type nié écarte ce type ; sans type demandé, tous les autres restent permis et les puces les annoncent.
-            var wanted = kinds.Count > 0;
+            // Un type nié écarte ce type ; sans type demandé (ou si tous ceux demandés sont niés), tous les autres restent permis et les puces les annoncent.
+            var wanted = kinds.Any(k => !negKinds.Contains(k));
             kinds = [.. (wanted ? kinds : [.. Enum.GetValues<TitleKind>()]).Where(k => !negKinds.Contains(k))];
             chips.RemoveAll(c => c.Kind == "kind" && negKinds.Any(k => k.ToString() == c.Label));
             if (!wanted) chips.AddRange(kinds.Select(k => new Chip("kind", k.ToString())));
@@ -185,25 +203,28 @@ public sealed class QueryParser
         // 4. Durée, époque (expressions chiffrées d'abord).
         padded = ExtractNumbers(padded, ref maxMin, ref minMin, ref yFrom, ref yTo, chips, labels);
         if (Regex.IsMatch(padded, $" ({ShortWords}) "))
-        { maxMin ??= _shortMax; chips.Add(new Chip("short", _shortMax.ToString(CultureInfo.InvariantCulture))); labels.Add("court"); padded = Regex.Replace(padded, $" ({ShortWords}) ", " "); }
+        { maxMin = AtMost(maxMin, _shortMax); chips.Add(new Chip("short", _shortMax.ToString(CultureInfo.InvariantCulture))); labels.Add("court"); padded = Regex.Replace(padded, $" ({ShortWords}) ", " "); }
         if (Regex.IsMatch(padded, $" ({LongWords}|epique de longue duree) ") && !padded.Contains(" plus long"))
-        { minMin ??= _longMin; chips.Add(new Chip("long", _longMin.ToString(CultureInfo.InvariantCulture))); labels.Add("long"); padded = Regex.Replace(padded, $" ({LongWords}) ", " "); }
+        { minMin = AtLeast(minMin, _longMin); chips.Add(new Chip("long", _longMin.ToString(CultureInfo.InvariantCulture))); labels.Add("long"); padded = Regex.Replace(padded, $" ({LongWords}) ", " "); }
         if (Regex.IsMatch(padded, $" ({RecentWords}) "))
-        { yFrom ??= _currentYear - 3; chips.Add(new Chip("recent", (_currentYear - 3).ToString(CultureInfo.InvariantCulture))); padded = Regex.Replace(padded, $" ({RecentWords}) ", " "); }
+        { yFrom = AtLeast(yFrom, _currentYear - 3); chips.Add(new Chip("recent", (_currentYear - 3).ToString(CultureInfo.InvariantCulture))); padded = Regex.Replace(padded, $" ({RecentWords}) ", " "); }
         if (Regex.IsMatch(padded, $" ({ClassicWords}) "))
-        { yTo ??= 1999; chips.Add(new Chip("classic", "1999")); padded = Regex.Replace(padded, $" ({ClassicWords}) ", " "); }
+        { yTo = AtMost(yTo, 1999); chips.Add(new Chip("classic", "1999")); padded = Regex.Replace(padded, $" ({ClassicWords}) ", " "); }
 
         // 5. Négations puis critères positifs, mot à mot.
         var words = padded.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
         var free = new List<string>();
+        var chatter = false;   // après une négation déjà lue, jusqu'à un mot d'arrêt : un mot inconnu n'est plus un critère
         for (var i = 0; i < words.Count; i++)
         {
             var w = words[i];
+            if (w == NegRead) { chatter = true; continue; }
+            if (NegStop.Contains(w)) chatter = false;
             if (NegMarkers.Contains(w))
             {
                 var soft = false; var j = i + 1; var taken = 0;
                 while (j < words.Count && NegSkip.Contains(words[j])) { if (words[j] is "trop" or "too" or "peu") soft = true; j++; }
-                while (j < words.Count && taken < 3 && !NegStop.Contains(words[j]) && !NegMarkers.Contains(words[j]))
+                while (j < words.Count && taken < 3 && !NegStop.Contains(words[j]) && !NegMarkers.Contains(words[j]) && !(words[j] == Clause && j + 1 < words.Count && NewRequest.Contains(words[j + 1])))
                 {
                     var term = words[j];
                     var pair = j + 1 < words.Count ? $"{term} {words[j + 1]}" : term;
@@ -229,7 +250,7 @@ public sealed class QueryParser
             if (TryGenre(w, out var g1)) { boostGenres.Add(g1); chips.Add(new Chip("genre", g1)); continue; }
             if (Moods.TryGetValue(w, out var t1)) { AddMood(w, t1, boostTags, chips); continue; }
             if (_tagByKey.TryGetValue(RecommendationEngine.KeywordKey(w), out var direct)) { boostTags.Add(direct); chips.Add(new Chip("tag", direct)); continue; }
-            if (!Filler.Contains(w) && w.Length >= 3) free.Add(w);
+            if (!Filler.Contains(w) && w.Length >= 3 && !chatter) free.Add(w);
         }
 
         var spec = new QuerySpec
@@ -283,6 +304,14 @@ public sealed class QueryParser
         chips.Add(new Chip("tag", known[0]));
     }
 
+    // Retire une suite de mots de la phrase, même si de la ponctuation (devenue « puis ») s'est glissée entre eux (« Dune: Part Two »).
+    private static string RemoveWords(string padded, string words) =>
+        Regex.Replace(padded, $" {string.Join($"(?: {Clause})? ", words.Split(' ').Select(Regex.Escape))} ", " ");
+
+    // Les bornes se combinent, la plus stricte l'emporte : une négation lue d'abord (« pas trop récent ») ne doit pas écraser un « classique » du même champ, ni l'inverse.
+    private static int AtMost(int? current, int bound) => current is { } c ? Math.Min(c, bound) : bound;
+    private static int AtLeast(int? current, int bound) => current is { } c ? Math.Max(c, bound) : bound;
+
     private string ExtractNumbers(string padded, ref int? maxMin, ref int? minMin, ref int? yFrom, ref int? yTo, List<Chip> chips, List<string> labels)
     {
         static int ToMinutes(string num, string unit, string? tail)
@@ -293,25 +322,25 @@ public sealed class QueryParser
         }
         // « moins de 90 min », « under 2 h », « max 1h30 »
         var m = Regex.Match(padded, @" (?:moins de|maximum|max|under|less than|sous|pas plus de|jusqu a) (\d{1,3}) ?(h|heure|heures|hours?|hrs?|min|mins|minutes?)(?: ?(\d{1,2}))? ");
-        if (m.Success) { var v = ToMinutes(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); maxMin = v; chips.Add(new Chip("maxMinutes", v.ToString(CultureInfo.InvariantCulture))); labels.Add($"≤ {v} min"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
+        if (m.Success) { var v = ToMinutes(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); maxMin = AtMost(maxMin, v); chips.Add(new Chip("maxMinutes", v.ToString(CultureInfo.InvariantCulture))); labels.Add($"≤ {v} min"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
         m = Regex.Match(padded, @" (?:plus de|au moins|over|more than|minimum|min|at least) (\d{1,3}) ?(h|heure|heures|hours?|hrs?|min|mins|minutes?)(?: ?(\d{1,2}))? ");
-        if (m.Success) { var v = ToMinutes(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); minMin = v; chips.Add(new Chip("minMinutes", v.ToString(CultureInfo.InvariantCulture))); labels.Add($"≥ {v} min"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
+        if (m.Success) { var v = ToMinutes(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); minMin = AtLeast(minMin, v); chips.Add(new Chip("minMinutes", v.ToString(CultureInfo.InvariantCulture))); labels.Add($"≥ {v} min"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
         // « 90 min max », « 1h30 max », « 2 heures maximum »
         m = Regex.Match(padded, @" (\d{1,3}) ?(h|heure|heures|hours?|hrs?|min|mins|minutes?)(?: ?(\d{1,2}))? (?:max|maximum) ");
-        if (m.Success) { var v = ToMinutes(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); maxMin = v; chips.Add(new Chip("maxMinutes", v.ToString(CultureInfo.InvariantCulture))); labels.Add($"≤ {v} min"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
+        if (m.Success) { var v = ToMinutes(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); maxMin = AtMost(maxMin, v); chips.Add(new Chip("maxMinutes", v.ToString(CultureInfo.InvariantCulture))); labels.Add($"≤ {v} min"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
         // « des années 80 », « années 2010 », « 1990s »
         m = Regex.Match(padded, @" (?:annees|annee|years|the) (\d{2}|\d{4})(?:s| ) ?");
         if (m.Success)
         {
             var d = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
             if (m.Groups[1].Value.Length == 2) d += d < 30 ? 2000 : 1900;
-            yFrom = d; yTo = d + 9; chips.Add(new Chip("decade", d.ToString(CultureInfo.InvariantCulture))); labels.Add($"{d}-{d + 9}");
+            yFrom = AtLeast(yFrom, d); yTo = AtMost(yTo, d + 9); chips.Add(new Chip("decade", d.ToString(CultureInfo.InvariantCulture))); labels.Add($"{d}-{d + 9}");
             padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " ");
         }
         m = Regex.Match(padded, @" (?:avant|before) (\d{4}) ");
-        if (m.Success) { yTo = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) - 1; chips.Add(new Chip("before", m.Groups[1].Value)); labels.Add($"< {m.Groups[1].Value}"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
+        if (m.Success) { yTo = AtMost(yTo, int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) - 1); chips.Add(new Chip("before", m.Groups[1].Value)); labels.Add($"< {m.Groups[1].Value}"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
         m = Regex.Match(padded, @" (?:apres|depuis|after|since) (\d{4}) ");
-        if (m.Success) { yFrom = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) + (m.Value.Contains("depuis") || m.Value.Contains("since") ? 0 : 1); chips.Add(new Chip("after", m.Groups[1].Value)); labels.Add($"> {m.Groups[1].Value}"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
+        if (m.Success) { yFrom = AtLeast(yFrom, int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) + (m.Value.Contains("depuis") || m.Value.Contains("since") ? 0 : 1)); chips.Add(new Chip("after", m.Groups[1].Value)); labels.Add($"> {m.Groups[1].Value}"); padded = padded.Remove(m.Index, m.Length).Insert(m.Index, " "); }
         return padded;
     }
 
