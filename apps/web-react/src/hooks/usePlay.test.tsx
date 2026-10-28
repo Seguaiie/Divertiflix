@@ -4,6 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeCard, mockApi, renderApp, signIn } from '../test/utils'
 import { PosterCard } from '../components/PosterCard'
 
+const hlsMock = vi.hoisted(() => ({ loadSource: vi.fn(), attachMedia: vi.fn(), destroy: vi.fn(), on: vi.fn() }))
+vi.mock('hls.js', () => ({
+  default: class {
+    static isSupported() { return true }
+    static Events = { ERROR: 'hlsError' }
+    loadSource = hlsMock.loadSource
+    attachMedia = hlsMock.attachMedia
+    destroy = hlsMock.destroy
+    on = hlsMock.on
+  },
+}))
+
 beforeEach(() => signIn())
 
 const ID = '11111111-1111-4111-8111-111111111111'
@@ -35,5 +47,18 @@ describe('lecture d\'un lien externe', () => {
     await waitFor(() => expect(win.close).toHaveBeenCalled())
     expect(win.location.href).toBe('')
     expect(await screen.findByText('Impossible d\'ouvrir ce titre pour le moment.')).toBeInTheDocument()
+  })
+})
+
+describe('lecture d\'un livre Audiobookshelf', () => {
+  it('lit le flux HLS continu avec hls.js dans le lecteur audio', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+    const book = makeCard({}, { streamKind: 'Audio', externalSource: 'Audiobookshelf' })
+    const url = '/api/media/abs/hls/jeton/session1/output.m3u8'
+    mockApi({ [`/api/titles/${ID}/playback`]: { titleId: ID, url, kind: 'Hls', startSeconds: 0, expiresAt: '2030-01-01T00:00:00Z' } })
+    renderApp(<PosterCard card={book} />)
+    await userEvent.setup().click(screen.getByRole('button', { name: /Lecture de|Écouter|Lire/ }))
+    await waitFor(() => expect(hlsMock.loadSource).toHaveBeenCalledWith(url))
+    expect(hlsMock.attachMedia).toHaveBeenCalledWith(expect.any(HTMLAudioElement))
   })
 })

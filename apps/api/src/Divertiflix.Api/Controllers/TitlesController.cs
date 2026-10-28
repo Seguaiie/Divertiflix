@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/titles"), Authorize]
-public class TitlesController(DivertiflixDbContext db, HomeService home, StreamSigner signer) : ControllerBase
+public class TitlesController(DivertiflixDbContext db, HomeService home, StreamSigner signer, AudiobookshelfClient abs, AudiobookshelfSessions absSessions) : ControllerBase
 {
     private const int MaxPage = 100_000;
 
@@ -74,7 +74,7 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
 
     /// <summary>URL de lecture du titre : signée et à durée courte pour les médias servis par l'API, directe sinon.</summary>
     [HttpGet("{id:guid}/playback")]
-    public async Task<ActionResult<PlaybackDto>> Playback(Guid id, [FromQuery] Guid? profileId)
+    public async Task<ActionResult<PlaybackDto>> Playback(Guid id, [FromQuery] Guid? profileId, CancellationToken ct)
     {
         var t = await db.Titles.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
         if (t is null) return NotFound();
@@ -90,6 +90,18 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
         }
 
         var source = t.StreamUrl!;
+        if (source.StartsWith(AudiobookshelfClient.StreamPrefix, StringComparison.Ordinal))
+        {
+            // Livre Audiobookshelf : l'API ouvre la session, puis relaie le flux HLS continu (tous les chapitres) sous un jeton signé.
+            if (!abs.Configured) return this.Err(409, "Le serveur de livres audio n'est pas configuré.");
+            string sessionId;
+            try { sessionId = await abs.OpenSessionAsync(source[AudiobookshelfClient.StreamPrefix.Length..], ct); }
+            catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
+            { return this.Err(502, "Le serveur de livres audio ne répond pas."); }
+            absSessions.Track(sessionId);
+            var (absToken, absExpires) = signer.Sign(User.UserId(), sessionId, TimeSpan.FromHours(6));
+            return new PlaybackDto(t.Id, $"/api/media/abs/hls/{absToken}/{sessionId}/output.m3u8", StreamKind.Hls, start, absExpires);
+        }
         var url = source;
         var expires = DateTime.UtcNow.AddHours(6);
         if (source.StartsWith("media:", StringComparison.Ordinal))

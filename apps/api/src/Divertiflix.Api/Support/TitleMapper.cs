@@ -12,6 +12,7 @@ public static class TitleMapper
     public static StreamKind? KindOf(string? url)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
+        if (url.StartsWith("abs:", StringComparison.Ordinal)) return StreamKind.Audio;   // livre Audiobookshelf : lecteur audio du portail
         var path = url.Split('?', '#')[0];
         var ext = Path.GetExtension(path).ToLowerInvariant();
         if (ext == ".m3u8") return StreamKind.Hls;
