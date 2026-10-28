@@ -59,6 +59,24 @@
 - Gabarit : `scripts/audiobookshelf_sync_example.py` (appelle l'API Audiobookshelf réelle, pousse
   vers Divertiflix). Non exécuté ici, à lancer là où Audiobookshelf tourne.
 
+## Audiobookshelf branché sur le serveur web (2026-10-28)
+- **Tout passe par l'API** : le navigateur ne parle jamais à Audiobookshelf (ABS). Config : `Audiobookshelf__Url` (ex.
+  `http://192.168.8.180:13378`) et `Audiobookshelf__Token` (jeton d'API ABS) dans `/opt/divertiflix/.env`, ou variables
+  `AUDIOBOOKSHELF_URL` / `AUDIOBOOKSHELF_TOKEN` données à `install-serveur.sh` (variables CI/CD GitLab) qui les y mémorise.
+  `Audiobookshelf__SyncMinutes` (60 par défaut, 0 = désactivé).
+- **Synchro** : `AudiobookshelfSyncService` (20 s après le démarrage, puis chaque `SyncMinutes`) lit les bibliothèques de type
+  livre (pas les balados) et upsert via `AudiobookshelfCatalog` (partagé avec l'ingestion à clé `POST /api/admin/audiobookshelf-sync`).
+  Bouton/appel admin : `POST /api/admin/audiobookshelf-sync/run` (rôle Admin). Les livres disparus d'ABS ne sont PAS supprimés.
+  `StreamUrl = abs:{idItem}`, couverture = `/api/media/abs/cover/{idItem}`.
+- **Lecture (un fichier par chapitre)** : `/playback` ouvre une session ABS avec `forceTranscode` ; ABS assemble tous les fichiers
+  en un seul flux HLS continu. L'API le relaie sous `/api/media/abs/hls/{jeton}/{session}/{fichier}` (jeton signé lié à la session,
+  compte revérifié à chaque requête, seules les sessions ouvertes par l'API sont relayées, session refermée côté ABS après 7 h).
+  Le dock audio du portail lit ce HLS avec hls.js. Conséquence : ABS transcode (ffmpeg, déjà dans son image Docker) : prévoir du CPU.
+- `SafeUrl` accepte `abs:` (identifiant simple seulement) ; `TitleMapper.KindOf("abs:…")` = Audio (le portail ouvre son lecteur audio).
+- **Non vérifié ici** (pas de .NET ni d'accès à 192.168.8.180 dans la session de dev) : `dotnet test` (nouveau fichier
+  `AudiobookshelfProxyTests.cs`, faux ABS) tourne au pipeline GitLab ; le vrai ABS reste à essayer sur place. Le front a été testé (vitest).
+  `packages/api-client/openapi.json` ne contient pas encore `/run` : à régénérer (voir `docs/regeneration.md`).
+
 ## Temps réel (étape 4, 2026-10-09)
 - SignalR : `NotificationsHub` sur `/api/hubs/notifications`, volontairement SOUS `/api/` (même origine que
   l'API, aucun CORS en production). nginx a un emplacement dédié `/api/hubs/` (upgrade WebSocket, délais d'une heure,

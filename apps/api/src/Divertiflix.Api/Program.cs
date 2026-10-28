@@ -21,6 +21,10 @@ if (jwt.Key.Length < 32) throw new InvalidOperationException("Jwt:Key doit conte
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<StreamSigner>();
+// Audiobookshelf (livres audio) : inactif tant que Audiobookshelf__Url et Audiobookshelf__Token ne sont pas fournis.
+builder.Services.Configure<AudiobookshelfOptions>(builder.Configuration.GetSection("Audiobookshelf"));
+builder.Services.AddHttpClient<AudiobookshelfClient>(c => c.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<AudiobookshelfSessions>();
 
 // En production : journaux JSON (une ligne par évènement, avec RequestId) pour la centralisation des journaux.
 if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing")) builder.Logging.AddJsonConsole();
@@ -45,10 +49,12 @@ builder.Services.AddScoped<HomeService>();
 builder.Services.AddScoped<AssistantService>();
 builder.Services.AddScoped<Notifier>();
 builder.Services.AddScoped<Audit>();
+builder.Services.AddScoped<AudiobookshelfCatalog>();
 
 // Pont MQTT -> SignalR (capteurs ESP32 publiés sur Mosquitto). Se reconnecte seul, ne bloque jamais le démarrage.
 builder.Services.AddHostedService<MqttBridgeService>();
 builder.Services.AddHostedService<RetentionService>();
+builder.Services.AddHostedService<AudiobookshelfSyncService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
@@ -133,6 +139,7 @@ if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
 app.UseCors();
 MediaEndpoints.Map(app);
+AudiobookshelfEndpoints.Map(app);
 app.UseAuthentication();
 app.UseRateLimiter();   // après l'authentification : les plafonds « write » et « assistant » sont par utilisateur
 app.UseAuthorization();

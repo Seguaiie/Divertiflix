@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type Hls from 'hls.js'
 import { api, call, type Title } from '../lib/api'
 import { saveProgress } from '../lib/progress'
 import { useAuth } from './auth'
@@ -36,6 +37,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const { t } = useI18n()
   const toast = useToast()
   const audio = useRef<HTMLAudioElement | null>(null)
+  const hls = useRef<Hls | null>(null)
   const [current, setCurrent] = useState<DockItem | null>(null)
   const [playing, setPlaying] = useState(false)
   const [position, setPosition] = useState(0)
@@ -76,7 +78,16 @@ export function DockProvider({ children }: { children: ReactNode }) {
       startAt.current = pb.startSeconds
       setCurrent({ titleId: title.id, name: title.name, author: title.author, poster: title.posterUrl })
       const a = audio.current!
-      a.src = pb.url
+      hls.current?.destroy(); hls.current = null
+      // Un livre Audiobookshelf arrive en flux HLS continu (tous les chapitres) : hls.js le lit dans le même élément <audio>.
+      const HlsLib = pb.kind === 'Hls' ? (await import('hls.js')).default : null   // chargé à la demande, comme dans le lecteur vidéo
+      if (HlsLib?.isSupported()) {
+        const h = new HlsLib()
+        hls.current = h
+        h.on(HlsLib.Events.ERROR, (_e, d) => { if (d.fatal) toast.push({ kind: 'error', text: t('dock.error') }) })
+        h.loadSource(pb.url)
+        h.attachMedia(a)
+      } else a.src = pb.url   // fichier audio direct, ou HLS natif (Safari)
       a.playbackRate = rate
       await a.play().catch(() => undefined)
     } catch {
@@ -90,7 +101,7 @@ export function DockProvider({ children }: { children: ReactNode }) {
     seek: s => { if (audio.current) audio.current.currentTime = Math.max(0, Math.min(s, audio.current.duration || s)) },
     skip: d => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min(a.currentTime + d, a.duration || Infinity)) },
     setRate: r => { setRateState(r); if (audio.current) audio.current.playbackRate = r },
-    close: () => { persist(); audio.current?.pause(); if (audio.current) audio.current.removeAttribute('src'); audio.current?.load(); setCurrent(null); setPlaying(false) },
+    close: () => { persist(); audio.current?.pause(); hls.current?.destroy(); hls.current = null; if (audio.current) audio.current.removeAttribute('src'); audio.current?.load(); setCurrent(null); setPlaying(false) },
   }), [current, playing, position, duration, rate, buffering, play, pause, persist])
 
   return (

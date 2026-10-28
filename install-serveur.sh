@@ -19,6 +19,8 @@
 #   ADMIN_PASSWORD=    mot de passe du compte administrateur (sinon généré aléatoirement)
 #   ENABLE_FIREWALL=1  ufw : SSH, 80, 443 ouverts
 #   MQTT_BIND=127.0.0.1  adresse d'écoute de Mosquitto (mettre 0.0.0.0 pour les ESP32, voir note en bas) ; mémorisée dans .env
+#   AUDIOBOOKSHELF_URL=    adresse du serveur Audiobookshelf (ex. http://192.168.8.180:13378) ; mémorisée dans .env (Audiobookshelf__Url)
+#   AUDIOBOOKSHELF_TOKEN=  jeton d'API d'un utilisateur Audiobookshelf ; mémorisé dans .env (600), jamais envoyé au navigateur
 #   APP_USER=divertiflix
 # Idempotent : relancer le script redéploie la dernière version sans toucher aux secrets ni à la base.
 # HTTPS : le site nginx est réécrit à chaque exécution, mais DOMAIN et CERTBOT_EMAIL (ni l'un ni l'autre n'est un secret) sont enregistrés
@@ -128,6 +130,10 @@ env_set() { sed -i "/^$1=/d" "$ENV_FILE"; echo "$1=$2" >> "$ENV_FILE"; }
 if [ -n "$MQTT_BIND_ASKED" ]; then env_set MQTT_BIND "$MQTT_BIND"; fi
 MQTT_BIND=$(env_get MQTT_BIND)
 MQTT_BIND=${MQTT_BIND:-127.0.0.1}
+# Audiobookshelf : fournis une fois (variables CI/CD GitLab ou lancement à la main), puis relus dans .env : une relance sans eux les garde.
+# Sans ces deux valeurs l'API démarre quand même, simplement sans livres audio synchronisés.
+[ -z "${AUDIOBOOKSHELF_URL:-}" ] || env_set Audiobookshelf__Url "${AUDIOBOOKSHELF_URL%/}"
+[ -z "${AUDIOBOOKSHELF_TOKEN:-}" ] || env_set Audiobookshelf__Token "$AUDIOBOOKSHELF_TOKEN"
 
 # HTTPS. nginx est réécrit à chaque exécution : une relance sans DOMAIN ni CERTBOT_EMAIL (le pipeline GitLab) le repasserait en HTTP seul, et
 # les navigateurs qui ont retenu HSTS (un an) n'atteindraient plus le site. Ces deux valeurs ne sont pas des secrets : enregistrées dans .env
