@@ -88,6 +88,7 @@ start-all.sh, stop-all.sh   lancent et arrêtent tout le développement ; docker
 - [Démonstration](docs/demo.md) : déroulé de 7 minutes.
 - [Démo hébergée](docs/demo-hebergee.md) : portail et back-office jouables dans le navigateur, sans serveur.
 - [Fichiers générés](docs/regeneration.md) : ce qui n'est pas versionné et la commande qui le reproduit.
+- [Audiobookshelf](docs/audiobookshelf.md) : intégration, déploiement réel, limites.
 - `memoire.md` : décisions et pièges rencontrés. `logiciels.md` : tout ce qui est installé. `progres.md` : avancement.
 
 ## Déploiement
