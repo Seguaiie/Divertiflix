@@ -22,10 +22,10 @@ public class AudiobookshelfSyncTests(ApiFactory f) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Creates_then_updates_audiobook_without_duplicates_and_external_pages_are_not_playable_as_audio()
+    public async Task Creates_then_updates_audiobook_without_duplicates_and_plays_it_in_the_portal()
     {
         var externalId = $"abs-{Guid.NewGuid():N}";
-        var item = new AudiobookItemDto(externalId, "Le Petit Prince", "Un aviateur en panne dans le désert.", "Antoine de Saint-Exupéry", "Narrateur Test", 120, null, "https://audiobookshelf.local/item/abc", "Jeunesse");
+        var item = new AudiobookItemDto(externalId, "Le Petit Prince", "Un aviateur en panne dans le désert.", "Antoine de Saint-Exupéry", "Narrateur Test", 120, $"https://audiobookshelf.local/api/items/{externalId}/cover", "https://audiobookshelf.local/item/abc", "Jeunesse");
 
         // Le même identifiant deux fois dans un lot : une seule ligne.
         var created = await f.CreateClient().SendAsync(Req(ApiFactory.SyncKey, new AudiobookshelfSyncRequest([item, item with { Name = "Le Petit Prince (v2)" }])));
@@ -37,8 +37,9 @@ public class AudiobookshelfSyncTests(ApiFactory f) : IClassFixture<ApiFactory>
         var dto = Assert.Single(list.Items);
         Assert.Equal(TitleKind.Audiobook, dto.Kind);
         Assert.Equal("Antoine de Saint-Exupéry", dto.Author);
-        // L'URL est une page web Audiobookshelf, pas un fichier audio : le client doit proposer un lien, pas un lecteur.
-        Assert.Equal(StreamKind.External, dto.StreamKind);
+        // Même si le script pousse un lien vers la page web d'Audiobookshelf, le livre s'écoute dans le lecteur du portail.
+        Assert.Equal(StreamKind.Audio, dto.StreamKind);
+        Assert.Equal($"/api/media/abs/cover/{externalId}", dto.PosterUrl);
 
         var renamed = item with { Name = "Le Petit Prince (édition révisée)" };
         var updated = await f.CreateClient().SendAsync(Req(ApiFactory.SyncKey, new AudiobookshelfSyncRequest([renamed])));

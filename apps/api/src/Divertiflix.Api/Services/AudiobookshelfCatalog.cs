@@ -35,8 +35,11 @@ public class AudiobookshelfCatalog(DivertiflixDbContext db, IHubContext<Notifica
             title.Author = item.Author;
             title.Narrator = item.Narrator;
             title.DurationMinutes = item.DurationMinutes;
-            title.PosterUrl = item.CoverUrl;
-            title.StreamUrl = item.StreamUrl;
+            // Un livre Audiobookshelf se lit toujours dans le lecteur du portail (« abs:{id} »), même si le lot poussé par un script
+            // externe donne un lien vers la page web d'Audiobookshelf ; la couverture passe aussi par le relais de l'API.
+            var absId = AudiobookshelfClient.IsSafeId(item.ExternalId);
+            title.PosterUrl = absId && IsAbsCover(item.CoverUrl, item.ExternalId) ? $"/api/media/abs/cover/{item.ExternalId}" : item.CoverUrl;
+            title.StreamUrl = absId ? AudiobookshelfClient.StreamPrefix + item.ExternalId : item.StreamUrl;
             title.Genre = string.IsNullOrWhiteSpace(item.Genre) ? "Livre audio" : item.Genre.Trim();
             title.Year = title.Year == 0 ? DateTime.UtcNow.Year : title.Year;
             title.RefreshSearchText();
@@ -48,4 +51,8 @@ public class AudiobookshelfCatalog(DivertiflixDbContext db, IHubContext<Notifica
         await hub.Clients.Group(NotificationsHub.StaffGroup).SendAsync("audiobookshelfSynced", new { created, updated, at = DateTime.UtcNow }, ct);
         return new AudiobookshelfSyncResult(created, updated);
     }
+
+    /// <summary>Couverture servie directement par Audiobookshelf (…/api/items/{id}/cover) : le navigateur n'a pas le jeton, on passe par le relais.</summary>
+    private static bool IsAbsCover(string? url, string id) =>
+        url is not null && Uri.TryCreate(url, UriKind.Absolute, out var u) && u.AbsolutePath.TrimEnd('/') == $"/api/items/{id}/cover";
 }
