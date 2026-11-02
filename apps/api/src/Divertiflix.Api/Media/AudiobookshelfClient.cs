@@ -34,10 +34,11 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
     [GeneratedRegex("<[^>]+>")]
     private static partial Regex Tags();
 
-    private HttpRequestMessage Request(HttpMethod method, string path)
+    /// <summary>Requête au nom du compte de service (jeton de .env), ou d'un compte lié quand <paramref name="token"/> est fourni.</summary>
+    private HttpRequestMessage Request(HttpMethod method, string path, string? token = null)
     {
         var req = new HttpRequestMessage(method, BaseUrl + path);
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Value.Token);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token ?? options.Value.Token);
         return req;
     }
 
@@ -99,10 +100,10 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
     /// Ouvre une session de lecture : son identifiant et les chapitres du livre. Le transcodage est forcé : Audiobookshelf assemble alors tous les
     /// fichiers du livre (un par chapitre) en un seul flux HLS continu, que le lecteur du portail lit comme un fichier unique.
     /// </summary>
-    public async Task<AudiobookshelfSession> OpenSessionAsync(string itemId, CancellationToken ct)
+    public async Task<AudiobookshelfSession> OpenSessionAsync(string itemId, CancellationToken ct, string? token = null)
     {
         if (!IsSafeId(itemId)) throw new InvalidOperationException("Identifiant Audiobookshelf invalide.");
-        using var req = Request(HttpMethod.Post, $"/api/items/{itemId}/play");
+        using var req = Request(HttpMethod.Post, $"/api/items/{itemId}/play", token);
         req.Content = JsonContent.Create(new
         {
             deviceInfo = new { clientName = "Divertiflix", deviceId = "divertiflix-server" },
@@ -122,7 +123,7 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
         if (doc.RootElement.TryGetProperty("audioTracks", out var tracks) && tracks.ValueKind == JsonValueKind.Array && tracks.GetArrayLength() > 0
             && Text(tracks[0], "contentUrl") is { } url && !url.Contains("/hls/", StringComparison.Ordinal))
         {
-            await CloseSessionAsync(sessionId!, CancellationToken.None);
+            await CloseSessionAsync(sessionId!, CancellationToken.None, token);
             throw new InvalidOperationException("Audiobookshelf n'a pas ouvert de flux HLS (transcodage indisponible).");
         }
         return new AudiobookshelfSession(sessionId!, Chapters(doc.RootElement));
@@ -142,12 +143,12 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
     }
 
     /// <summary>Ferme une session (libère le transcodage côté Audiobookshelf). Au mieux : n'échoue jamais.</summary>
-    public async Task CloseSessionAsync(string sessionId, CancellationToken ct)
+    public async Task CloseSessionAsync(string sessionId, CancellationToken ct, string? token = null)
     {
         if (!IsSafeId(sessionId)) return;
         try
         {
-            using var req = Request(HttpMethod.Post, $"/api/session/{sessionId}/close");
+            using var req = Request(HttpMethod.Post, $"/api/session/{sessionId}/close", token);
             req.Content = JsonContent.Create(new { });
             using var res = await http.SendAsync(req, ct);
         }
@@ -155,10 +156,80 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
     }
 
     /// <summary>GET brut vers Audiobookshelf (images, listes et segments HLS). L'appelant libère la réponse.</summary>
-    public async Task<HttpResponseMessage> GetRawAsync(string path, CancellationToken ct)
+    public async Task<HttpResponseMessage> GetRawAsync(string path, CancellationToken ct, string? token = null)
     {
-        using var req = Request(HttpMethod.Get, path);
+        using var req = Request(HttpMethod.Get, path, token);
         return await http.SendAsync(req, HttpCompletionOption.ResponseContentRead, ct);
+    }
+
+    // ------------------------------------------------------------------ Comptes liés (un utilisateur Audiobookshelf par compte Divertiflix)
+
+    /// <summary>Noms d'utilisateur déjà pris dans Audiobookshelf (comparaison sans casse).</summary>
+    public async Task<HashSet<string>> UsernamesAsync(CancellationToken ct)
+    {
+        using var doc = await GetJsonAsync("/api/users", ct);
+        return doc.RootElement.GetProperty("users").EnumerateArray()
+            .Select(u => Text(u, "username")).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Crée un utilisateur simple (lecture seule : ni envoi, ni modification, ni suppression) ; renvoie son identifiant.</summary>
+    public async Task<string> CreateUserAsync(string username, string password, CancellationToken ct)
+    {
+        using var req = Request(HttpMethod.Post, "/api/users");
+        req.Content = JsonContent.Create(new
+        {
+            username, password, type = "user", isActive = true,
+            permissions = new { download = false, update = false, delete = false, upload = false, accessAllLibraries = true, accessAllTags = true, accessExplicitContent = true },
+        });
+        using var res = await http.SendAsync(req, ct);
+        res.EnsureSuccessStatusCode();
+        using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var id = Text(doc.RootElement.GetProperty("user"), "id");
+        return IsSafeId(id) ? id! : throw new InvalidOperationException("Utilisateur Audiobookshelf créé sans identifiant exploitable.");
+    }
+
+    /// <summary>Clé d'API sans expiration au nom de l'utilisateur <paramref name="userId"/> (créée par le compte de service, administrateur).</summary>
+    public async Task<string> CreateApiKeyAsync(string userId, string name, CancellationToken ct)
+    {
+        using var req = Request(HttpMethod.Post, "/api/api-keys");
+        req.Content = JsonContent.Create(new { name, userId, isActive = true });
+        using var res = await http.SendAsync(req, ct);
+        res.EnsureSuccessStatusCode();
+        using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        return Text(doc.RootElement.GetProperty("apiKey"), "apiKey") is { Length: > 0 } key ? key : throw new InvalidOperationException("Clé d'API Audiobookshelf vide.");
+    }
+
+    /// <summary>Supprime un utilisateur (nettoyage quand l'enregistrement du lien a échoué). Au mieux.</summary>
+    public async Task DeleteUserAsync(string userId, CancellationToken ct)
+    {
+        if (!IsSafeId(userId)) return;
+        try { using var req = Request(HttpMethod.Delete, $"/api/users/{userId}"); using var _ = await http.SendAsync(req, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { }
+    }
+
+    /// <summary>Enregistre la position d'écoute dans Audiobookshelf, au nom du compte lié.</summary>
+    public async Task SaveProgressAsync(string token, string itemId, double currentTime, double duration, CancellationToken ct)
+    {
+        if (!IsSafeId(itemId) || duration <= 0) return;
+        var progress = Math.Clamp(currentTime / duration, 0, 1);
+        using var req = Request(HttpMethod.Patch, $"/api/me/progress/{itemId}", token);
+        req.Content = JsonContent.Create(new { currentTime, duration, progress, isFinished = progress >= 0.99 });
+        using var res = await http.SendAsync(req, ct);
+        res.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>Position d'écoute enregistrée dans Audiobookshelf (ex. depuis son application), ou null.</summary>
+    public async Task<(double Current, double Duration, bool Finished)?> GetProgressAsync(string token, string itemId, CancellationToken ct)
+    {
+        if (!IsSafeId(itemId)) return null;
+        using var req = Request(HttpMethod.Get, $"/api/me/progress/{itemId}", token);
+        using var res = await http.SendAsync(req, ct);
+        if (res.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        res.EnsureSuccessStatusCode();
+        using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var r = doc.RootElement;
+        double Num(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+        return (Num("currentTime"), Num("duration"), Flag(r, "isFinished"));
     }
 
     private static string? Text(JsonElement e, string name) =>

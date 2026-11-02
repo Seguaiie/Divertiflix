@@ -17,6 +17,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
     public DbSet<SupportTicket> Tickets => Set<SupportTicket>();
     public DbSet<TicketMessage> TicketMessages => Set<TicketMessage>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<AudiobookshelfAccount> AudiobookshelfAccounts => Set<AudiobookshelfAccount>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -27,6 +28,14 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
             e.Property(u => u.Role).HasConversion<string>();
             e.Property(u => u.Source).HasConversion<string>();
             e.HasMany(u => u.Profiles).WithOne().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<AudiobookshelfAccount>(e =>
+        {
+            e.HasKey(a => a.UserId);
+            e.Property(a => a.AbsUserId).HasMaxLength(64);
+            e.Property(a => a.AbsUsername).HasMaxLength(100);
+            e.Property(a => a.ApiKeyProtected).HasMaxLength(2000);
+            e.HasOne<User>().WithOne().HasForeignKey<AudiobookshelfAccount>(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<Profile>(e =>
         {

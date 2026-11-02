@@ -23,6 +23,34 @@ namespace Divertiflix.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Divertiflix.Domain.AudiobookshelfAccount", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AbsUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("AbsUsername")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ApiKeyProtected")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("AudiobookshelfAccounts");
+                });
+
             modelBuilder.Entity("Divertiflix.Domain.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -470,6 +498,15 @@ namespace Divertiflix.Infrastructure.Migrations
                     b.HasIndex("TitleId");
 
                     b.ToTable("Watchlist");
+                });
+
+            modelBuilder.Entity("Divertiflix.Domain.AudiobookshelfAccount", b =>
+                {
+                    b.HasOne("Divertiflix.Domain.User", null)
+                        .WithOne()
+                        .HasForeignKey("Divertiflix.Domain.AudiobookshelfAccount", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Divertiflix.Domain.MediaRequest", b =>

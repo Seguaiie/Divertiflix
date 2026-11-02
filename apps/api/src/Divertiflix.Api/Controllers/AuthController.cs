@@ -1,5 +1,6 @@
 using Divertiflix.Api.Auth;
 using Divertiflix.Api.Dtos;
+using Divertiflix.Api.Media;
 using Divertiflix.Api.Services;
 using Divertiflix.Api.Support;
 using Divertiflix.Domain;
@@ -13,7 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/auth"), EnableRateLimiting("auth")]
-public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginThrottle throttle, Audit audit, AccountGuard accounts) : ControllerBase
+public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginThrottle throttle, Audit audit, AccountGuard accounts, AudiobookshelfAccounts absAccounts) : ControllerBase
 {
     private static readonly PasswordHasher<User> Hasher = new();
     // Hash factice : un compte inexistant coûte autant de temps qu'un mauvais mot de passe (pas d'énumération par chronométrage).
@@ -32,9 +33,19 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginT
         user.PasswordHash = Hasher.HashPassword(user, req.Password);
         user.Profiles.Add(new Profile { Name = req.ProfileName.Trim() });
         db.Users.Add(user);
-        try { return await IssueAsync(user); }
+        ActionResult<AuthResponse> issued;
+        try { issued = await IssueAsync(user); }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
         { return this.Err(409, "Courriel déjà utilisé."); }
+        // Utilisateur Audiobookshelf du nouveau compte (progression des livres à son nom). Au mieux et borné dans le temps : si Audiobookshelf
+        // ne répond pas, l'inscription réussit quand même et le compte sera créé à la première écoute.
+        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted))
+        {
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+            try { await absAccounts.TokenAsync(user.Id, cts.Token); }
+            catch (OperationCanceledException) { /* trop lent : ce sera à la première écoute */ }
+        }
+        return issued;
     }
 
     [HttpPost("login")]

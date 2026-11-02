@@ -50,6 +50,7 @@ builder.Services.AddScoped<AssistantService>();
 builder.Services.AddScoped<Notifier>();
 builder.Services.AddScoped<Audit>();
 builder.Services.AddScoped<AudiobookshelfCatalog>();
+builder.Services.AddScoped<AudiobookshelfAccounts>();
 
 // Pont MQTT -> SignalR (capteurs ESP32 publiés sur Mosquitto). Se reconnecte seul, ne bloque jamais le démarrage.
 builder.Services.AddHostedService<MqttBridgeService>();

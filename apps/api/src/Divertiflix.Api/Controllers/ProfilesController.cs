@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Divertiflix.Api.Dtos;
+using Divertiflix.Api.Media;
 using Divertiflix.Api.Services;
 using Divertiflix.Api.Support;
 using Divertiflix.Domain;
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/profiles"), Authorize]
-public class ProfilesController(DivertiflixDbContext db, CatalogCache cache) : ControllerBase
+public class ProfilesController(DivertiflixDbContext db, CatalogCache cache, AudiobookshelfClient abs, AudiobookshelfAccounts absAccounts, ILogger<ProfilesController> log) : ControllerBase
 {
     private const int MaxProfiles = 5;
 
@@ -92,7 +93,7 @@ public class ProfilesController(DivertiflixDbContext db, CatalogCache cache) : C
     public async Task<IActionResult> SaveProgress(Guid id, Guid titleId, ProgressUpsert req)
     {
         if (!await Owns(id)) return NotFound();
-        var title = await db.Titles.AsNoTracking().Where(t => t.Id == titleId).Select(t => new { t.DurationMinutes }).FirstOrDefaultAsync();
+        var title = await db.Titles.AsNoTracking().Where(t => t.Id == titleId).Select(t => new { t.DurationMinutes, t.StreamUrl }).FirstOrDefaultAsync();
         if (title is null) return NotFound();
         var duration = req.DurationSeconds > 0 ? req.DurationSeconds : title.DurationMinutes * 60;
         if (duration <= 0) return this.Err(400, "Durée inconnue.");
@@ -103,7 +104,26 @@ public class ProfilesController(DivertiflixDbContext db, CatalogCache cache) : C
             ON CONFLICT ("ProfileId","TitleId") DO UPDATE SET "PositionSeconds" = EXCLUDED."PositionSeconds",
               "DurationSeconds" = EXCLUDED."DurationSeconds", "UpdatedAt" = EXCLUDED."UpdatedAt"
             """);
+        if (title.StreamUrl?.StartsWith(AudiobookshelfClient.StreamPrefix, StringComparison.Ordinal) == true)
+            await MirrorToAudiobookshelfAsync(title.StreamUrl[AudiobookshelfClient.StreamPrefix.Length..], position, duration);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Livre Audiobookshelf : la position est aussi enregistrée dans Audiobookshelf, au nom de l'utilisateur lié au compte (son application la
+    /// retrouve). Au mieux et borné : la sauvegarde du portail ne dépend jamais d'Audiobookshelf.
+    /// </summary>
+    private async Task MirrorToAudiobookshelfAsync(string itemId, double position, double duration)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+        cts.CancelAfter(TimeSpan.FromSeconds(4));
+        try
+        {
+            if (await absAccounts.TokenAsync(User.UserId(), cts.Token) is { } token)
+                await abs.SaveProgressAsync(token, itemId, position, duration, cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        { log.LogDebug(ex, "Progression non recopiée dans Audiobookshelf ({ItemId}).", itemId); }
     }
 
     /// <summary>« Retirer de Continuer à regarder ».</summary>

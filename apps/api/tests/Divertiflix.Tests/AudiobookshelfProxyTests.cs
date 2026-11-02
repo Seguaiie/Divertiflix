@@ -22,12 +22,43 @@ internal sealed class FakeAudiobookshelf(List<string> calls) : HttpMessageHandle
 
     private int _lateSegmentCalls;
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    /// <summary>Utilisateurs créés par l'API (nom → identifiant), et progression enregistrée par clé d'API.</summary>
+    public static readonly Dictionary<string, string> Users = new(StringComparer.OrdinalIgnoreCase) { ["root"] = "root-id" };
+    public static readonly Dictionary<string, string> ProgressByKey = [];
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         var uri = request.RequestUri!;
-        lock (calls) calls.Add($"{request.Method} {uri.AbsolutePath} {request.Headers.Authorization}");
+        var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct);
+        var auth = request.Headers.Authorization?.ToString() ?? "";
+        lock (calls) calls.Add($"{request.Method} {uri.AbsolutePath} {auth}");
+        lock (Users)
+        {
+            switch (request.Method.Method, uri.AbsolutePath)
+            {
+                case ("GET", "/api/users"):
+                    return Json("{\"users\":[" + string.Join(",", Users.Keys.Select(u => $"{{\"username\":\"{u}\"}}")) + "]}");
+                case ("POST", "/api/users"):
+                {
+                    var name = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("username").GetString()!;
+                    if (Users.ContainsKey(name)) return new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("Username already taken") };
+                    var id = $"absu{Users.Count}";
+                    Users[name] = id;
+                    return Json($"{{\"user\":{{\"id\":\"{id}\",\"username\":\"{name}\"}}}}");
+                }
+                case ("POST", "/api/api-keys"):
+                {
+                    var userId = System.Text.Json.JsonDocument.Parse(body).RootElement.GetProperty("userId").GetString();
+                    return Json($"{{\"apiKey\":{{\"id\":\"k1\",\"apiKey\":\"user-key-{userId}\"}}}}");
+                }
+                case ("PATCH", "/api/me/progress/it1"):
+                    ProgressByKey[auth] = body;
+                    return Json("{}");
+                case ("GET", "/api/me/progress/it1"):
+                    return ProgressByKey.TryGetValue(auth, out var saved) ? Json(saved) : new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+        }
 
-        static HttpResponseMessage Json(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
         static HttpResponseMessage Bytes(string type, byte[] body) { var r = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(body) }; r.Content.Headers.ContentType = new(type); return r; }
 
         var response = (request.Method.Method, uri.AbsolutePath) switch
@@ -44,8 +75,10 @@ internal sealed class FakeAudiobookshelf(List<string> calls) : HttpMessageHandle
             ("GET", "/api/items/it1/cover") => Bytes("image/webp", [9, 9, 9]),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
-        return Task.FromResult(response);
+        return response;
     }
+
+    private static HttpResponseMessage Json(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
 }
 
 /// <summary>API réelle dont le client Audiobookshelf parle à <see cref="FakeAudiobookshelf"/> au lieu du réseau.</summary>
@@ -95,7 +128,7 @@ public class AudiobookshelfProxyTests(AbsFactory f) : IClassFixture<AbsFactory>
         lock (f.Calls)
         {
             Assert.DoesNotContain(f.Calls, c => c.Contains("/pod1/"));
-            Assert.All(f.Calls, c => Assert.EndsWith("Bearer abs-secret", c));
+            Assert.All(f.Calls.Where(c => c.Contains("/api/libraries")), c => Assert.EndsWith("Bearer abs-secret", c));
         }
     }
 
@@ -203,4 +236,48 @@ public class AudiobookshelfProxyTests(AbsFactory f) : IClassFixture<AbsFactory>
     [InlineData("abs:a b", false)]
     public void Safe_url_accepts_abs_prefix_only_with_a_plain_identifier(string url, bool expected) =>
         Assert.Equal(expected, SafeUrl.IsAllowed(url));
+
+    [Fact]
+    public async Task A_new_account_gets_its_own_audiobookshelf_user_and_its_progress_is_saved_there()
+    {
+        await ImportAsync();
+        var email = $"lecteur{Guid.NewGuid():N}@test.com";
+        var (user, _) = await f.RegisterAsync(email);
+
+        // Inscription : utilisateur Audiobookshelf au nom du courriel, puis clé d'API à son nom (créés par le compte de service).
+        string absId;
+        lock (FakeAudiobookshelf.Users) absId = FakeAudiobookshelf.Users[email];
+        var key = $"Bearer user-key-{absId}";
+        lock (f.Calls)
+        {
+            Assert.Contains(f.Calls, c => c == "POST /api/users Bearer abs-secret");
+            Assert.Contains(f.Calls, c => c == "POST /api/api-keys Bearer abs-secret");
+        }
+
+        // L'écoute s'ouvre au nom de cet utilisateur, et les segments passent par sa clé.
+        var book = await ApiFactory.TitleAsync(user, "Le Petit Prince");
+        var pb = (await user.GetAsync<PlaybackDto>($"/api/titles/{book.Id}/playback"))!;
+        Assert.Equal(HttpStatusCode.OK, (await f.CreateClient().GetAsync(pb.Url.Replace("output.m3u8", "output-0.ts"))).StatusCode);
+        lock (f.Calls)
+        {
+            Assert.Contains(f.Calls, c => c == $"POST /api/items/it1/play {key}");
+            Assert.Contains(f.Calls, c => c == $"GET /hls/sess1/output-0.ts {key}");
+        }
+
+        // La position enregistrée par le portail est recopiée dans Audiobookshelf, au nom de la personne.
+        var profile = await ApiFactory.ProfileIdAsync(user);
+        Assert.Equal(HttpStatusCode.NoContent, (await user.PutAsync($"/api/profiles/{profile}/progress/{book.Id}", new { positionSeconds = 1800, durationSeconds = 7200 })).StatusCode);
+        string saved;
+        lock (FakeAudiobookshelf.Users) saved = FakeAudiobookshelf.ProgressByKey[key];
+        Assert.Contains("\"currentTime\":1800", saved);
+
+        // Un livre jamais écouté sur le portail reprend là où la personne s'est arrêtée dans Audiobookshelf.
+        var (other, _) = await f.RegisterAsync();
+        string otherKey;
+        lock (FakeAudiobookshelf.Users) otherKey = $"Bearer user-key-{FakeAudiobookshelf.Users.Values.Last()}";
+        Assert.NotEqual(key, otherKey);   // chaque compte a son propre utilisateur
+        lock (FakeAudiobookshelf.Users) FakeAudiobookshelf.ProgressByKey[otherKey] = """{"currentTime":4000,"duration":7200,"isFinished":false}""";
+        var otherPb = (await other.GetAsync<PlaybackDto>($"/api/titles/{book.Id}/playback?profileId={await ApiFactory.ProfileIdAsync(other)}"))!;
+        Assert.Equal(4000, otherPb.StartSeconds);
+    }
 }

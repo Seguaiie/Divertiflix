@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/titles"), Authorize]
-public class TitlesController(DivertiflixDbContext db, HomeService home, StreamSigner signer, AudiobookshelfClient abs, AudiobookshelfSessions absSessions) : ControllerBase
+public class TitlesController(DivertiflixDbContext db, HomeService home, StreamSigner signer, AudiobookshelfClient abs, AudiobookshelfSessions absSessions, AudiobookshelfAccounts absAccounts) : ControllerBase
 {
     private const int MaxPage = 100_000;
 
@@ -82,9 +82,11 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
         if (!t.IsPlayable || !SafeUrl.IsAllowed(t.StreamUrl)) return this.Err(409, "Ce titre n'est pas encore disponible.");
 
         var start = 0;
+        var hasLocalProgress = false;
         if (profileId is { } pid && await OwnsProfile(pid))
         {
             var p = await db.Progress.AsNoTracking().FirstOrDefaultAsync(p => p.ProfileId == pid && p.TitleId == id);
+            hasLocalProgress = p is not null;
             // Reprise à la seconde près ; au-delà de 95 %, on repart du début.
             if (p is { Fraction: > 0.01 and < 0.95 }) start = p.PositionSeconds;
         }
@@ -94,11 +96,20 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
         {
             // Livre Audiobookshelf : l'API ouvre la session, puis relaie le flux HLS continu (tous les chapitres) sous un jeton signé.
             if (!abs.Configured) return this.Err(409, "Le serveur de livres audio n'est pas configuré.");
+            var itemId = source[AudiobookshelfClient.StreamPrefix.Length..];
+            // La session s'ouvre au nom de l'utilisateur Audiobookshelf du compte (sinon, au nom du compte de service : l'écoute ne doit pas en dépendre).
+            var userToken = await absAccounts.TokenAsync(User.UserId(), ct);
             AudiobookshelfSession session;
-            try { session = await abs.OpenSessionAsync(source[AudiobookshelfClient.StreamPrefix.Length..], ct); }
+            try
+            {
+                // Jamais écouté sur le portail : on reprend là où la personne s'est arrêtée dans l'application Audiobookshelf.
+                if (!hasLocalProgress && userToken is not null && await abs.GetProgressAsync(userToken, itemId, ct) is { Finished: false, Current: > 1 } remote)
+                    start = (int)remote.Current;
+                session = await abs.OpenSessionAsync(itemId, ct, userToken);
+            }
             catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
             { return this.Err(502, "Le serveur de livres audio ne répond pas."); }
-            absSessions.Track(session.Id);
+            absSessions.Track(session.Id, userToken);
             var (absToken, absExpires) = signer.Sign(User.UserId(), session.Id, TimeSpan.FromHours(6));
             return new PlaybackDto(t.Id, $"/api/media/abs/hls/{absToken}/{session.Id}/output.m3u8", StreamKind.Hls, start, absExpires, session.Chapters);
         }

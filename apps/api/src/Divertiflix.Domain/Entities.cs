@@ -28,6 +28,19 @@ public class User
     public List<Profile> Profiles { get; set; } = [];
 }
 
+/// <summary>
+/// Compte Audiobookshelf lié à un compte Divertiflix : créé à l'inscription (ou à la première écoute pour un compte plus ancien), pour que
+/// la progression des livres soit enregistrée dans Audiobookshelf au nom de la personne. La clé d'API est chiffrée (jamais en clair en base).
+/// </summary>
+public class AudiobookshelfAccount
+{
+    public Guid UserId { get; set; }
+    public string AbsUserId { get; set; } = "";
+    public string AbsUsername { get; set; } = "";
+    public string ApiKeyProtected { get; set; } = "";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class Profile
 {
     public Guid Id { get; set; } = Guid.NewGuid();

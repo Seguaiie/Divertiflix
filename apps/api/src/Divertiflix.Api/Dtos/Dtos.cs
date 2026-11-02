@@ -58,7 +58,7 @@ public record GenreCount(string Genre, int Count);
 // ------------------------------------------------------------------ Profils, progression, notes
 
 public record ProfileDto(Guid Id, string Name);
-public record ProgressUpsert([Range(0, 86400)] int PositionSeconds, [Range(0, 86400)] int DurationSeconds);
+public record ProgressUpsert([Range(0, 360000)] int PositionSeconds, [Range(0, 360000)] int DurationSeconds);   // jusqu'à 100 h : certains livres audio dépassent 24 h
 public record RatingUpsert([Range(-1, 1)] int Value);
 
 // ------------------------------------------------------------------ Accueil et recommandations

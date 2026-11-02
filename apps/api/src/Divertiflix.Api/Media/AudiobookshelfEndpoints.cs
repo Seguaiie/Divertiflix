@@ -54,12 +54,13 @@ public static class AudiobookshelfEndpoints
             {
                 // Un segment pas encore transcodé (début de session, ou saut loin devant pendant qu'Audiobookshelf relance ffmpeg à cet endroit)
                 // répond 404 ou 500 quelques secondes : on patiente ici, puis on répond 503, que hls.js réessaie (un 404 l'arrêterait net).
-                var res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct);
+                var owner = sessions.TokenOf(sessionId);
+                var res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct, owner);
                 for (var attempt = 0; ext != ".m3u8" && !res.IsSuccessStatusCode && (int)res.StatusCode is 404 or >= 500 && attempt < 8; attempt++)
                 {
                     res.Dispose();
                     await Task.Delay(750, ct);
-                    res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct);
+                    res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct, owner);
                 }
                 using var _ = res;
                 if (!res.IsSuccessStatusCode)
