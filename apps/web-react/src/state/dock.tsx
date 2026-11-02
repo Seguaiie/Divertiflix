@@ -92,10 +92,34 @@ export function DockProvider({ children }: { children: ReactNode }) {
       // Un livre Audiobookshelf arrive en flux HLS continu (tous les chapitres) : hls.js le lit dans le même élément <audio>.
       const HlsLib = pb.kind === 'Hls' ? (await import('hls.js')).default : null   // chargé à la demande, comme dans le lecteur vidéo
       if (HlsLib?.isSupported()) {
-        const h = new HlsLib({ startPosition: pb.startSeconds > 0 ? pb.startSeconds : -1 })   // la reprise se fait au chargement, pas par un second déplacement
+        const h = new HlsLib({
+          startPosition: pb.startSeconds > 0 ? pb.startSeconds : -1,   // la reprise se fait au chargement, pas par un second déplacement
+          // Livre audio seul : après un grand saut (chapitre), le navigateur met parfois plusieurs secondes à repartir alors que les données sont là.
+          // hls.js abandonne après 3 petits décalages de 0,1 s ; on lui laisse plus de marge avant de parler d'échec.
+          nudgeMaxRetry: 10,
+          nudgeOffset: 0.2,
+        })
         startAt.current = 0
         hls.current = h
-        h.on(HlsLib.Events.ERROR, (_e, d) => { if (d.fatal) toast.push({ kind: 'error', text: t('dock.error') }) })
+        // Erreur fatale : on tente d'abord de repartir (rechargement des segments, puis reconstruction du tampon audio) à la même position.
+        // Le message n'apparaît que si ces reprises échouent plusieurs fois de suite, et une seule fois.
+        let recoveries: number[] = []
+        let reported = false
+        h.on(HlsLib.Events.ERROR, (_e, d) => {
+          if (!d.fatal || hls.current !== h) return
+          console.warn('[lecteur audio]', d.type, d.details, d.error?.message ?? '')
+          const now = Date.now()
+          recoveries = recoveries.filter(at => now - at < 60_000)
+          if (recoveries.length < 4) {
+            recoveries.push(now)
+            if (d.type === HlsLib.ErrorTypes.NETWORK_ERROR) h.startLoad(a.currentTime)
+            else if (d.type === HlsLib.ErrorTypes.MEDIA_ERROR) { h.recoverMediaError(); void a.play().catch(() => undefined) }
+            else { h.loadSource(pb.url); h.startLoad(a.currentTime) }
+            return
+          }
+          if (!reported) { reported = true; toast.push({ kind: 'error', text: t('dock.error') }) }
+        })
+        h.on(HlsLib.Events.FRAG_BUFFERED, () => { reported = false })
         h.loadSource(pb.url)
         h.attachMedia(a)
       } else a.src = pb.url   // fichier audio direct, ou HLS natif (Safari)
@@ -137,7 +161,8 @@ export function DockProvider({ children }: { children: ReactNode }) {
         onWaiting={() => setBuffering(true)}
         onPlaying={() => setBuffering(false)}
         onEnded={() => { if (profileId && current && audio.current) void saveProgress(profileId, current.titleId, audio.current.duration, audio.current.duration) }}
-        onError={() => { if (current) toast.push({ kind: 'error', text: t('dock.error') }) }}
+        // Avec hls.js, les erreurs du média passent par son propre gestionnaire (avec reprise) : ne pas afficher un second message.
+        onError={() => { if (current && !hls.current) toast.push({ kind: 'error', text: t('dock.error') }) }}
       />
     </Ctx.Provider>
   )

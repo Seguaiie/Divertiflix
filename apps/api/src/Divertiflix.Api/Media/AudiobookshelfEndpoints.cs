@@ -52,8 +52,22 @@ public static class AudiobookshelfEndpoints
             if (!abs.Configured || !sessions.Known(sessionId)) return Results.NotFound();
             try
             {
-                using var res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct);
-                if (!res.IsSuccessStatusCode) return Results.StatusCode(res.StatusCode == System.Net.HttpStatusCode.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status502BadGateway);
+                // Un segment pas encore transcodé (début de session, ou saut loin devant pendant qu'Audiobookshelf relance ffmpeg à cet endroit)
+                // répond 404 ou 500 quelques secondes : on patiente ici, puis on répond 503, que hls.js réessaie (un 404 l'arrêterait net).
+                var res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct);
+                for (var attempt = 0; ext != ".m3u8" && !res.IsSuccessStatusCode && (int)res.StatusCode is 404 or >= 500 && attempt < 8; attempt++)
+                {
+                    res.Dispose();
+                    await Task.Delay(750, ct);
+                    res = await abs.GetRawAsync($"/hls/{sessionId}/{file}", ct);
+                }
+                using var _ = res;
+                if (!res.IsSuccessStatusCode)
+                {
+                    if (ext == ".m3u8" && res.StatusCode == System.Net.HttpStatusCode.NotFound) return Results.NotFound();
+                    http.Response.Headers.RetryAfter = "2";
+                    return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+                }
                 if (ext == ".m3u8")
                 {
                     // Les segments doivent rester relatifs au jeton : on retire tout chemin absolu vers /hls/ qu'Audiobookshelf aurait écrit.

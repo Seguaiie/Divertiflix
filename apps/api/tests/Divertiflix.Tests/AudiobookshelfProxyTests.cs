@@ -20,6 +20,8 @@ internal sealed class FakeAudiobookshelf(List<string> calls) : HttpMessageHandle
         ]}
         """;
 
+    private int _lateSegmentCalls;
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         var uri = request.RequestUri!;
@@ -37,6 +39,8 @@ internal sealed class FakeAudiobookshelf(List<string> calls) : HttpMessageHandle
             ("POST", "/api/session/sess1/close") => Json("{}"),
             ("GET", "/hls/sess1/output.m3u8") => Bytes("application/vnd.apple.mpegurl", Encoding.UTF8.GetBytes("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6.0,\n/hls/sess1/output-0.ts\n#EXT-X-ENDLIST\n")),
             ("GET", "/hls/sess1/output-0.ts") => Bytes("video/mp2t", [1, 2, 3, 4]),
+            // Segment pas encore transcodé : 404 aux deux premiers appels, puis prêt (comme Audiobookshelf juste après un saut).
+            ("GET", "/hls/sess1/output-7.ts") => Interlocked.Increment(ref _lateSegmentCalls) <= 2 ? new HttpResponseMessage(HttpStatusCode.NotFound) : Bytes("video/mp2t", [7]),
             ("GET", "/api/items/it1/cover") => Bytes("image/webp", [9, 9, 9]),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
@@ -133,6 +137,25 @@ public class AudiobookshelfProxyTests(AbsFactory f) : IClassFixture<AbsFactory>
         var segment = await anonymous.GetAsync(pb.Url.Replace("output.m3u8", "output-0.ts"));
         Assert.Equal(HttpStatusCode.OK, segment.StatusCode);
         Assert.Equal(new byte[] { 1, 2, 3, 4 }, await segment.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task A_segment_not_yet_transcoded_is_awaited_and_a_missing_one_is_retryable_for_the_player()
+    {
+        await ImportAsync();
+        var (user, _) = await f.RegisterAsync();
+        var book = await ApiFactory.TitleAsync(user, "Le Petit Prince");
+        var pb = (await user.GetAsync<PlaybackDto>($"/api/titles/{book.Id}/playback"))!;
+        var anonymous = f.CreateClient();
+
+        // Prêt au troisième essai : le relais patiente au lieu de renvoyer le 404 qui arrêterait hls.js.
+        var late = await anonymous.GetAsync(pb.Url.Replace("output.m3u8", "output-7.ts"));
+        Assert.Equal(HttpStatusCode.OK, late.StatusCode);
+        Assert.Equal(new byte[] { 7 }, await late.Content.ReadAsByteArrayAsync());
+
+        // Toujours absent : 503 (hls.js réessaie), pas 404.
+        var missing = await anonymous.GetAsync(pb.Url.Replace("output.m3u8", "output-99.ts"));
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, missing.StatusCode);
     }
 
     [Fact]
