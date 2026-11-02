@@ -14,7 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Divertiflix.Api.Controllers;
 
 [ApiController, Route("api/auth"), EnableRateLimiting("auth")]
-public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginThrottle throttle, Audit audit, AccountGuard accounts, AudiobookshelfAccounts absAccounts) : ControllerBase
+public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginThrottle throttle, Audit audit, AccountGuard accounts, AudiobookshelfAccounts absAccounts, ActiveDirectoryAuth ad) : ControllerBase
 {
     private static readonly PasswordHasher<User> Hasher = new();
     // Hash factice : un compte inexistant coûte autant de temps qu'un mauvais mot de passe (pas d'énumération par chronométrage).
@@ -62,6 +62,35 @@ public class AuthController(DivertiflixDbContext db, TokenService tokens, LoginT
             return this.Err(429, "Trop d'échecs de connexion, réessayez dans un instant.");
         }
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        // Compte de l'annuaire : l'identifiant ne désigne aucun compte local (« root » reste local), et il est du domaine AD (« jdupont »,
+        // « jdupont@ad.home.arpa », « AD\jdupont »). Le mot de passe est vérifié par l'AD lui-même.
+        if ((user is null || user.Source == AccountSource.ActiveDirectory) && ad.Identity(req.Email) is { } upn)
+        {
+            var account = user ?? await db.Users.FirstOrDefaultAsync(u => u.Email == upn);
+            if (account is null || account.Source == AccountSource.ActiveDirectory)
+            {
+                var ok = await ad.VerifyAsync(upn, req.Password, HttpContext.RequestAborted);
+                if (ok is null) return this.Err(503, "L'annuaire Active Directory ne répond pas. Réessayez dans un instant.");   // pas un échec de la personne
+                if (ok == false || account is { IsActive: false })
+                {
+                    attempt.Failed();
+                    return this.Err(401, "Identifiants invalides.");
+                }
+                attempt.Succeeded();
+                if (account is null)
+                {
+                    account = new User { Email = upn, Source = AccountSource.ActiveDirectory, Role = ad.DefaultRole };
+                    account.PasswordHash = Hasher.HashPassword(account, Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));   // jamais utilisé : l'AD fait foi
+                    account.Profiles.Add(new Profile { Name = upn.Split('@')[0].Truncate(50) });
+                    db.Users.Add(account);
+                    audit.Record(null, "directory.login.created", upn, $"role={account.Role}");
+                }
+                account.DirectorySyncedAt = DateTime.UtcNow;
+                try { return await IssueAsync(account); }
+                catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+                { return this.Err(409, "Première connexion déjà en cours pour ce compte, réessayez."); }
+            }
+        }
         var verdict = Hasher.VerifyHashedPassword(user ?? new User(), user?.PasswordHash ?? DummyHash, req.Password);
         if (user is null || !user.IsActive || verdict == PasswordVerificationResult.Failed)
         {

@@ -21,6 +21,9 @@ if (jwt.Key.Length < 32) throw new InvalidOperationException("Jwt:Key doit conte
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<StreamSigner>();
+// Active Directory : connexion avec l'identifiant et le mot de passe de l'annuaire (inactif tant que ActiveDirectory__Host et __Domain manquent).
+builder.Services.Configure<ActiveDirectoryOptions>(builder.Configuration.GetSection("ActiveDirectory"));
+builder.Services.AddSingleton<ActiveDirectoryAuth>();
 // Audiobookshelf (livres audio) : inactif tant que Audiobookshelf__Url et Audiobookshelf__Token ne sont pas fournis.
 builder.Services.Configure<AudiobookshelfOptions>(builder.Configuration.GetSection("Audiobookshelf"));
 builder.Services.AddHttpClient<AudiobookshelfClient>(c => c.Timeout = TimeSpan.FromSeconds(30));

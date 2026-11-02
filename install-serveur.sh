@@ -21,6 +21,10 @@
 #   MQTT_BIND=127.0.0.1  adresse d'écoute de Mosquitto (mettre 0.0.0.0 pour les ESP32, voir note en bas) ; mémorisée dans .env
 #   AUDIOBOOKSHELF_URL=    adresse du serveur Audiobookshelf (ex. http://192.168.8.180:13378) ; mémorisée dans .env (Audiobookshelf__Url)
 #   AUDIOBOOKSHELF_TOKEN=  jeton d'API d'un utilisateur Audiobookshelf ; mémorisé dans .env (600), jamais envoyé au navigateur
+#   AD_HOST=           contrôleur de domaine Active Directory (ex. 192.168.6.117) ; mémorisé dans .env (ActiveDirectory__Host)
+#   AD_DOMAIN=         domaine des comptes (ex. ad.home.arpa) : connexion au back-office avec l'identifiant AD ; mémorisé (ActiveDirectory__Domain)
+#   AD_PORT=389        389 (LDAP) ou 636 (LDAPS, avec AD_SSL=1) ; mémorisé (ActiveDirectory__Port)
+#   AD_SSL=1           LDAPS (recommandé : sinon le mot de passe circule en clair sur le réseau) ; mémorisé (ActiveDirectory__UseSsl)
 #   APP_USER=divertiflix
 # Idempotent : relancer le script redéploie la dernière version sans toucher aux secrets ni à la base.
 # HTTPS : le site nginx est réécrit à chaque exécution, mais DOMAIN et CERTBOT_EMAIL (ni l'un ni l'autre n'est un secret) sont enregistrés
@@ -134,6 +138,11 @@ MQTT_BIND=${MQTT_BIND:-127.0.0.1}
 # Sans ces deux valeurs l'API démarre quand même, simplement sans livres audio synchronisés.
 [ -z "${AUDIOBOOKSHELF_URL:-}" ] || env_set Audiobookshelf__Url "${AUDIOBOOKSHELF_URL%/}"
 [ -z "${AUDIOBOOKSHELF_TOKEN:-}" ] || env_set Audiobookshelf__Token "$AUDIOBOOKSHELF_TOKEN"
+# Active Directory : mêmes règles (fournis une fois, puis relus dans .env). Sans hôte ni domaine, seuls les comptes locaux se connectent.
+[ -z "${AD_HOST:-}" ] || env_set ActiveDirectory__Host "$AD_HOST"
+[ -z "${AD_DOMAIN:-}" ] || env_set ActiveDirectory__Domain "$AD_DOMAIN"
+[ -z "${AD_PORT:-}" ] || env_set ActiveDirectory__Port "$AD_PORT"
+[ -z "${AD_SSL:-}" ] || env_set ActiveDirectory__UseSsl "$([ "$AD_SSL" = 1 ] && echo true || echo false)"
 
 # HTTPS. nginx est réécrit à chaque exécution : une relance sans DOMAIN ni CERTBOT_EMAIL (le pipeline GitLab) le repasserait en HTTP seul, et
 # les navigateurs qui ont retenu HSTS (un an) n'atteindraient plus le site. Ces deux valeurs ne sont pas des secrets : enregistrées dans .env
