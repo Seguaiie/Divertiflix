@@ -78,7 +78,9 @@ public record HeroDto(CardDto Card, string Mode);
 public record HomeDto(IReadOnlyList<HeroDto> Hero, IReadOnlyList<RowDto> Rows, DateTime GeneratedAt, bool HasTaste);
 
 public record TitleDetailDto(CardDto Card, IReadOnlyList<CardDto> Similar, RequestCardDto? Request);
-public record PlaybackDto(Guid TitleId, string Url, StreamKind Kind, int StartSeconds, DateTime ExpiresAt);
+/// <summary>Chapitre d'un livre audio : début et fin en secondes depuis le début du livre.</summary>
+public record ChapterDto(string Title, double StartSeconds, double EndSeconds);
+public record PlaybackDto(Guid TitleId, string Url, StreamKind Kind, int StartSeconds, DateTime ExpiresAt, List<ChapterDto>? Chapters = null);
 
 // ------------------------------------------------------------------ Assistant
 

@@ -4,25 +4,23 @@ import { api, call, type Title } from '../lib/api'
 import { isWebUrl, titleLink } from '../lib/links'
 import { useRealLocation } from './useRealLocation'
 import { useI18n } from '../i18n'
-import { useDock } from '../state/dock'
 import { useToast } from '../state/toast'
 import { useAuth } from '../state/auth'
 
 /**
- * Lance un titre selon la nature de sa source : film ou vidéo (page de lecture), livre audio (lecteur persistant),
+ * Lance un titre selon la nature de sa source : film ou vidéo (page de lecture), livre audio (page d'écoute du site),
  * lien externe (nouvel onglet), ou fiche si le titre n'est pas encore disponible.
  */
 export function usePlayTitle() {
   const navigate = useNavigate()
   const location = useRealLocation()
-  const dock = useDock()
   const toast = useToast()
   const { t } = useI18n()
   const { profileId } = useAuth()
 
   return useCallback((title: Title) => {
     if (!title.isPlayable) { const { to, ...opts } = titleLink(location, title.id); navigate(to, opts); return }
-    if (title.streamKind === 'Audio') { void dock.play(title); return }
+    if (title.streamKind === 'Audio') { navigate(`/ecouter/${title.id}`); return }   // page d'écoute intégrée (la lecture démarre là-bas)
     if (title.streamKind === 'External') {
       // La fenêtre s'ouvre tout de suite (geste de l'utilisateur) puis reçoit l'adresse : sinon le navigateur bloque la fenêtre.
       const win = window.open('', '_blank')
@@ -36,5 +34,5 @@ export function usePlayTitle() {
       return
     }
     navigate(`/regarder/${title.id}`)
-  }, [navigate, location, dock, toast, t, profileId])
+  }, [navigate, location, toast, t, profileId])
 }

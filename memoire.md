@@ -77,6 +77,15 @@
   `AudiobookshelfProxyTests.cs`, faux ABS) tourne au pipeline GitLab ; le vrai ABS reste à essayer sur place. Le front a été testé (vitest).
   `packages/api-client/openapi.json` ne contient pas encore `/run` : à régénérer (voir `docs/regeneration.md`).
 
+### Page d'écoute des livres audio (2026-11-02)
+- Cliquer un livre audio ouvre `/ecouter/:id` (`ListenPage`, dans la coque du site) : couverture, scrubber, ±15 s, chapitre
+  précédent/suivant, vitesse, liste de chapitres cliquable. Plus aucune fenêtre ABS. Un lien externe d'ancienne synchro
+  (`{base}/item/{id}`) n'est remplacé par `abs:{id}` qu'après une synchro avec ABS configuré.
+- Le moteur reste l'unique `<audio>` du `DockProvider` (survit à la navigation, enregistre la position par profil via
+  `PUT /api/profiles/{id}/progress/{titleId}`). La barre du bas se masque (`setHidden`) pendant la page d'écoute.
+- `PlaybackDto.Chapters` (`ChapterDto`) vient de la session ABS (`chapters`) ; `schema.d.ts` et `openapi.json` ont été édités à la main
+  pour ce champ (à régénérer avec l'API). Reprise : `startPosition` passé à hls.js.
+
 ## Temps réel (étape 4, 2026-10-09)
 - SignalR : `NotificationsHub` sur `/api/hubs/notifications`, volontairement SOUS `/api/` (même origine que
   l'API, aucun CORS en production). nginx a un emplacement dédié `/api/hubs/` (upgrade WebSocket, délais d'une heure,

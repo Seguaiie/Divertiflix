@@ -94,13 +94,13 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
         {
             // Livre Audiobookshelf : l'API ouvre la session, puis relaie le flux HLS continu (tous les chapitres) sous un jeton signé.
             if (!abs.Configured) return this.Err(409, "Le serveur de livres audio n'est pas configuré.");
-            string sessionId;
-            try { sessionId = await abs.OpenSessionAsync(source[AudiobookshelfClient.StreamPrefix.Length..], ct); }
+            AudiobookshelfSession session;
+            try { session = await abs.OpenSessionAsync(source[AudiobookshelfClient.StreamPrefix.Length..], ct); }
             catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException or KeyNotFoundException or InvalidOperationException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
             { return this.Err(502, "Le serveur de livres audio ne répond pas."); }
-            absSessions.Track(sessionId);
-            var (absToken, absExpires) = signer.Sign(User.UserId(), sessionId, TimeSpan.FromHours(6));
-            return new PlaybackDto(t.Id, $"/api/media/abs/hls/{absToken}/{sessionId}/output.m3u8", StreamKind.Hls, start, absExpires);
+            absSessions.Track(session.Id);
+            var (absToken, absExpires) = signer.Sign(User.UserId(), session.Id, TimeSpan.FromHours(6));
+            return new PlaybackDto(t.Id, $"/api/media/abs/hls/{absToken}/{session.Id}/output.m3u8", StreamKind.Hls, start, absExpires, session.Chapters);
         }
         var url = source;
         var expires = DateTime.UtcNow.AddHours(6);

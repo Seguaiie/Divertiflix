@@ -13,6 +13,7 @@ import { SupportWidget } from './components/SupportWidget'
 import { TitleModal } from './components/TitleModal'
 import { BrowsePage } from './pages/BrowsePage'
 import { HomePage } from './pages/HomePage'
+import { ListenPage } from './pages/ListenPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyListPage } from './pages/MyListPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -110,6 +111,7 @@ export function AppRoutes() {
           <Route path="/films" element={<BrowsePage kind="Movie" />} />
           <Route path="/livres-audio" element={<BrowsePage kind="Audiobook" />} />
           <Route path="/ma-liste" element={<MyListPage />} />
+          <Route path="/ecouter/:id" element={<ListenPage />} />
           <Route path="/titres/:id" element={<><HomePage /><TitleRoute /></>} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

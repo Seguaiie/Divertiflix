@@ -205,6 +205,14 @@ export const fr = {
   'dock.close': 'Fermer le lecteur',
   'dock.error': 'L\'écoute a échoué. Réessayez.',
 
+  'listen.chapters': 'Chapitres',
+  'listen.chapter': 'Chapitre {n} sur {total}',
+  'listen.prevChapter': 'Chapitre précédent',
+  'listen.nextChapter': 'Chapitre suivant',
+  'listen.narratedBy': 'Narration : {name}',
+  'listen.error': 'Impossible de lancer ce livre pour le moment.',
+  'listen.remaining': '{time} restantes',
+
   'assistant.title': 'Assistant',
   'assistant.eyebrow': 'Recommandations',
   'assistant.clear': 'Effacer la conversation',

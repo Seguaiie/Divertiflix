@@ -7,6 +7,9 @@ using Microsoft.Extensions.Options;
 
 namespace Divertiflix.Api.Media;
 
+/// <summary>Session de lecture ouverte côté Audiobookshelf.</summary>
+public sealed record AudiobookshelfSession(string Id, List<ChapterDto> Chapters);
+
 /// <summary>
 /// Client de l'API REST d'Audiobookshelf. Le jeton est posé ici, à chaque requête : le navigateur ne parle jamais à Audiobookshelf.
 /// </summary>
@@ -93,10 +96,10 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
     }
 
     /// <summary>
-    /// Ouvre une session de lecture et renvoie son identifiant. Le transcodage est forcé : Audiobookshelf assemble alors tous les
+    /// Ouvre une session de lecture : son identifiant et les chapitres du livre. Le transcodage est forcé : Audiobookshelf assemble alors tous les
     /// fichiers du livre (un par chapitre) en un seul flux HLS continu, que le lecteur du portail lit comme un fichier unique.
     /// </summary>
-    public async Task<string> OpenSessionAsync(string itemId, CancellationToken ct)
+    public async Task<AudiobookshelfSession> OpenSessionAsync(string itemId, CancellationToken ct)
     {
         if (!IsSafeId(itemId)) throw new InvalidOperationException("Identifiant Audiobookshelf invalide.");
         using var req = Request(HttpMethod.Post, $"/api/items/{itemId}/play");
@@ -122,7 +125,20 @@ public sealed partial class AudiobookshelfClient(HttpClient http, IOptions<Audio
             await CloseSessionAsync(sessionId!, CancellationToken.None);
             throw new InvalidOperationException("Audiobookshelf n'a pas ouvert de flux HLS (transcodage indisponible).");
         }
-        return sessionId!;
+        return new AudiobookshelfSession(sessionId!, Chapters(doc.RootElement));
+    }
+
+    private static List<ChapterDto> Chapters(JsonElement session)
+    {
+        var chapters = new List<ChapterDto>();
+        if (!session.TryGetProperty("chapters", out var list) || list.ValueKind != JsonValueKind.Array) return chapters;
+        foreach (var c in list.EnumerateArray())
+        {
+            if (!c.TryGetProperty("start", out var start) || start.ValueKind != JsonValueKind.Number) continue;
+            var end = c.TryGetProperty("end", out var e) && e.ValueKind == JsonValueKind.Number ? e.GetDouble() : start.GetDouble();
+            chapters.Add(new ChapterDto(Cut(Text(c, "title"), 200) is { Length: > 0 } title ? title : $"Chapitre {chapters.Count + 1}", start.GetDouble(), end));
+        }
+        return chapters;
     }
 
     /// <summary>Ferme une session (libère le transcodage côté Audiobookshelf). Au mieux : n'échoue jamais.</summary>

@@ -7,6 +7,7 @@ import { useToast } from './toast'
 import { useI18n } from '../i18n'
 
 export interface DockItem { titleId: string; name: string; author?: string | null; poster?: string | null }
+export interface Chapter { title: string; start: number; end: number }
 
 interface DockState {
   current: DockItem | null
@@ -15,7 +16,13 @@ interface DockState {
   duration: number
   rate: number
   buffering: boolean
-  play(title: Pick<Title, 'id' | 'name' | 'author' | 'posterUrl'>): Promise<void>
+  /** Chapitres du livre en cours (vide si le livre n'en a pas). */
+  chapters: Chapter[]
+  /** Vrai quand la page d'écoute occupe l'écran : la barre du bas s'efface pour ne pas la doubler. */
+  hidden: boolean
+  setHidden(hidden: boolean): void
+  /** Charge le livre et lance l'écoute ; faux si l'URL de lecture n'a pas pu être obtenue. */
+  play(title: Pick<Title, 'id' | 'name' | 'author' | 'posterUrl'>): Promise<boolean>
   /** Met l'écoute en pause sans fermer le lecteur : la lecture d'un film ne doit pas se superposer à un livre audio. */
   pause(): void
   toggle(): void
@@ -44,6 +51,8 @@ export function DockProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0)
   const [rate, setRateState] = useState(1)
   const [buffering, setBuffering] = useState(false)
+  const [chapters, setChapters] = useState<Chapter[]>([])
+  const [hidden, setHidden] = useState(false)
   const lastSaved = useRef(0)
   const startAt = useRef(0)
 
@@ -54,9 +63,9 @@ export function DockProvider({ children }: { children: ReactNode }) {
   }, [current, profileId])
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--dock-h', current ? DOCK_HEIGHT : '0px')
+    document.documentElement.style.setProperty('--dock-h', current && !hidden ? DOCK_HEIGHT : '0px')
     return () => { document.documentElement.style.setProperty('--dock-h', '0px') }
-  }, [current])
+  }, [current, hidden])
 
   // Sauvegarde périodique et à la fermeture de l'onglet.
   useEffect(() => {
@@ -76,13 +85,15 @@ export function DockProvider({ children }: { children: ReactNode }) {
       const pb = await call(api.GET('/api/titles/{id}/playback', { params: { path: { id: title.id }, query: { profileId: profileId ?? undefined } } }))
       persist()
       startAt.current = pb.startSeconds
+      setChapters((pb.chapters ?? []).map(c => ({ title: c.title, start: c.startSeconds, end: c.endSeconds })))
       setCurrent({ titleId: title.id, name: title.name, author: title.author, poster: title.posterUrl })
       const a = audio.current!
       hls.current?.destroy(); hls.current = null
       // Un livre Audiobookshelf arrive en flux HLS continu (tous les chapitres) : hls.js le lit dans le même élément <audio>.
       const HlsLib = pb.kind === 'Hls' ? (await import('hls.js')).default : null   // chargé à la demande, comme dans le lecteur vidéo
       if (HlsLib?.isSupported()) {
-        const h = new HlsLib()
+        const h = new HlsLib({ startPosition: pb.startSeconds > 0 ? pb.startSeconds : -1 })   // la reprise se fait au chargement, pas par un second déplacement
+        startAt.current = 0
         hls.current = h
         h.on(HlsLib.Events.ERROR, (_e, d) => { if (d.fatal) toast.push({ kind: 'error', text: t('dock.error') }) })
         h.loadSource(pb.url)
@@ -90,19 +101,21 @@ export function DockProvider({ children }: { children: ReactNode }) {
       } else a.src = pb.url   // fichier audio direct, ou HLS natif (Safari)
       a.playbackRate = rate
       await a.play().catch(() => undefined)
+      return true
     } catch {
       toast.push({ kind: 'error', text: t('dock.error') })
+      return false
     }
   }, [profileId, persist, rate, toast, t])
 
   const value = useMemo<DockState>(() => ({
-    current, playing, position, duration, rate, buffering, play, pause,
+    current, playing, position, duration, rate, buffering, chapters, hidden, setHidden, play, pause,
     toggle: () => { const a = audio.current; if (a) void (a.paused ? a.play() : a.pause()) },
     seek: s => { if (audio.current) audio.current.currentTime = Math.max(0, Math.min(s, audio.current.duration || s)) },
     skip: d => { const a = audio.current; if (a) a.currentTime = Math.max(0, Math.min(a.currentTime + d, a.duration || Infinity)) },
     setRate: r => { setRateState(r); if (audio.current) audio.current.playbackRate = r },
-    close: () => { persist(); audio.current?.pause(); hls.current?.destroy(); hls.current = null; if (audio.current) audio.current.removeAttribute('src'); audio.current?.load(); setCurrent(null); setPlaying(false) },
-  }), [current, playing, position, duration, rate, buffering, play, pause, persist])
+    close: () => { persist(); audio.current?.pause(); hls.current?.destroy(); hls.current = null; if (audio.current) audio.current.removeAttribute('src'); audio.current?.load(); setCurrent(null); setPlaying(false); setChapters([]) },
+  }), [current, playing, position, duration, rate, buffering, chapters, hidden, play, pause, persist])
 
   return (
     <Ctx.Provider value={value}>

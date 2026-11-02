@@ -207,6 +207,14 @@ export const en: Record<Key, string> & Record<string, string> = {
   'dock.close': 'Close the player',
   'dock.error': 'Listening failed. Try again.',
 
+  'listen.chapters': 'Chapters',
+  'listen.chapter': 'Chapter {n} of {total}',
+  'listen.prevChapter': 'Previous chapter',
+  'listen.nextChapter': 'Next chapter',
+  'listen.narratedBy': 'Narrated by {name}',
+  'listen.error': 'This book could not be started right now.',
+  'listen.remaining': '{time} left',
+
   'assistant.title': 'Assistant',
   'assistant.eyebrow': 'Recommendations',
   'assistant.clear': 'Clear the conversation',

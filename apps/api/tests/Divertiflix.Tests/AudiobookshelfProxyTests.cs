@@ -32,7 +32,7 @@ internal sealed class FakeAudiobookshelf(List<string> calls) : HttpMessageHandle
         {
             ("GET", "/api/libraries") => Json("""{"libraries":[{"id":"lib1","mediaType":"book"},{"id":"pod1","mediaType":"podcast"}]}"""),
             ("GET", "/api/libraries/lib1/items") => Json(Items),
-            ("POST", "/api/items/it1/play") => Json("""{"id":"sess1","audioTracks":[{"contentUrl":"/hls/sess1/output.m3u8"}]}"""),
+            ("POST", "/api/items/it1/play") => Json("""{"id":"sess1","audioTracks":[{"contentUrl":"/hls/sess1/output.m3u8"}],"chapters":[{"id":0,"start":0,"end":3600,"title":"Chapitre un"},{"id":1,"start":3600,"end":7200,"title":""}]}"""),
             ("POST", "/api/items/broken/play") => new HttpResponseMessage(HttpStatusCode.InternalServerError),
             ("POST", "/api/session/sess1/close") => Json("{}"),
             ("GET", "/hls/sess1/output.m3u8") => Bytes("application/vnd.apple.mpegurl", Encoding.UTF8.GetBytes("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6.0,\n/hls/sess1/output-0.ts\n#EXT-X-ENDLIST\n")),
@@ -115,6 +115,10 @@ public class AudiobookshelfProxyTests(AbsFactory f) : IClassFixture<AbsFactory>
         Assert.StartsWith("/api/media/abs/hls/", pb.Url);
         Assert.EndsWith("/sess1/output.m3u8", pb.Url);
         Assert.DoesNotContain("abs.test", pb.Url);   // jamais l'adresse d'Audiobookshelf
+
+        // Les chapitres d'Audiobookshelf arrivent au portail ; un titre vide devient « Chapitre n ».
+        Assert.Equal(new[] { "Chapitre un", "Chapitre 2" }, pb.Chapters!.Select(c => c.Title));
+        Assert.Equal(3600, pb.Chapters![1].StartSeconds);
 
         // L'URL est signée : elle se lit sans en-tête d'autorisation, comme les médias du catalogue.
         var anonymous = f.CreateClient();

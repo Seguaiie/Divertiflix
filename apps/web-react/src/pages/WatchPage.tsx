@@ -5,7 +5,6 @@ import { useI18n } from '../i18n'
 import { api, ApiError, call } from '../lib/api'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../state/auth'
-import { useDock } from '../state/dock'
 import { useDetail } from '../state/queries'
 import { Player } from '../components/Player'
 
@@ -16,7 +15,6 @@ export function WatchPage() {
   const { profileId } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const dock = useDock()
   const detail = useDetail(id)
   const playback = useQuery({
     queryKey: ['playback', profileId, id],
@@ -31,10 +29,10 @@ export function WatchPage() {
 
   const back = useCallback(() => (location.key !== 'default' ? navigate(-1) : navigate('/', { replace: true })), [navigate, location.key])
 
-  // Un livre audio ouvert par erreur sur la page de lecture vidéo : on le confie au lecteur persistant.
+  // Un livre audio ouvert par erreur sur la page de lecture vidéo : la page d'écoute le prend en charge.
   useEffect(() => {
-    if (title && playback.data?.kind === 'Audio') { void dock.play(title); back() }
-  }, [title, playback.data?.kind]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (title && playback.data?.kind === 'Audio') navigate(`/ecouter/${title.id}`, { replace: true })
+  }, [title, playback.data?.kind, navigate])
 
   // Une relecture de la fiche en arrière-plan qui échoue ne remplace pas un film en cours. L'URL de lecture, elle, n'est relue que sur
   // « Réessayer » : son échec doit se voir, sinon la boîte d'erreur du lecteur resterait identique, sans aucune réponse au clic.

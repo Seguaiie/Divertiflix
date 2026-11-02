@@ -10,7 +10,7 @@ const RATES = [0.8, 1, 1.25, 1.5, 2]
 export function AudioDock() {
   const { t, clock } = useI18n()
   const d = useDock()
-  if (!d.current) return null
+  if (!d.current || d.hidden) return null
   const pct = d.duration > 0 ? (d.position / d.duration) * 100 : 0
   const nextRate = RATES[(RATES.indexOf(d.rate) + 1) % RATES.length]!
 

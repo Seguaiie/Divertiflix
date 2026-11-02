@@ -2037,6 +2037,15 @@ export interface components {
             startSeconds: number;
             /** Format: date-time */
             expiresAt: string;
+            chapters?: components["schemas"]["ChapterDto"][] | null;
+        };
+        /** @description Chapitre d'un livre audio : début et fin en secondes depuis le début du livre. */
+        ChapterDto: {
+            title: string;
+            /** Format: double */
+            startSeconds: number;
+            /** Format: double */
+            endSeconds: number;
         };
         ProfileDto: {
             /** Format: uuid */
