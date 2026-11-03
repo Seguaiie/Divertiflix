@@ -143,3 +143,10 @@ public record AudiobookItemDto(
     [MaxLength(60)] string? Genre);
 public record AudiobookshelfSyncRequest([Required, MaxLength(5000)] List<AudiobookItemDto> Items);
 public record AudiobookshelfSyncResult(int Created, int Updated);
+
+// ------------------------------------------------------------------ MLB (onglet « Domingo »)
+public record MlbTeamDto(int Id, string Name, string Abbreviation, int? Score, bool IsWinner, string? Record, string LogoUrl);
+/// <summary>Status : « Final » ou « Live ». GameType : R (saison), F/D/L/W (séries : wild card, division, ligue, Série mondiale)…</summary>
+public record MlbGameDto(long Id, string Status, string DetailedState, string GameType, string? SeriesDescription, int? SeriesGameNumber, DateTime? StartTime, string? Venue, int? Inning, string? InningHalf, MlbTeamDto Away, MlbTeamDto Home);
+public record MlbDayDto(string Date, List<MlbGameDto> Games);
+public record MlbResultsDto(List<MlbDayDto> Days, DateTime UpdatedAt);

@@ -40,6 +40,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/abs/cover/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/abs/hls/{token}/{sessionId}/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                    sessionId: string;
+                    file: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/stats": {
         parameters: {
             query?: never;
@@ -530,6 +602,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/audiobookshelf-sync/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AudiobookshelfSyncResult"];
+                        "application/json": components["schemas"]["AudiobookshelfSyncResult"];
+                        "text/json": components["schemas"]["AudiobookshelfSyncResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/register": {
         parameters: {
             query?: never;
@@ -852,6 +961,45 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mlb/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MlbResultsDto"];
+                        "application/json": components["schemas"]["MlbResultsDto"];
+                        "text/json": components["schemas"]["MlbResultsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1909,6 +2057,13 @@ export interface components {
             /** Format: int32 */
             match: number;
         };
+        ChapterDto: {
+            title: string;
+            /** Format: double */
+            startSeconds: number;
+            /** Format: double */
+            endSeconds: number;
+        };
         ChatRequest: {
             /** Format: uuid */
             profileId: string;
@@ -1981,6 +2136,44 @@ export interface components {
         MarkReadRequest: {
             ids: string[] | null;
         };
+        MlbDayDto: {
+            date: string;
+            games: components["schemas"]["MlbGameDto"][];
+        };
+        MlbGameDto: {
+            /** Format: int64 */
+            id: number;
+            status: string;
+            detailedState: string;
+            gameType: string;
+            seriesDescription: string | null;
+            /** Format: int32 */
+            seriesGameNumber: number | null;
+            /** Format: date-time */
+            startTime: string | null;
+            venue: string | null;
+            /** Format: int32 */
+            inning: number | null;
+            inningHalf: string | null;
+            away: components["schemas"]["MlbTeamDto"];
+            home: components["schemas"]["MlbTeamDto"];
+        };
+        MlbResultsDto: {
+            days: components["schemas"]["MlbDayDto"][];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MlbTeamDto: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            abbreviation: string;
+            /** Format: int32 */
+            score: number | null;
+            isWinner: boolean;
+            record: string | null;
+            logoUrl: string;
+        };
         NotificationDto: {
             /** Format: uuid */
             id: string;
@@ -2037,15 +2230,8 @@ export interface components {
             startSeconds: number;
             /** Format: date-time */
             expiresAt: string;
-            chapters?: components["schemas"]["ChapterDto"][] | null;
-        };
-        /** @description Chapitre d'un livre audio : début et fin en secondes depuis le début du livre. */
-        ChapterDto: {
-            title: string;
-            /** Format: double */
-            startSeconds: number;
-            /** Format: double */
-            endSeconds: number;
+            /** @default null */
+            chapters: components["schemas"]["ChapterDto"][] | null;
         };
         ProfileDto: {
             /** Format: uuid */

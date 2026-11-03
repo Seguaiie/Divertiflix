@@ -7,6 +7,8 @@ export type User = AuthResponse['user']
 export type Title = Schemas['TitleDto']
 export type Card = Schemas['CardDto']
 export type Reason = Schemas['ReasonDto']
+export type MlbGame = Schemas['MlbGameDto']
+export type MlbTeam = Schemas['MlbTeamDto']
 
 const KEY = 'divertiflix.session'
 export const LOGOUT_EVENT = 'divertiflix:logout'

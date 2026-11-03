@@ -14,6 +14,7 @@ export const keys = {
   genres: (kind: string) => ['genres', kind] as const,
   myRequests: ['requests', 'mine'] as const,
   tickets: ['tickets'] as const,
+  mlb: ['mlb', 'results'] as const,
   ticket: (id: string) => ['ticket', id] as const,
 }
 
@@ -128,5 +129,15 @@ export function useClearProgress() {
   return useMutation({
     mutationFn: (titleId: string) => call(api.DELETE('/api/profiles/{id}/progress/{titleId}', { params: { path: { id: profileId!, titleId } } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.home(profileId!) }),
+  })
+}
+
+/** Onglet « Domingo » : derniers résultats de la MLB (relayés et mis en cache par l'API). Rafraîchis toutes les 2 min, pour les matchs en cours. */
+export function useMlbResults() {
+  return useQuery({
+    queryKey: keys.mlb,
+    queryFn: () => call(api.GET('/api/mlb/results', { params: { query: { days: 7 } } })),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
   })
 }

@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5090/"
+      "url": "http://127.0.0.1:5099/"
     }
   ],
   "paths": {
@@ -26,6 +26,66 @@
           },
           {
             "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/media/abs/cover/{id}": {
+      "get": {
+        "tags": [
+          "Divertiflix.Api"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/media/abs/hls/{token}/{sessionId}/{file}": {
+      "get": {
+        "tags": [
+          "Divertiflix.Api"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "file",
             "in": "path",
             "required": true,
             "schema": {
@@ -677,6 +737,35 @@
         }
       }
     },
+    "/api/admin/audiobookshelf-sync/run": {
+      "post": {
+        "tags": [
+          "AudiobookshelfSync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookshelfSyncResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookshelfSyncResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookshelfSyncResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -1008,6 +1097,46 @@
               "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mlb/results": {
+      "get": {
+        "tags": [
+          "Mlb"
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlbResultsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlbResultsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlbResultsDto"
                 }
               }
             }
@@ -2476,6 +2605,27 @@
           }
         }
       },
+      "ChapterDto": {
+        "required": [
+          "title",
+          "startSeconds",
+          "endSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "startSeconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "endSeconds": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "ChatRequest": {
         "required": [
           "profileId",
@@ -2745,6 +2895,147 @@
           }
         }
       },
+      "MlbDayDto": {
+        "required": [
+          "date",
+          "games"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "games": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlbGameDto"
+            }
+          }
+        }
+      },
+      "MlbGameDto": {
+        "required": [
+          "id",
+          "status",
+          "detailedState",
+          "gameType",
+          "seriesDescription",
+          "seriesGameNumber",
+          "startTime",
+          "venue",
+          "inning",
+          "inningHalf",
+          "away",
+          "home"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "detailedState": {
+            "type": "string"
+          },
+          "gameType": {
+            "type": "string"
+          },
+          "seriesDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "seriesGameNumber": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "venue": {
+            "type": "string",
+            "nullable": true
+          },
+          "inning": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "inningHalf": {
+            "type": "string",
+            "nullable": true
+          },
+          "away": {
+            "$ref": "#/components/schemas/MlbTeamDto"
+          },
+          "home": {
+            "$ref": "#/components/schemas/MlbTeamDto"
+          }
+        }
+      },
+      "MlbResultsDto": {
+        "required": [
+          "days",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlbDayDto"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MlbTeamDto": {
+        "required": [
+          "id",
+          "name",
+          "abbreviation",
+          "score",
+          "isWinner",
+          "record",
+          "logoUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "abbreviation": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isWinner": {
+            "type": "boolean"
+          },
+          "record": {
+            "type": "string",
+            "nullable": true
+          },
+          "logoUrl": {
+            "type": "string"
+          }
+        }
+      },
       "NotificationDto": {
         "required": [
           "id",
@@ -2942,31 +3233,10 @@
             "items": {
               "$ref": "#/components/schemas/ChapterDto"
             },
+            "default": null,
             "nullable": true
           }
         }
-      },
-      "ChapterDto": {
-        "required": [
-          "title",
-          "startSeconds",
-          "endSeconds"
-        ],
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "startSeconds": {
-            "type": "number",
-            "format": "double"
-          },
-          "endSeconds": {
-            "type": "number",
-            "format": "double"
-          }
-        },
-        "description": "Chapitre d'un livre audio : début et fin en secondes depuis le début du livre."
       },
       "ProfileDto": {
         "required": [
@@ -3866,6 +4136,9 @@
     },
     {
       "name": "Home"
+    },
+    {
+      "name": "Mlb"
     },
     {
       "name": "Notifications"
