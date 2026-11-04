@@ -154,7 +154,7 @@ export function useMlbHighlights() {
   })
 }
 
-/** Onglet « Nicholas » : nouvelles du jour sur l'IA (rassemblées et mises en cache 15 min par l'API). Relues toutes les 10 min. */
+/** Onglet « Nicolas » : nouvelles du jour sur l'IA (rassemblées et mises en cache 15 min par l'API). Relues toutes les 10 min. */
 export function useAiNews() {
   return useQuery({
     queryKey: keys.aiNews,
@@ -164,7 +164,7 @@ export function useAiNews() {
   })
 }
 
-/** Onglet « Nicholas » : classement des modèles d'IA (Epoch AI, relu par l'API toutes les 6 h). */
+/** Onglet « Nicolas » : classement des modèles d'IA (Epoch AI, relu par l'API toutes les 6 h). */
 export function useAiBenchmarks() {
   return useQuery({
     queryKey: keys.aiBenchmarks,

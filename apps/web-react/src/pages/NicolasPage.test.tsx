@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { mockApi, renderApp, signIn } from '../test/utils'
-import { NicholasPage } from './NicholasPage'
+import { NicolasPage } from './NicolasPage'
 
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
 const item = (id: string, title: string, source: string, language: 'fr' | 'en', minutes: number, imageUrl: string | null = null, summary: string | null = 'Résumé.') =>
@@ -24,16 +24,16 @@ const news = {
   ],
 }
 
-const open = () => renderApp(<Routes><Route path="/nicholas" element={<NicholasPage />} /></Routes>, { route: '/nicholas' })
+const open = () => renderApp(<Routes><Route path="/nicolas" element={<NicolasPage />} /></Routes>, { route: '/nicolas' })
 
 beforeEach(() => signIn())
 
-describe('onglet Nicholas (nouvelles de l\'IA)', () => {
+describe('onglet Nicolas (nouvelles de l\'IA)', () => {
   it('met à la une le plus récent avec image, puis le fil ; liens externes sûrs et illustration sans image', async () => {
     mockApi({ '/api/news/ai': news })
     open()
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nicholas' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nicolas' })).toBeInTheDocument()
     const top = await screen.findByRole('region', { name: 'À la une' })
     expect(within(top).getByText('OpenAI ships a new model')).toBeInTheDocument()   // le plus récent qui a une image
     expect(within(top).getByText('Nouveau')).toBeInTheDocument()                    // moins de 2 h

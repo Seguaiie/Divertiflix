@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Divertiflix.Api.Controllers;
 
-/// <summary>Onglet « Nicholas » : les nouvelles du jour sur l'intelligence artificielle.</summary>
+/// <summary>Onglet « Nicolas » : les nouvelles du jour sur l'intelligence artificielle.</summary>
 [ApiController, Route("api/news"), Authorize]
 public class NewsController(AiNews news, AiBenchmarks benchmarks) : ControllerBase
 {

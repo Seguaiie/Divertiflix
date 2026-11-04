@@ -8,7 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace Divertiflix.Api.Services;
 
 /// <summary>
-/// Onglet « Nicholas » : classement des modèles d'IA, d'après les données publiques d'Epoch AI (epoch.ai/benchmarks, licence CC BY 4.0 :
+/// Onglet « Nicolas » : classement des modèles d'IA, d'après les données publiques d'Epoch AI (epoch.ai/benchmarks, licence CC BY 4.0 :
 /// la source est toujours affichée). L'archive est relue toutes les 6 heures ; aucun score n'est inventé ni recopié à la main.
 /// - Classement général : Epoch Capabilities Index (ECI), qui combine les bancs d'essai, avec son intervalle de confiance.
 /// - Bancs d'essai : les 10 meilleurs modèles de chacun (meilleure version d'un même modèle).

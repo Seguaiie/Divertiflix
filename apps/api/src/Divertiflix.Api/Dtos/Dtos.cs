@@ -155,7 +155,7 @@ public record MlbResultsDto(List<MlbDayDto> Days, DateTime UpdatedAt);
 /// <summary>Fait saillant vidéo : MP4 hébergé par la MLB (mlb-cuts-diamond.mlb.com), vignette sur img.mlbstatic.com.</summary>
 public record MlbHighlightDto(string Id, string Title, string? Description, int DurationSeconds, DateTime? Date, string VideoUrl, string? PosterUrl, string Matchup, long GameId);
 
-// ------------------------------------------------------------------ Nouvelles de l'IA (onglet « Nicholas »)
+// ------------------------------------------------------------------ Nouvelles de l'IA (onglet « Nicolas »)
 /// <summary>Article : texte seul (jamais de HTML), lien vers le site d'origine, image relayée par le portail. Feed : le fil d'où il vient ; Source : le média.</summary>
 /// <summary>Coverage : nombre de médias différents qui couvrent le même sujet (mesure de popularité, 1 = un seul).</summary>
 public record NewsItemDto(string Id, string Title, string? Summary, string Url, string Source, string Feed, string Language, DateTime PublishedAt, string? ImageUrl, int Coverage = 1);

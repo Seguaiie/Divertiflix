@@ -27,7 +27,7 @@ export const en: Record<Key, string> & Record<string, string> = {
   'nav.audiobooks': 'Audiobooks',
   'nav.myList': 'My list',
   'nav.domingo': 'Domingo',
-  'nav.nicholas': 'Nicholas',
+  'nav.nicolas': 'Nicolas',
   'ai.eyebrow': 'Artificial intelligence',
   'ai.tagline': 'Everything that happened in AI today.',
   'ai.lead': "Today's news gathered from {n} sources, in French and English, updated continuously.",

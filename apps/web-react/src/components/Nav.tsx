@@ -53,7 +53,7 @@ export function Nav() {
     { to: '/livres-audio', label: t('nav.audiobooks'), icon: BookOpen },
     { to: '/ma-liste', label: t('nav.myList'), icon: ListVideo },
     { to: '/domingo', label: t('nav.domingo'), icon: Trophy },
-    { to: '/nicholas', label: t('nav.nicholas'), icon: BrainCircuit },
+    { to: '/nicolas', label: t('nav.nicolas'), icon: BrainCircuit },
   ]
 
   return (

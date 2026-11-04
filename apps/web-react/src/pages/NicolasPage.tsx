@@ -5,7 +5,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAiBenchmarks, useAiNews } from '../state/queries'
 import { AiLeaderboard } from '../components/AiLeaderboard'
 import type { NewsItem } from '../lib/api'
-import './NicholasPage.css'
+import './NicolasPage.css'
 
 type Lang = 'all' | 'fr' | 'en'
 
@@ -19,12 +19,12 @@ const sourceVars = (source: string) => ({ '--src-h': hue(source) }) as CSSProper
 const initials = (source: string) => source.split(/[\s.-]+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('')
 const isWeb = (url: string) => /^https?:\/\//i.test(url)
 
-/** Onglet « Nicholas » : les nouvelles du jour sur l'intelligence artificielle. */
-export function NicholasPage() {
+/** Onglet « Nicolas » : les nouvelles du jour sur l'intelligence artificielle. */
+export function NicolasPage() {
   const { t, plural, locale } = useI18n()
   const news = useAiNews()
   const bench = useAiBenchmarks()
-  useDocumentTitle(t('nav.nicholas'))
+  useDocumentTitle(t('nav.nicolas'))
   const [lang, setLang] = useState<Lang>('all')
   const [source, setSource] = useState<string>('')
 
@@ -41,11 +41,11 @@ export function NicholasPage() {
   const chooseLang = (l: Lang) => { setLang(l); setSource('') }
 
   return (
-    <div className="page nicholas">
+    <div className="page nicolas">
       <header className="page-head ai-hero">
         <span className="ai-hero-orb" aria-hidden><BrainCircuit /></span>
         <p className="eyebrow">{t('ai.eyebrow')}</p>
-        <h1 className="display">{t('nav.nicholas')}</h1>
+        <h1 className="display">{t('nav.nicolas')}</h1>
         <p><strong>{t('ai.tagline')}</strong> {t('ai.lead', { n: news.data?.sources.length ?? 8 })}</p>
         <span className="ai-sparks" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</span>
 

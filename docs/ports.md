@@ -70,9 +70,9 @@ Le pare-feu laisse tout sortir (`Default: allow (outgoing)`). Si un pare-feu est
 | Serveurs de temps | 123 | NTP (UDP) | Horloge du serveur (jetons, certificats) | `systemd-timesyncd` |
 | `statsapi.mlb.com` | 443 | HTTPS | Résultats et faits saillants (onglet Domingo) | — |
 | `mlb-cuts-diamond.mlb.com`, `img.mlbstatic.com`, `www.mlbstatic.com` | 443 | HTTPS | Vidéos, vignettes et logos MLB, relayés par l'API | — |
-| `techcrunch.com`, `www.theverge.com`, `www.technologyreview.com`, `arstechnica.com`, `www.wired.com`, `www.theguardian.com`, `www.journaldugeek.com`, `news.google.com` | 443 | HTTPS | Nouvelles de l'IA (onglet Nicholas) | Liste dans `Services/AiNews.cs` |
+| `techcrunch.com`, `www.theverge.com`, `www.technologyreview.com`, `arstechnica.com`, `www.wired.com`, `www.theguardian.com`, `www.journaldugeek.com`, `news.google.com` | 443 | HTTPS | Nouvelles de l'IA (onglet Nicolas) | Liste dans `Services/AiNews.cs` |
 | Sites des images de presse (variable) | 443 | HTTPS | Images des articles, relayées par l'API | Seulement les images trouvées dans les fils |
-| `epoch.ai` | 443 | HTTPS | Classement des modèles d'IA (onglet Nicholas) | `Services/AiBenchmarks.cs` |
+| `epoch.ai` | 443 | HTTPS | Classement des modèles d'IA (onglet Nicolas) | `Services/AiBenchmarks.cs` |
 
 Le nom `DC-01.ad.home.arpa` est déclaré dans `/etc/hosts` du serveur (le DNS du routeur ne le connaît pas), et l'autorité
 de certification de l'AD (`ad-DC-01-CA`) est installée dans `/usr/local/share/ca-certificates/` : sans elle, LDAPS est refusé.

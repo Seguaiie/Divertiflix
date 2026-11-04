@@ -11,7 +11,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace Divertiflix.Api.Services;
 
 /// <summary>
-/// Onglet « Nicholas » : les nouvelles du jour sur l'intelligence artificielle, rassemblées depuis les fils RSS/Atom de sites reconnus (en
+/// Onglet « Nicolas » : les nouvelles du jour sur l'intelligence artificielle, rassemblées depuis les fils RSS/Atom de sites reconnus (en
 /// français et en anglais). L'API lit les fils en parallèle, en garde le texte seulement (jamais de HTML vers le navigateur), retire les
 /// doublons et met le tout en cache 15 minutes. Les images sont relayées par le portail, et seulement celles trouvées dans les fils.
 /// </summary>

@@ -4,7 +4,7 @@ using Divertiflix.Api.Services;
 namespace Divertiflix.Api.Media;
 
 /// <summary>
-/// Relais des images des nouvelles (onglet « Nicholas »). Le navigateur ne contacte pas les sites de presse ; le relais ne sert que des
+/// Relais des images des nouvelles (onglet « Nicolas »). Le navigateur ne contacte pas les sites de presse ; le relais ne sert que des
 /// images trouvées dans les fils suivis (identifiant opaque, jamais une adresse fournie par le client), en HTTPS, images matricielles
 /// seulement (pas de SVG), 5 Mo au plus.
 /// </summary>

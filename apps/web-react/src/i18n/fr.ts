@@ -25,7 +25,7 @@ export const fr = {
   'nav.audiobooks': 'Livres audio',
   'nav.myList': 'Ma liste',
   'nav.domingo': 'Domingo',
-  'nav.nicholas': 'Nicholas',
+  'nav.nicolas': 'Nicolas',
   'ai.eyebrow': 'Intelligence artificielle',
   'ai.tagline': "Tout ce qui s'est passé en IA aujourd'hui.",
   'ai.lead': 'Les nouvelles du jour rassemblées depuis {n} sources, en français et en anglais, mises à jour en continu.',

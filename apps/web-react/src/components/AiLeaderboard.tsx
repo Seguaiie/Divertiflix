@@ -10,7 +10,7 @@ const orgVars = (org: string) => ({ '--org': orgColor(org) }) as CSSProperties
 const MEDALS = ['🥇', '🥈', '🥉']
 
 /**
- * Classement des modèles d'IA (onglet « Nicholas ») : podium et classement général d'après l'indice des capacités d'Epoch AI,
+ * Classement des modèles d'IA (onglet « Nicolas ») : podium et classement général d'après l'indice des capacités d'Epoch AI,
  * derniers modèles évalués, et les 10 meilleurs de quelques bancs d'essai. Source et licence (CC BY 4.0) toujours affichées.
  */
 export function AiLeaderboard() {

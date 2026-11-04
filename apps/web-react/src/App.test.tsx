@@ -91,3 +91,19 @@ describe('raccourcis globaux : seulement là où leurs dialogues existent', () =
     expect(await screen.findByRole('dialog', { name: /Assistant/ })).toBeInTheDocument()
   })
 })
+
+describe('onglet Nicolas', () => {
+  it('l\'ancienne adresse /nicholas mène à l\'onglet Nicolas, et la navigation l\'écrit sans « h »', async () => {
+    mockApi({
+      '/api/profiles': [{ id: PROFILE_ID, name: 'Camille' }],
+      '/api/news/ai': { items: [], sources: [], windowHours: 24, updatedAt: '2026-11-04T15:00:00Z' },
+      '/api/news/ai/benchmarks': { status: 502, body: { title: 'Bad Gateway', status: 502 } },
+    })
+    renderApp(<AppRoutes />, { route: '/nicholas' })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Nicolas' })).toBeInTheDocument()
+    const tab = screen.getAllByRole('link', { name: 'Nicolas' })[0]!
+    expect(tab).toHaveAttribute('href', '/nicolas')
+    expect(tab).toHaveAttribute('aria-current', 'page')   // l'adresse a bien été remplacée par /nicolas
+    expect(screen.queryByText(/Nicholas/)).toBeNull()
+  })
+})
