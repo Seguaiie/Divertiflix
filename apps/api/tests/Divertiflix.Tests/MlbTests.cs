@@ -21,7 +21,8 @@ internal sealed class FakeMlb : HttpMessageHandler
         "{\"gamePk\":" + pk + ",\"gameType\":\"" + type + "\",\"gameDate\":\"2026-10-28T00:08:00Z\","
         + "\"status\":{\"abstractGameState\":\"" + state + "\",\"detailedState\":\"" + detailed + "\"},"
         + "\"seriesDescription\":" + (series is null ? "null" : "\"" + series + "\"") + ",\"seriesGameNumber\":" + (number?.ToString() ?? "null") + ","
-        + "\"venue\":{\"name\":\"Tropicana Field\"},\"linescore\":{\"currentInning\":7,\"inningHalf\":\"Top\"},"
+        + "\"venue\":{\"name\":\"Tropicana Field\"},\"linescore\":{\"currentInning\":7,\"inningHalf\":\"Top\",\"teams\":{\"away\":{\"runs\":3,\"hits\":8,\"errors\":2},\"home\":{\"runs\":4,\"hits\":9,\"errors\":0}},"
+        + "\"innings\":[{\"num\":1,\"away\":{\"runs\":0},\"home\":{\"runs\":2}},{\"num\":2,\"away\":{\"runs\":3},\"home\":{}}]},"
         + "\"teams\":{\"away\":" + Team(158, "Milwaukee Brewers", "MIL", away, away > home) + ",\"home\":" + Team(139, "Tampa Bay Rays", "TB", home, home > away) + "}}";
 
     private static string Clip(string id, string headline, string videoHost) =>
@@ -112,6 +113,13 @@ public class MlbTests(MlbFactory f) : IClassFixture<MlbFactory>
         Assert.False(game3.Away.IsWinner);
         Assert.Equal("TB", game3.Home.Abbreviation);
         Assert.Equal("/api/media/mlb/logo/139", game3.Home.LogoUrl);   // relayé par le portail
+
+        // Feuille de match : R / H / E et points manche par manche (une manche non jouée reste vide).
+        Assert.Equal((8, 2), (game3.Away.Hits, game3.Away.Errors));
+        Assert.Equal((9, 0), (game3.Home.Hits, game3.Home.Errors));
+        Assert.Equal(2, game3.Innings!.Count);
+        Assert.Equal(new MlbInningDto(1, 0, 2), game3.Innings[0]);
+        Assert.Equal(new MlbInningDto(2, 3, null), game3.Innings[1]);
 
         // Mis en cache : une seconde visite ne rappelle pas la MLB.
         var before = FakeMlb.Calls;

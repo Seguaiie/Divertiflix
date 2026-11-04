@@ -145,9 +145,11 @@ public record AudiobookshelfSyncRequest([Required, MaxLength(5000)] List<Audiobo
 public record AudiobookshelfSyncResult(int Created, int Updated);
 
 // ------------------------------------------------------------------ MLB (onglet « Domingo »)
-public record MlbTeamDto(int Id, string Name, string Abbreviation, int? Score, bool IsWinner, string? Record, string LogoUrl);
+public record MlbTeamDto(int Id, string Name, string Abbreviation, int? Score, bool IsWinner, string? Record, string LogoUrl, int? Hits = null, int? Errors = null);
+/// <summary>Une manche de la feuille de match : points de chaque équipe (null : manche non jouée, ex. fin de la 9e quand l'équipe locale mène).</summary>
+public record MlbInningDto(int Number, int? AwayRuns, int? HomeRuns);
 /// <summary>Status : « Final » ou « Live ». GameType : R (saison), F/D/L/W (séries : wild card, division, ligue, Série mondiale)…</summary>
-public record MlbGameDto(long Id, string Status, string DetailedState, string GameType, string? SeriesDescription, int? SeriesGameNumber, DateTime? StartTime, string? Venue, int? Inning, string? InningHalf, MlbTeamDto Away, MlbTeamDto Home);
+public record MlbGameDto(long Id, string Status, string DetailedState, string GameType, string? SeriesDescription, int? SeriesGameNumber, DateTime? StartTime, string? Venue, int? Inning, string? InningHalf, MlbTeamDto Away, MlbTeamDto Home, List<MlbInningDto>? Innings = null);
 public record MlbDayDto(string Date, List<MlbGameDto> Games);
 public record MlbResultsDto(List<MlbDayDto> Days, DateTime UpdatedAt);
 /// <summary>Fait saillant vidéo : MP4 hébergé par la MLB (mlb-cuts-diamond.mlb.com), vignette sur img.mlbstatic.com.</summary>

@@ -100,6 +100,83 @@
         }
       }
     },
+    "/api/media/mlb/video/{token}/{path}": {
+      "get": {
+        "tags": [
+          "Divertiflix.Api"
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/media/mlb/image/{path}": {
+      "get": {
+        "tags": [
+          "Divertiflix.Api"
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/media/mlb/logo/{id}": {
+      "get": {
+        "tags": [
+          "Divertiflix.Api"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "maximum": 9999,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/admin/stats": {
       "get": {
         "tags": [
@@ -3024,6 +3101,14 @@
           },
           "home": {
             "$ref": "#/components/schemas/MlbTeamDto"
+          },
+          "innings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlbInningDto"
+            },
+            "default": null,
+            "nullable": true
           }
         }
       },
@@ -3073,6 +3158,30 @@
           "gameId": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "MlbInningDto": {
+        "required": [
+          "number",
+          "awayRuns",
+          "homeRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awayRuns": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "homeRuns": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         }
       },
@@ -3131,6 +3240,18 @@
           },
           "logoUrl": {
             "type": "string"
+          },
+          "hits": {
+            "type": "integer",
+            "format": "int32",
+            "default": null,
+            "nullable": true
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int32",
+            "default": null,
+            "nullable": true
           }
         }
       },

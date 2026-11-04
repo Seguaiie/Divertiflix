@@ -10,6 +10,7 @@ export type Reason = Schemas['ReasonDto']
 export type MlbGame = Schemas['MlbGameDto']
 export type MlbTeam = Schemas['MlbTeamDto']
 export type MlbHighlight = Schemas['MlbHighlightDto']
+export type MlbInning = Schemas['MlbInningDto']
 
 const KEY = 'divertiflix.session'
 export const LOGOUT_EVENT = 'divertiflix:logout'

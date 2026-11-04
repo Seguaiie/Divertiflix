@@ -112,6 +112,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/mlb/video/{token}/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                    path: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/mlb/image/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    path: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/mlb/logo/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/stats": {
         parameters: {
             query?: never;
@@ -2196,6 +2302,8 @@ export interface components {
             inningHalf: string | null;
             away: components["schemas"]["MlbTeamDto"];
             home: components["schemas"]["MlbTeamDto"];
+            /** @default null */
+            innings: components["schemas"]["MlbInningDto"][] | null;
         };
         MlbHighlightDto: {
             id: string;
@@ -2210,6 +2318,14 @@ export interface components {
             matchup: string;
             /** Format: int64 */
             gameId: number;
+        };
+        MlbInningDto: {
+            /** Format: int32 */
+            number: number;
+            /** Format: int32 */
+            awayRuns: number | null;
+            /** Format: int32 */
+            homeRuns: number | null;
         };
         MlbResultsDto: {
             days: components["schemas"]["MlbDayDto"][];
@@ -2226,6 +2342,16 @@ export interface components {
             isWinner: boolean;
             record: string | null;
             logoUrl: string;
+            /**
+             * Format: int32
+             * @default null
+             */
+            hits: number | null;
+            /**
+             * Format: int32
+             * @default null
+             */
+            errors: number | null;
         };
         NotificationDto: {
             /** Format: uuid */

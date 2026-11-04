@@ -156,8 +156,9 @@ public sealed class MlbResults(HttpClient http, IMemoryCache cache, ILogger<MlbR
                 g.TryGetProperty("venue", out var v) ? Str(v, "name") : null,
                 inning,
                 inningHalf,
-                Team(teams.GetProperty("away")),
-                Team(teams.GetProperty("home")));
+                Team(teams.GetProperty("away"), LineTeam(g, "away")),
+                Team(teams.GetProperty("home"), LineTeam(g, "home")),
+                Innings(g));
         }
         catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException or FormatException)
         {
@@ -166,7 +167,28 @@ public sealed class MlbResults(HttpClient http, IMemoryCache cache, ILogger<MlbR
         }
     }
 
-    private static MlbTeamDto Team(JsonElement side)
+    /// <summary>Totaux de la feuille de match d'une équipe (points, coups sûrs, erreurs), s'ils sont publiés.</summary>
+    private static JsonElement? LineTeam(JsonElement g, string side) =>
+        g.TryGetProperty("linescore", out var ls) && ls.TryGetProperty("teams", out var t) && t.TryGetProperty(side, out var v) && v.ValueKind == JsonValueKind.Object ? v : null;
+
+    private static int? Int(JsonElement? e, string name) =>
+        e is { } o && o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt32() : null;
+
+    /// <summary>Points manche par manche ; null si la feuille n'est pas publiée.</summary>
+    private static List<MlbInningDto>? Innings(JsonElement g)
+    {
+        if (!g.TryGetProperty("linescore", out var ls) || !ls.TryGetProperty("innings", out var inn) || inn.ValueKind != JsonValueKind.Array) return null;
+        var list = new List<MlbInningDto>();
+        foreach (var i in inn.EnumerateArray())
+        {
+            if (!i.TryGetProperty("num", out var n) || n.ValueKind != JsonValueKind.Number) continue;
+            JsonElement? Side(string s) => i.TryGetProperty(s, out var v) && v.ValueKind == JsonValueKind.Object ? v : null;
+            list.Add(new MlbInningDto(n.GetInt32(), Int(Side("away"), "runs"), Int(Side("home"), "runs")));
+        }
+        return list.Count > 0 ? list : null;
+    }
+
+    private static MlbTeamDto Team(JsonElement side, JsonElement? line)
     {
         var team = side.GetProperty("team");
         var id = team.GetProperty("id").GetInt32();
@@ -179,7 +201,9 @@ public sealed class MlbResults(HttpClient http, IMemoryCache cache, ILogger<MlbR
             side.TryGetProperty("score", out var s) && s.ValueKind == JsonValueKind.Number ? s.GetInt32() : null,
             side.TryGetProperty("isWinner", out var win) && win.ValueKind == JsonValueKind.True,
             record,
-            $"/api/media/mlb/logo/{id}");   // relayé par le portail (voir MlbMediaEndpoints)
+            $"/api/media/mlb/logo/{id}",   // relayé par le portail (voir MlbMediaEndpoints)
+            Int(line, "hits"),
+            Int(line, "errors"));
     }
 
     private static string? Str(JsonElement e, string name) =>

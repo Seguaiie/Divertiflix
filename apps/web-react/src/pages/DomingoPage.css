@@ -1,31 +1,161 @@
 @layer components {
+  /* ------------------------------------------------------------ Bandeau : rouge et bleu de la MLB, coutures de balle, balle qui tourne */
+  .mlb-hero {
+    position: relative; overflow: hidden; isolation: isolate;
+    padding: clamp(22px, 4vw, 40px) clamp(18px, 4vw, 40px);
+    border-radius: var(--radius-sm);
+    background:
+      radial-gradient(700px 320px at 0% 0%, rgb(213 0 50 / 0.42), transparent 65%),
+      radial-gradient(640px 360px at 100% 100%, rgb(30 80 200 / 0.45), transparent 65%),
+      linear-gradient(135deg, rgb(4 30 66 / 0.9), rgb(var(--tint) / 0.06));
+    box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px -40px rgb(213 0 50 / 0.6);
+  }
+  /* Coutures rouges en diagonale, très discrètes, derrière le texte. */
+  .mlb-hero::before {
+    content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0.22;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg stroke='%23ff2b55' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M8 20l8-6M20 30l8-6M32 40l8-6M44 50l8-6'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .mlb-hero .eyebrow { color: rgb(255 120 140); }
+  .mlb-hero h1 { background: linear-gradient(90deg, rgb(255 255 255), rgb(255 150 165) 55%, rgb(140 180 255)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mlb-hero p strong { color: rgb(255 255 255); }
+
+  .mlb-hero-ball {
+    position: absolute; z-index: -1; right: clamp(-40px, -2vw, -10px); top: 50%; translate: 0 -50%;
+    width: clamp(120px, 18vw, 210px); aspect-ratio: 1; border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 34% 30%, rgb(255 255 255), rgb(226 230 242) 62%, rgb(170 178 205));
+    box-shadow: 0 20px 60px -10px rgb(0 0 0 / 0.55), inset -10px -14px 30px rgb(110 120 160 / 0.45);
+    opacity: 0.92; animation: mlb-spin 40s linear infinite;
+  }
+  /* Les deux coutures : deux arcs pointillés rouges qui débordent de la balle. */
+  .mlb-hero-ball::before, .mlb-hero-ball::after {
+    content: ''; position: absolute; width: 100%; aspect-ratio: 1; border-radius: 50%;
+    border: 3px dashed rgb(213 0 50); top: 0;
+  }
+  .mlb-hero-ball::before { left: -72%; }
+  .mlb-hero-ball::after { left: 72%; }
+  @keyframes mlb-spin { to { rotate: 360deg; } }
+
+  /* ------------------------------------------------------------ Match à la une */
+  .mlb-featured {
+    position: relative; overflow: hidden; display: grid; gap: 16px;
+    margin-bottom: clamp(32px, 5vw, 52px); padding: clamp(16px, 3vw, 28px);
+    border-radius: var(--radius-sm);
+    background:
+      linear-gradient(110deg, color-mix(in srgb, var(--away) 32%, transparent), transparent 42%, transparent 58%, color-mix(in srgb, var(--home) 32%, transparent)),
+      var(--glass-strong);
+    box-shadow: 0 0 0 1px var(--line-strong), 0 30px 70px -40px color-mix(in srgb, var(--away) 70%, transparent);
+  }
+  .mlb-featured::after { /* liseré aux couleurs des deux équipes */
+    content: ''; position: absolute; inset: 0 0 auto; height: 5px;
+    background: linear-gradient(90deg, var(--away), var(--home));
+  }
+  .mlb-featured-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+  .mlb-featured-label { margin: 0; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-2); }
+
+  .mlb-featured-score { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 3vw, 40px); align-items: center; }
+  .mlb-featured-team {
+    position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto;
+    column-gap: 14px; align-items: center;
+  }
+  .mlb-featured-team.home { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .mlb-featured-logo {
+    grid-row: 1 / 3; width: clamp(54px, 8vw, 84px); height: auto; aspect-ratio: 1; object-fit: contain;
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--team) 70%, transparent));
+  }
+  .mlb-featured-name { font-family: var(--font-display); font-weight: 600; font-size: clamp(1rem, 2vw, 1.35rem); line-height: 1.15; min-width: 0; }
+  .mlb-featured-team .mlb-record { grid-column: 2; }
+  .mlb-featured-runs {
+    grid-row: 1 / 3; grid-column: 3; font-family: var(--font-display); font-weight: 700; line-height: 1;
+    font-size: clamp(2.6rem, 7vw, 4.4rem); color: var(--text-3);
+  }
+  .mlb-featured-team.is-winner .mlb-featured-runs { color: color-mix(in srgb, var(--team) 75%, white); text-shadow: 0 0 30px color-mix(in srgb, var(--team) 60%, transparent); }
+  .mlb-featured-vs { position: absolute; right: calc(-1 * clamp(6px, 1.5vw, 20px)); translate: 50% 0; color: var(--text-3); font-weight: 700; }
+
+  .mlb-linescore-wrap { overflow-x: auto; border-radius: calc(var(--radius-sm) - 2px); background: rgb(var(--ink) / 0.55); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .mlb-linescore { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 520px; }
+  .mlb-linescore th, .mlb-linescore td { padding: 8px 6px; text-align: center; }
+  .mlb-linescore thead th { font-size: 0.72rem; font-weight: 600; color: var(--text-3); border-bottom: 1px solid var(--line-strong); }
+  .mlb-linescore tbody th { text-align: left; padding-left: 14px; font-weight: 700; border-left: 4px solid var(--team); white-space: nowrap; }
+  .mlb-linescore td { color: var(--text-2); }
+  .mlb-linescore td.scored { color: rgb(255 255 255); font-weight: 700; background: color-mix(in srgb, var(--team) 26%, transparent); }
+  .mlb-linescore .tot { border-left: 1px solid var(--line-strong); font-weight: 600; color: var(--text); }
+  .mlb-linescore .tot + .tot { border-left: 0; }
+  .mlb-linescore td.runs { font-size: 1.05rem; }
+  .mlb-linescore tr.is-winner td.runs { color: color-mix(in srgb, var(--team) 75%, white); }
+  .mlb-linescore abbr { text-decoration: none; }
+
+  /* ------------------------------------------------------------ Journées */
   .mlb-days { display: grid; gap: clamp(28px, 4vw, 44px); }
-  .mlb-day-title { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; color: var(--text-2); text-transform: capitalize; }
-  .mlb-games { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+  .mlb-day-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0 0 14px; font-size: 1.1rem; font-weight: 600; }
+  .mlb-day-title > span:first-child { text-transform: capitalize; }
+  .mlb-day-title > span:first-child::before { content: '⚾'; margin-right: 10px; font-size: 0.95em; }
+  .mlb-day-count { padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; color: var(--text-2); background: rgb(var(--tint) / 0.08); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .mlb-games { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr)); }
 
-  .mlb-game { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--glass-strong); }
-  .mlb-game.is-live { border-color: var(--accent-hi); }
-  .mlb-game-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; font-size: 0.75rem; letter-spacing: 0.04em; }
-  .mlb-status { font-weight: 600; text-transform: uppercase; color: var(--text-3); }
-  .mlb-status.live { color: var(--accent-hi); }
-  .mlb-series { color: var(--text-3); }
+  /* ------------------------------------------------------------ Carte d'un match, aux couleurs des deux équipes */
+  .mlb-game {
+    position: relative; overflow: hidden; display: grid; gap: 6px; padding: 18px 16px 14px;
+    border-radius: var(--radius-sm);
+    background:
+      radial-gradient(260px 120px at 0% 0%, color-mix(in srgb, var(--away) 16%, transparent), transparent 70%),
+      radial-gradient(260px 120px at 100% 100%, color-mix(in srgb, var(--home) 16%, transparent), transparent 70%),
+      var(--glass-strong);
+    box-shadow: 0 0 0 1px var(--line-strong);
+    transition: translate 0.18s ease, box-shadow 0.18s ease;
+  }
+  .mlb-game::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, var(--away) 0 50%, var(--home) 50% 100%); }
+  .mlb-game:hover { translate: 0 -3px; box-shadow: 0 0 0 1px var(--line-strong), 0 18px 40px -18px color-mix(in srgb, var(--home) 70%, transparent); }
+  .mlb-game.is-live { box-shadow: 0 0 0 1px rgb(255 59 92 / 0.7), 0 0 30px -8px rgb(255 59 92 / 0.6); }
 
-  .mlb-team { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 2.5ch; align-items: center; gap: 10px; color: var(--text-2); }
-  .mlb-team.is-winner { color: var(--text); font-weight: 600; }
-  .mlb-team.is-loser .mlb-score { color: var(--text-3); }
-  .mlb-logo { width: 28px; height: 28px; object-fit: contain; }
-  .mlb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mlb-game-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 0.72rem; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .mlb-status { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; text-transform: uppercase; color: var(--text-3); }
+  .mlb-status.live { color: rgb(255 89 115); }
+  .mlb-live-dot { width: 8px; height: 8px; border-radius: 50%; background: rgb(255 59 92); box-shadow: 0 0 0 0 rgb(255 59 92 / 0.7); animation: mlb-pulse 1.4s ease-out infinite; }
+  @keyframes mlb-pulse { to { box-shadow: 0 0 0 10px rgb(255 59 92 / 0); } }
+
+  .mlb-series { padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .mlb-series.ws { color: rgb(var(--ink)); background: linear-gradient(135deg, rgb(255 232 140), rgb(230 180 50) 55%, rgb(255 220 120)); box-shadow: 0 0 18px -4px rgb(240 190 60 / 0.7); }
+  .mlb-series.ws::before { content: '🏆 '; }
+  .mlb-series.lcs { color: rgb(225 210 255); background: rgb(150 100 255 / 0.22); box-shadow: inset 0 0 0 1px rgb(170 130 255 / 0.5); }
+  .mlb-series.ds { color: rgb(190 220 255); background: rgb(60 140 255 / 0.2); box-shadow: inset 0 0 0 1px rgb(90 160 255 / 0.5); }
+  .mlb-series.wc { color: rgb(170 245 230); background: rgb(20 190 160 / 0.18); box-shadow: inset 0 0 0 1px rgb(40 210 180 / 0.45); }
+  .mlb-series.spring { color: rgb(200 245 180); background: rgb(90 190 60 / 0.18); }
+  .mlb-series.other { color: var(--text-2); background: rgb(var(--tint) / 0.08); }
+
+  .mlb-team {
+    position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) auto 2.6ch; align-items: center; gap: 10px;
+    margin: 0 -8px; padding: 7px 8px; border-radius: 8px; color: var(--text-2);
+  }
+  .mlb-team.is-winner { color: var(--text); font-weight: 600; background: linear-gradient(90deg, color-mix(in srgb, var(--team) 24%, transparent), color-mix(in srgb, var(--team) 6%, transparent)); box-shadow: inset 3px 0 0 var(--team); }
+  .mlb-team.is-loser { opacity: 0.78; }
+  .mlb-logo { width: 30px; height: 30px; object-fit: contain; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--team) 55%, transparent)); }
+  .mlb-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .mlb-full { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mlb-abbr { display: none; text-decoration: none; }
+  .mlb-win { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 0.66rem; font-weight: 800; text-decoration: none; color: rgb(var(--ink)); background: var(--team); box-shadow: 0 0 12px -2px var(--team); }
+  .mlb-rhe { display: inline-flex; gap: 5px; font-size: 0.72rem; color: var(--text-3); font-weight: 500; }
+  .mlb-score { justify-self: end; font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; line-height: 1; }
+  .mlb-team.is-winner .mlb-score { color: color-mix(in srgb, var(--team) 72%, white); }
+  .mlb-team.is-loser .mlb-score { color: var(--text-3); }
+  .mlb-venue { margin: 4px 0 0; font-size: 0.72rem; color: var(--text-3); }
+  .mlb-venue::before { content: '📍 '; }
   .mlb-record { font-size: 0.75rem; color: var(--text-3); font-weight: 400; }
-  .mlb-score { justify-self: end; font-size: 1.35rem; font-weight: 700; }
-  .mlb-venue { margin: 2px 0 0; font-size: 0.75rem; color: var(--text-3); }
 
   .mlb-updated { margin-top: 28px; font-size: 0.75rem; color: var(--text-3); }
   .mlb-skeleton { height: 180px; border-radius: var(--radius-sm); background: var(--glass-strong); }
 
-  /* Téléphone : abréviations plutôt que noms complets, pour garder les scores alignés. */
+  /* Téléphone : le match à la une s'empile, abréviations plutôt que noms complets dans les cartes. */
+  @media (max-width: 640px) {
+    .mlb-featured-score { grid-template-columns: 1fr; }
+    .mlb-featured-vs { display: none; }
+  }
   @media (max-width: 420px) {
     .mlb-full { display: none; }
     .mlb-abbr { display: inline; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mlb-hero-ball, .mlb-live-dot { animation: none; }
+    .mlb-game { transition: none; }
+    .mlb-game:hover { translate: none; }
   }
 }
