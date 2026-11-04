@@ -157,7 +157,8 @@ public record MlbHighlightDto(string Id, string Title, string? Description, int 
 
 // ------------------------------------------------------------------ Nouvelles de l'IA (onglet « Nicholas »)
 /// <summary>Article : texte seul (jamais de HTML), lien vers le site d'origine, image relayée par le portail. Feed : le fil d'où il vient ; Source : le média.</summary>
-public record NewsItemDto(string Id, string Title, string? Summary, string Url, string Source, string Feed, string Language, DateTime PublishedAt, string? ImageUrl);
+/// <summary>Coverage : nombre de médias différents qui couvrent le même sujet (mesure de popularité, 1 = un seul).</summary>
+public record NewsItemDto(string Id, string Title, string? Summary, string Url, string Source, string Feed, string Language, DateTime PublishedAt, string? ImageUrl, int Coverage = 1);
 public record NewsSourceDto(string Name, string Language, int Count, bool Ok);
 /// <summary>WindowHours : 24 d'habitude, 72 un jour creux (trop peu d'articles dans les dernières 24 h).</summary>
 public record AiNewsDto(List<NewsItemDto> Items, List<NewsSourceDto> Sources, int WindowHours, DateTime UpdatedAt);

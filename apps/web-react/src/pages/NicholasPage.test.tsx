@@ -7,7 +7,7 @@ import { NicholasPage } from './NicholasPage'
 
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
 const item = (id: string, title: string, source: string, language: 'fr' | 'en', minutes: number, imageUrl: string | null = null, summary: string | null = 'Résumé.') =>
-  ({ id, title, summary, url: `https://example.com/${id}`, source, feed: source, language, publishedAt: minutesAgo(minutes), imageUrl })
+  ({ id, title, summary, url: `https://example.com/${id}`, source, feed: source, language, publishedAt: minutesAgo(minutes), imageUrl, coverage: id === 'b' ? 3 : 1 })
 
 const news = {
   windowHours: 24,
@@ -37,8 +37,9 @@ describe('onglet Nicholas (nouvelles de l\'IA)', () => {
     const top = await screen.findByRole('region', { name: 'À la une' })
     expect(within(top).getByText('OpenAI ships a new model')).toBeInTheDocument()   // le plus récent qui a une image
     expect(within(top).getByText('Nouveau')).toBeInTheDocument()                    // moins de 2 h
+    expect(within(top).getByText(/Repris par 3 médias/)).toBeInTheDocument()       // popularité : couvert par 3 médias
 
-    const feed = screen.getByRole('region', { name: 'Fil des nouvelles' })
+    const feed = screen.getByRole('region', { name: 'Les plus populaires' })
     const links = within(feed).getAllByRole('link')
     expect(links.map(l => l.textContent)).toEqual([
       expect.stringContaining("L'IA au Québec"), expect.stringContaining('Robots fold laundry'), expect.stringContaining('Une IA française'),
@@ -60,7 +61,7 @@ describe('onglet Nicholas (nouvelles de l\'IA)', () => {
     await screen.findByRole('region', { name: 'À la une' })
 
     // Le bandeau défilant montre toujours tous les titres : on vérifie l'article à la une et le fil, qui suivent les filtres.
-    const listed = () => [screen.getByRole('region', { name: 'À la une' }), screen.queryByRole('region', { name: 'Fil des nouvelles' })]
+    const listed = () => [screen.getByRole('region', { name: 'À la une' }), screen.queryByRole('region', { name: 'Les plus populaires' })]
       .flatMap(r => (r ? within(r).getAllByRole('link') : [])).map(l => l.querySelector('.ai-title')?.textContent)
 
     await userEvent.click(screen.getByRole('button', { name: /Français/ }))

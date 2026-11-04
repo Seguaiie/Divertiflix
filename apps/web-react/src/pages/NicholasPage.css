@@ -81,6 +81,14 @@
 
   /* ------------------------------------------------------------ Articles : chaque source a sa teinte (--src-h) */
   .ai-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+  /* Fil : 25 articles au plus ; sur grand écran, 5 colonnes × 5 rangées, cartes resserrées (sans résumé). */
+  @media (min-width: 1280px) {
+    .ai-grid.is-feed { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+    .ai-grid.is-feed .ai-summary { display: none; }
+    .ai-grid.is-feed .ai-title { font-size: 0.92rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .ai-grid.is-feed .ai-body { padding: 12px 13px 14px; gap: 7px; }
+  }
+  .ai-coverage { justify-self: start; padding: 2px 9px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; color: rgb(255 200 120); background: rgb(255 120 40 / 0.14); box-shadow: inset 0 0 0 1px rgb(255 140 60 / 0.4); }
   .ai-skeleton { height: 300px; border-radius: var(--radius-sm); background: var(--glass-strong); }
 
   .ai-story { --src: hsl(var(--src-h) 75% 65%); height: 100%; }

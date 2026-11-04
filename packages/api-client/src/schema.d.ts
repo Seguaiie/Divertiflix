@@ -2523,6 +2523,11 @@ export interface components {
             /** Format: date-time */
             publishedAt: string;
             imageUrl: string | null;
+            /**
+             * Format: int32
+             * @default 1
+             */
+            coverage: number;
         };
         NewsSourceDto: {
             name: string;

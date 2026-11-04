@@ -81,23 +81,27 @@ public class AiNewsTests(NewsFactory f) : IClassFixture<NewsFactory>
         var (user, _) = await f.RegisterAsync();
         var news = (await user.GetAsync<AiNewsDto>("/api/news/ai"))!;
 
-        // Journée creuse (moins de 12 articles en 24 h) : fenêtre élargie à 72 h ; l'article de 100 h et le lien javascript: sont écartés,
-        // et le même titre repris par The Verge n'apparaît qu'une fois (le plus récent, TechCrunch).
+        // Journée creuse (moins de 12 articles en 24 h) : fenêtre élargie à 72 h ; l'article de 100 h et le lien javascript: sont écartés.
+        // Popularité : le sujet couvert par deux médias (TechCrunch et The Verge) passe en tête, une seule fois ; puis le plus récent d'abord.
         Assert.Equal(72, news.WindowHours);
-        Assert.Equal(new[] { "L'IA au Québec", "OpenAI ships a new model & more", "Robots learn to fold laundry", "Une IA française" }, news.Items.Select(i => i.Title));
+        Assert.Equal(new[] { "OpenAI ships a new model & more", "L'IA au Québec", "Robots learn to fold laundry", "Une IA française" }, news.Items.Select(i => i.Title));
+        Assert.Equal(new[] { 2, 1, 1, 1 }, news.Items.Select(i => i.Coverage));
 
-        var gn = news.Items[0];
+        var gn = news.Items[1];
         Assert.Equal("Le Devoir", gn.Source);   // média d'origine, retiré de la fin du titre
         Assert.Equal("fr", gn.Language);
         Assert.Null(gn.Summary);                // le résumé de Google Actualités n'est qu'une liste de liens
 
-        var tc = news.Items[1];
-        Assert.Equal("TechCrunch", tc.Source);
+        var tc = news.Items[0];
+        Assert.Equal("TechCrunch", tc.Source);   // l'article gardé pour le sujet : celui qui a une image et un résumé
         Assert.Equal("A big launch.", tc.Summary);   // texte seul : balises et script retirés
         Assert.DoesNotContain("<", tc.Summary);
         Assert.StartsWith("/api/media/news/image/", tc.ImageUrl);
 
         Assert.Equal("Folding.", news.Items[2].Summary);   // résumé Atom encodé en HTML
+
+        // Au plus 25 articles, les plus populaires.
+        Assert.True(news.Items.Count <= AiNews.Top);
 
         // Wired est en panne : signalé, sans empêcher le reste.
         Assert.False(news.Sources.Single(s => s.Name == "Wired").Ok);

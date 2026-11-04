@@ -3574,6 +3574,11 @@
           "imageUrl": {
             "type": "string",
             "nullable": true
+          },
+          "coverage": {
+            "type": "integer",
+            "format": "int32",
+            "default": 1
           }
         }
       },

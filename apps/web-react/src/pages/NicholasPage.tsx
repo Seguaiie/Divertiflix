@@ -32,8 +32,8 @@ export function NicholasPage() {
   const byLang = useMemo(() => items.filter(i => lang === 'all' || i.language === lang), [items, lang])
   const sources = useMemo(() => [...new Set(byLang.map(i => i.source))].sort((a, b) => a.localeCompare(b, locale)), [byLang, locale])
   const shown = useMemo(() => byLang.filter(i => !source || i.source === source), [byLang, source])
-  // À la une : l'article le plus récent qui a une image, parmi les premiers (sinon le plus récent tout court).
-  const top = shown.slice(0, 8).find(i => i.imageUrl) ?? shown[0]
+  // Les articles arrivent du plus populaire au moins populaire. À la une : le plus populaire, ou l'un des trois premiers s'il a une image.
+  const top = shown.slice(0, 3).find(i => i.imageUrl) ?? shown[0]
   const rest = shown.filter(i => i !== top)
   const down = news.data?.sources.filter(s => !s.ok) ?? []
   const time = (iso: string) => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
@@ -119,7 +119,7 @@ export function NicholasPage() {
           {rest.length > 0 && (
             <section aria-labelledby="ai-latest-title">
               <h2 id="ai-latest-title" className="ai-section-title">{t('ai.latest')}</h2>
-              <ul className="ai-grid">{rest.map(i => <li key={i.id}><Story item={i} now={news.data.updatedAt} /></li>)}</ul>
+              <ul className="ai-grid is-feed">{rest.map(i => <li key={i.id}><Story item={i} now={news.data.updatedAt} /></li>)}</ul>
             </section>
           )}
 
@@ -142,7 +142,7 @@ export function NicholasPage() {
 
 /** « Nouveau » : publié moins de 2 h avant la dernière mise à jour des nouvelles (repère stable, pas l'horloge à chaque rendu). */
 function Story({ item, big = false, now }: { item: NewsItem; big?: boolean; now: string }) {
-  const { t, ago } = useI18n()
+  const { t, ago, plural } = useI18n()
   const fresh = new Date(now).getTime() - new Date(item.publishedAt).getTime() < 2 * 3600_000
   const [broken, setBroken] = useState(false)
   if (!isWeb(item.url)) return null
@@ -162,6 +162,7 @@ function Story({ item, big = false, now }: { item: NewsItem; big?: boolean; now:
             <time className="ai-time" dateTime={item.publishedAt}>{ago(item.publishedAt)}</time>
           </span>
           <span className="ai-title">{item.title}</span>
+          {item.coverage > 1 && <span className="ai-coverage">🔥 {plural('ai.coverage', item.coverage)}</span>}
           {item.summary && <span className="ai-summary">{item.summary}</span>}
           <span className="ai-read">{t('ai.read', { source: item.source })}<ArrowUpRight aria-hidden /></span>
         </span>
