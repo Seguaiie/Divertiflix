@@ -146,6 +146,7 @@ if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseCors();
 MediaEndpoints.Map(app);
 AudiobookshelfEndpoints.Map(app);
+MlbMediaEndpoints.Map(app);
 app.UseAuthentication();
 app.UseRateLimiter();   // après l'authentification : les plafonds « write » et « assistant » sont par utilisateur
 app.UseAuthorization();

@@ -27,12 +27,37 @@ internal sealed class FakeMlb : HttpMessageHandler
     private static string Clip(string id, string headline, string videoHost) =>
         "{\"id\":\"" + id + "\",\"headline\":\"" + headline + "\",\"blurb\":\"Résumé\",\"duration\":\"00:07:28\",\"date\":\"2026-10-29T05:08:26Z\","
         + "\"image\":{\"cuts\":[{\"src\":\"https://img.mlbstatic.com/mlb-images/" + id + ".jpg\"}]},"
-        + "\"playbacks\":[{\"name\":\"hlsCloud\",\"url\":\"https://" + videoHost + "/" + id + ".m3u8\"},{\"name\":\"mp4Avc\",\"url\":\"https://" + videoHost + "/" + id + "_1280x720.mp4\"}]}";
+        + "\"playbacks\":[{\"name\":\"hlsCloud\",\"url\":\"https://" + videoHost + "/" + id + ".m3u8\"},{\"name\":\"mp4Avc\",\"url\":\"https://" + videoHost + "/FORGE/2026/" + id + "_1280x720.mp4\"}]}";
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         Interlocked.Increment(ref Calls);
         var path = request.RequestUri!.AbsolutePath;
+        var host = request.RequestUri!.Host;
+        if (host == "mlb-cuts-diamond.mlb.com")
+        {
+            // 100 octets de « vidéo » ; la plage demandée est respectée comme le ferait le CDN de la MLB.
+            var all = Enumerable.Range(0, 100).Select(i => (byte)i).ToArray();
+            if (request.Headers.Range?.Ranges.FirstOrDefault() is { } r)
+            {
+                var from = (int)(r.From ?? 0); var to = (int)(r.To ?? 99);
+                var part = new HttpResponseMessage(HttpStatusCode.PartialContent) { Content = new ByteArrayContent(all[from..(to + 1)]) };
+                part.Content.Headers.ContentType = new("video/mp4");
+                part.Content.Headers.ContentRange = new System.Net.Http.Headers.ContentRangeHeaderValue(from, to, 100);
+                return Task.FromResult(part);
+            }
+            var full = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(all) };
+            full.Content.Headers.ContentType = new("video/mp4");
+            return Task.FromResult(full);
+        }
+        if (host == "img.mlbstatic.com")
+        {
+            var img = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([0xFF, 0xD8, 0xFF]) };
+            img.Content.Headers.ContentType = new("image/jpeg");
+            return Task.FromResult(img);
+        }
+        if (host == "www.mlbstatic.com")
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<svg xmlns=\"http://www.w3.org/2000/svg\"/>", Encoding.UTF8, "image/svg+xml") });
         if (path.EndsWith("/content", StringComparison.Ordinal))
         {
             var pk = path.Split('/')[^2];
@@ -86,7 +111,7 @@ public class MlbTests(MlbFactory f) : IClassFixture<MlbFactory>
         Assert.True(game3.Home.IsWinner);
         Assert.False(game3.Away.IsWinner);
         Assert.Equal("TB", game3.Home.Abbreviation);
-        Assert.Equal("https://www.mlbstatic.com/team-logos/139.svg", game3.Home.LogoUrl);
+        Assert.Equal("/api/media/mlb/logo/139", game3.Home.LogoUrl);   // relayé par le portail
 
         // Mis en cache : une seconde visite ne rappelle pas la MLB.
         var before = FakeMlb.Calls;
@@ -116,12 +141,52 @@ public class MlbTests(MlbFactory f) : IClassFixture<MlbFactory>
         Assert.Equal("Résumé 3", clips[0].Title);
         Assert.Equal(448, clips[0].DurationSeconds);
         Assert.Equal("MIL @ TB", clips[0].Matchup);
-        Assert.Equal("https://img.mlbstatic.com/mlb-images/g3-a.jpg", clips[0].PosterUrl);
-        Assert.All(clips, c => Assert.StartsWith("https://mlb-cuts-diamond.mlb.com/", c.VideoUrl));
-        Assert.All(clips, c => Assert.EndsWith(".mp4", c.VideoUrl));   // MP4, lu directement par le navigateur
+        // Tout passe par le portail : le navigateur ne contacte jamais la MLB.
+        Assert.Equal("/api/media/mlb/image/mlb-images/g3-a.jpg", clips[0].PosterUrl);
+        Assert.All(clips, c => Assert.StartsWith("/api/media/mlb/video/", c.VideoUrl));
+        Assert.All(clips, c => Assert.EndsWith(".mp4", c.VideoUrl));
         Assert.DoesNotContain(clips, c => c.Title == "Ailleurs");
 
         var few = (await user.GetAsync<List<MlbHighlightDto>>("/api/mlb/highlights?limit=5"))!;
         Assert.Equal(5, few.Count);
+    }
+
+    [Fact]
+    public async Task The_portal_relays_mlb_videos_with_ranges_behind_a_signed_token_and_only_mlb_paths()
+    {
+        var (user, _) = await f.RegisterAsync();
+        var clip = (await user.GetAsync<List<MlbHighlightDto>>("/api/mlb/highlights?limit=1"))!.Single();
+        var anonymous = f.CreateClient();   // la balise <video> n'envoie pas d'en-tête d'autorisation : le jeton est dans l'adresse
+
+        var whole = await anonymous.GetAsync(clip.VideoUrl);
+        Assert.Equal(HttpStatusCode.OK, whole.StatusCode);
+        Assert.Equal("video/mp4", whole.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(100, (await whole.Content.ReadAsByteArrayAsync()).Length);
+
+        // Déplacement dans la vidéo : requête partielle relayée telle quelle.
+        var req = new HttpRequestMessage(HttpMethod.Get, clip.VideoUrl);
+        req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(10, 19);
+        var part = await anonymous.SendAsync(req);
+        Assert.Equal(HttpStatusCode.PartialContent, part.StatusCode);
+        Assert.Equal(Enumerable.Range(10, 10).Select(i => (byte)i).ToArray(), await part.Content.ReadAsByteArrayAsync());
+        Assert.Equal("bytes 10-19/100", part.Content.Headers.ContentRange?.ToString());
+
+        // Jeton falsifié ou absent : refusé. Chemin qui ne ressemble pas à une vidéo de la MLB : introuvable (pas de relais ouvert).
+        var forged = System.Text.RegularExpressions.Regex.Replace(clip.VideoUrl, "/video/[^/]+/", "/video/0.0.faux/");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(forged)).StatusCode);
+        var token = clip.VideoUrl.Split('/')[5];
+        Assert.False((await anonymous.GetAsync($"/api/media/mlb/video/{token}/FORGE/../../secret.mp4")).IsSuccessStatusCode);
+        Assert.False((await anonymous.GetAsync($"/api/media/mlb/video/{token}/FORGE/%2E%2E/%2E%2E/secret.mp4")).IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/media/mlb/video/{token}/autre/chose.txt")).StatusCode);
+
+        // Vignette et logo relayés ; le logo SVG est servi en bac à sable.
+        var poster = await anonymous.GetAsync(clip.PosterUrl);
+        Assert.Equal(HttpStatusCode.OK, poster.StatusCode);
+        Assert.Equal("image/jpeg", poster.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/api/media/mlb/image/ailleurs/x.jpg")).StatusCode);
+        var logo = await anonymous.GetAsync("/api/media/mlb/logo/139");
+        Assert.Equal(HttpStatusCode.OK, logo.StatusCode);
+        Assert.Equal("image/svg+xml", logo.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("sandbox", logo.Headers.GetValues("Content-Security-Policy").Single());
     }
 }

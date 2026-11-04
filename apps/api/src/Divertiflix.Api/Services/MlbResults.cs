@@ -41,7 +41,12 @@ public sealed class MlbResults(HttpClient http, IMemoryCache cache, ILogger<MlbR
 
     /// <summary>Hôtes autorisés pour les vidéos et vignettes : celles de la MLB seulement (la politique de sécurité du site n'ouvre que ces domaines).</summary>
     public const string VideoHost = "mlb-cuts-diamond.mlb.com";
-    private const string ImageHost = "img.mlbstatic.com";
+    public const string ImageHost = "img.mlbstatic.com";
+    public const string LogoHost = "www.mlbstatic.com";
+
+    /// <summary>Requête brute vers la MLB (relais des médias) : en-têtes d'abord, le corps est lu en continu par l'appelant, qui libère la réponse.</summary>
+    public Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage req, CancellationToken ct) =>
+        http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
 
     /// <summary>
     /// Derniers faits saillants vidéo : quelques clips par match (les mis en avant par la MLB : résumé, match condensé…), du match le plus
@@ -174,7 +179,7 @@ public sealed class MlbResults(HttpClient http, IMemoryCache cache, ILogger<MlbR
             side.TryGetProperty("score", out var s) && s.ValueKind == JsonValueKind.Number ? s.GetInt32() : null,
             side.TryGetProperty("isWinner", out var win) && win.ValueKind == JsonValueKind.True,
             record,
-            $"https://www.mlbstatic.com/team-logos/{id}.svg");
+            $"/api/media/mlb/logo/{id}");   // relayé par le portail (voir MlbMediaEndpoints)
     }
 
     private static string? Str(JsonElement e, string name) =>
