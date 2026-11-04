@@ -15,6 +15,7 @@ export const keys = {
   myRequests: ['requests', 'mine'] as const,
   tickets: ['tickets'] as const,
   mlb: ['mlb', 'results'] as const,
+  mlbHighlights: ['mlb', 'highlights'] as const,
   ticket: (id: string) => ['ticket', id] as const,
 }
 
@@ -139,5 +140,14 @@ export function useMlbResults() {
     queryFn: () => call(api.GET('/api/mlb/results', { params: { query: { days: 7 } } })),
     staleTime: 60_000,
     refetchInterval: 120_000,
+  })
+}
+
+/** Onglet « Domingo » : derniers faits saillants vidéo de la MLB. */
+export function useMlbHighlights() {
+  return useQuery({
+    queryKey: keys.mlbHighlights,
+    queryFn: () => call(api.GET('/api/mlb/highlights', { params: { query: { limit: 16 } } })),
+    staleTime: 5 * 60_000,
   })
 }

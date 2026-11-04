@@ -1144,6 +1144,55 @@
         }
       }
     },
+    "/api/mlb/highlights": {
+      "get": {
+        "tags": [
+          "Mlb"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 16
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MlbHighlightDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MlbHighlightDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MlbHighlightDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/notifications": {
       "get": {
         "tags": [
@@ -2975,6 +3024,55 @@
           },
           "home": {
             "$ref": "#/components/schemas/MlbTeamDto"
+          }
+        }
+      },
+      "MlbHighlightDto": {
+        "required": [
+          "id",
+          "title",
+          "description",
+          "durationSeconds",
+          "date",
+          "videoUrl",
+          "posterUrl",
+          "matchup",
+          "gameId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "videoUrl": {
+            "type": "string"
+          },
+          "posterUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "matchup": {
+            "type": "string"
+          },
+          "gameId": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

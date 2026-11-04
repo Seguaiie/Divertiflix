@@ -24,9 +24,24 @@ internal sealed class FakeMlb : HttpMessageHandler
         + "\"venue\":{\"name\":\"Tropicana Field\"},\"linescore\":{\"currentInning\":7,\"inningHalf\":\"Top\"},"
         + "\"teams\":{\"away\":" + Team(158, "Milwaukee Brewers", "MIL", away, away > home) + ",\"home\":" + Team(139, "Tampa Bay Rays", "TB", home, home > away) + "}}";
 
+    private static string Clip(string id, string headline, string videoHost) =>
+        "{\"id\":\"" + id + "\",\"headline\":\"" + headline + "\",\"blurb\":\"Résumé\",\"duration\":\"00:07:28\",\"date\":\"2026-10-29T05:08:26Z\","
+        + "\"image\":{\"cuts\":[{\"src\":\"https://img.mlbstatic.com/mlb-images/" + id + ".jpg\"}]},"
+        + "\"playbacks\":[{\"name\":\"hlsCloud\",\"url\":\"https://" + videoHost + "/" + id + ".m3u8\"},{\"name\":\"mp4Avc\",\"url\":\"https://" + videoHost + "/" + id + "_1280x720.mp4\"}]}";
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         Interlocked.Increment(ref Calls);
+        var path = request.RequestUri!.AbsolutePath;
+        if (path.EndsWith("/content", StringComparison.Ordinal))
+        {
+            var pk = path.Split('/')[^2];
+            // 6 clips par match, dont un hébergé ailleurs que chez la MLB (écarté).
+            var clips = new[] { Clip($"g{pk}-a", $"Résumé {pk}", "mlb-cuts-diamond.mlb.com"), Clip($"g{pk}-x", "Ailleurs", "evil.example.com") }
+                .Concat(Enumerable.Range(1, 5).Select(i => Clip($"g{pk}-{i}", $"Clip {i}", "mlb-cuts-diamond.mlb.com")));
+            var content = "{\"highlights\":{\"highlights\":{\"items\":[" + string.Join(",", clips) + "]}}}";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(content, Encoding.UTF8, "application/json") });
+        }
         var body = $$"""
             {"dates":[
               {"date":"2026-10-26","games":[{{Game(1, "Final", "Final", "W", 10, 1, "World Series", 2)}}]},
@@ -87,5 +102,26 @@ public class MlbTests(MlbFactory f) : IClassFixture<MlbFactory>
     public async Task Results_require_a_signed_in_user()
     {
         Assert.Equal(HttpStatusCode.Unauthorized, (await f.CreateClient().GetAsync("/api/mlb/results")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Highlights_take_the_first_mlb_hosted_clips_of_each_recent_game_newest_game_first()
+    {
+        var (user, _) = await f.RegisterAsync();
+        var clips = (await user.GetAsync<List<MlbHighlightDto>>("/api/mlb/highlights?limit=16"))!;
+
+        // 3 matchs avec résultats (le 28, le 27, le 26) × 4 premiers clips chacun.
+        Assert.Equal(12, clips.Count);
+        Assert.Equal(new long[] { 3, 2, 1 }, clips.Select(c => c.GameId).Distinct());
+        Assert.Equal("Résumé 3", clips[0].Title);
+        Assert.Equal(448, clips[0].DurationSeconds);
+        Assert.Equal("MIL @ TB", clips[0].Matchup);
+        Assert.Equal("https://img.mlbstatic.com/mlb-images/g3-a.jpg", clips[0].PosterUrl);
+        Assert.All(clips, c => Assert.StartsWith("https://mlb-cuts-diamond.mlb.com/", c.VideoUrl));
+        Assert.All(clips, c => Assert.EndsWith(".mp4", c.VideoUrl));   // MP4, lu directement par le navigateur
+        Assert.DoesNotContain(clips, c => c.Title == "Ailleurs");
+
+        var few = (await user.GetAsync<List<MlbHighlightDto>>("/api/mlb/highlights?limit=5"))!;
+        Assert.Equal(5, few.Count);
     }
 }

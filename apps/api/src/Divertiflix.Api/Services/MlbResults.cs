@@ -39,6 +39,72 @@ public sealed class MlbResults(HttpClient http, IMemoryCache cache, ILogger<MlbR
         return result;
     }
 
+    /// <summary>Hôtes autorisés pour les vidéos et vignettes : celles de la MLB seulement (la politique de sécurité du site n'ouvre que ces domaines).</summary>
+    public const string VideoHost = "mlb-cuts-diamond.mlb.com";
+    private const string ImageHost = "img.mlbstatic.com";
+
+    /// <summary>
+    /// Derniers faits saillants vidéo : quelques clips par match (les mis en avant par la MLB : résumé, match condensé…), du match le plus
+    /// récent au plus ancien. Vidéos MP4 lues directement par le navigateur depuis la MLB.
+    /// </summary>
+    public async Task<List<MlbHighlightDto>> HighlightsAsync(int limit, CancellationToken ct)
+    {
+        limit = Math.Clamp(limit, 1, 30);
+        var key = $"mlb:highlights:{limit}";
+        if (cache.TryGetValue(key, out List<MlbHighlightDto>? hit) && hit is not null) return hit;
+
+        var latest = await LatestAsync(3, ct);
+        var games = latest.Days.SelectMany(d => d.Games).Take(6).ToList();
+        // Contenus des matchs en parallèle ; un match sans vidéo (ou une erreur ponctuelle) n'empêche pas les autres.
+        var perGame = await Task.WhenAll(games.Select(async g =>
+        {
+            try { return await GameHighlightsAsync(g, ct); }
+            catch (Exception ex) when (ex is HttpRequestException or JsonException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
+            { log.LogDebug(ex, "Faits saillants du match {Game} indisponibles.", g.Id); return []; }
+        }));
+        var result = perGame.SelectMany(x => x).Take(limit).ToList();
+        cache.Set(key, result, TimeSpan.FromMinutes(10));
+        return result;
+    }
+
+    private async Task<List<MlbHighlightDto>> GameHighlightsAsync(MlbGameDto game, CancellationToken ct)
+    {
+        using var res = await http.GetAsync($"{BaseUrl}/api/v1/game/{game.Id}/content", ct);
+        res.EnsureSuccessStatusCode();
+        using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var list = new List<MlbHighlightDto>();
+        if (!doc.RootElement.TryGetProperty("highlights", out var h) || !h.TryGetProperty("highlights", out var hh) || !hh.TryGetProperty("items", out var items)) return list;
+        var matchup = $"{game.Away.Abbreviation} @ {game.Home.Abbreviation}";
+        foreach (var it in items.EnumerateArray())
+        {
+            var video = it.TryGetProperty("playbacks", out var pbs) && pbs.ValueKind == JsonValueKind.Array
+                ? pbs.EnumerateArray().Where(p => Str(p, "name") == "mp4Avc").Select(p => Str(p, "url")).FirstOrDefault(u => OnHost(u, VideoHost))
+                : null;
+            if (video is null) continue;
+            string? poster = null;
+            if (it.TryGetProperty("image", out var img) && img.TryGetProperty("cuts", out var cuts) && cuts.ValueKind == JsonValueKind.Array)
+                poster = cuts.EnumerateArray().Select(c => Str(c, "src")).FirstOrDefault(u => OnHost(u, ImageHost));
+            list.Add(new MlbHighlightDto(
+                Str(it, "id") ?? video,
+                Str(it, "headline") ?? Str(it, "title") ?? matchup,
+                Str(it, "blurb") ?? Str(it, "description"),
+                Seconds(Str(it, "duration")),
+                DateTime.TryParse(Str(it, "date"), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var at) ? at : null,
+                video,
+                poster,
+                matchup,
+                game.Id));
+            if (list.Count >= 4) break;   // les premiers clips sont ceux que la MLB met en avant
+        }
+        return list;
+    }
+
+    private static bool OnHost(string? url, string host) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps && u.Host.Equals(host, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>« 00:07:28 » → 448.</summary>
+    private static int Seconds(string? hms) => TimeSpan.TryParse(hms, CultureInfo.InvariantCulture, out var t) ? (int)t.TotalSeconds : 0;
+
     private async Task<List<MlbDayDto>> ScheduleAsync(DateOnly from, DateOnly to, CancellationToken ct)
     {
         var url = $"{BaseUrl}/api/v1/schedule?sportId=1&startDate={from:yyyy-MM-dd}&endDate={to:yyyy-MM-dd}&hydrate=linescore,team";

@@ -1,6 +1,7 @@
 import { useI18n } from '../i18n'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useMlbResults } from '../state/queries'
+import { MlbHighlights } from '../components/MlbHighlights'
 import type { MlbGame, MlbTeam } from '../lib/api'
 import './DomingoPage.css'
 
@@ -23,6 +24,8 @@ export function DomingoPage() {
         <h1 className="display">{t('nav.domingo')}</h1>
         <p>{t('mlb.lead')}</p>
       </header>
+
+      <MlbHighlights />
 
       {results.isPending && <div className="mlb-days" aria-busy="true">{[0, 1].map(i => <div key={i} className="mlb-skeleton" />)}</div>}
 

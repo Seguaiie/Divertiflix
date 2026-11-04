@@ -18,4 +18,13 @@ public class MlbController(MlbResults mlb) : ControllerBase
         catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
         { return this.Err(502, "Les résultats de la MLB sont momentanément indisponibles."); }
     }
+
+    /// <summary>Derniers faits saillants vidéo, du match le plus récent au plus ancien.</summary>
+    [HttpGet("highlights")]
+    public async Task<ActionResult<List<MlbHighlightDto>>> Highlights([FromQuery] int limit = 16, CancellationToken ct = default)
+    {
+        try { return await mlb.HighlightsAsync(limit, ct); }
+        catch (Exception ex) when (ex is HttpRequestException or System.Text.Json.JsonException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
+        { return this.Err(502, "Les faits saillants de la MLB sont momentanément indisponibles."); }
+    }
 }

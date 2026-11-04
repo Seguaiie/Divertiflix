@@ -150,3 +150,5 @@ public record MlbTeamDto(int Id, string Name, string Abbreviation, int? Score, b
 public record MlbGameDto(long Id, string Status, string DetailedState, string GameType, string? SeriesDescription, int? SeriesGameNumber, DateTime? StartTime, string? Venue, int? Inning, string? InningHalf, MlbTeamDto Away, MlbTeamDto Home);
 public record MlbDayDto(string Date, List<MlbGameDto> Games);
 public record MlbResultsDto(List<MlbDayDto> Days, DateTime UpdatedAt);
+/// <summary>Fait saillant vidéo : MP4 hébergé par la MLB (mlb-cuts-diamond.mlb.com), vignette sur img.mlbstatic.com.</summary>
+public record MlbHighlightDto(string Id, string Title, string? Description, int DurationSeconds, DateTime? Date, string VideoUrl, string? PosterUrl, string Matchup, long GameId);

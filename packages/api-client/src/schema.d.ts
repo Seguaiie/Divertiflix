@@ -1006,6 +1006,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mlb/highlights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MlbHighlightDto"][];
+                        "application/json": components["schemas"]["MlbHighlightDto"][];
+                        "text/json": components["schemas"]["MlbHighlightDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -2157,6 +2196,20 @@ export interface components {
             inningHalf: string | null;
             away: components["schemas"]["MlbTeamDto"];
             home: components["schemas"]["MlbTeamDto"];
+        };
+        MlbHighlightDto: {
+            id: string;
+            title: string;
+            description: string | null;
+            /** Format: int32 */
+            durationSeconds: number;
+            /** Format: date-time */
+            date: string | null;
+            videoUrl: string;
+            posterUrl: string | null;
+            matchup: string;
+            /** Format: int64 */
+            gameId: number;
         };
         MlbResultsDto: {
             days: components["schemas"]["MlbDayDto"][];
