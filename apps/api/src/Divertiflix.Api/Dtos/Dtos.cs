@@ -154,3 +154,10 @@ public record MlbDayDto(string Date, List<MlbGameDto> Games);
 public record MlbResultsDto(List<MlbDayDto> Days, DateTime UpdatedAt);
 /// <summary>Fait saillant vidéo : MP4 hébergé par la MLB (mlb-cuts-diamond.mlb.com), vignette sur img.mlbstatic.com.</summary>
 public record MlbHighlightDto(string Id, string Title, string? Description, int DurationSeconds, DateTime? Date, string VideoUrl, string? PosterUrl, string Matchup, long GameId);
+
+// ------------------------------------------------------------------ Nouvelles de l'IA (onglet « Nicholas »)
+/// <summary>Article : texte seul (jamais de HTML), lien vers le site d'origine, image relayée par le portail. Feed : le fil d'où il vient ; Source : le média.</summary>
+public record NewsItemDto(string Id, string Title, string? Summary, string Url, string Source, string Feed, string Language, DateTime PublishedAt, string? ImageUrl);
+public record NewsSourceDto(string Name, string Language, int Count, bool Ok);
+/// <summary>WindowHours : 24 d'habitude, 72 un jour creux (trop peu d'articles dans les dernières 24 h).</summary>
+public record AiNewsDto(List<NewsItemDto> Items, List<NewsSourceDto> Sources, int WindowHours, DateTime UpdatedAt);

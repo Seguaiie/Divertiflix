@@ -218,6 +218,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/news/image/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/stats": {
         parameters: {
             query?: never;
@@ -1139,6 +1174,43 @@ export interface paths {
                         "text/plain": components["schemas"]["MlbHighlightDto"][];
                         "application/json": components["schemas"]["MlbHighlightDto"][];
                         "text/json": components["schemas"]["MlbHighlightDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/news/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AiNewsDto"];
+                        "application/json": components["schemas"]["AiNewsDto"];
+                        "text/json": components["schemas"]["AiNewsDto"];
                     };
                 };
             };
@@ -2166,6 +2238,14 @@ export interface components {
             role: components["schemas"]["NullableOfRole"];
             isActive: boolean | null;
         };
+        AiNewsDto: {
+            items: components["schemas"]["NewsItemDto"][];
+            sources: components["schemas"]["NewsSourceDto"][];
+            /** Format: int32 */
+            windowHours: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         AudiobookItemDto: {
             externalId: string;
             name: string;
@@ -2352,6 +2432,25 @@ export interface components {
              * @default null
              */
             errors: number | null;
+        };
+        NewsItemDto: {
+            id: string;
+            title: string;
+            summary: string | null;
+            url: string;
+            source: string;
+            feed: string;
+            language: string;
+            /** Format: date-time */
+            publishedAt: string;
+            imageUrl: string | null;
+        };
+        NewsSourceDto: {
+            name: string;
+            language: string;
+            /** Format: int32 */
+            count: number;
+            ok: boolean;
         };
         NotificationDto: {
             /** Format: uuid */

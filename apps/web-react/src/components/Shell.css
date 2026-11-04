@@ -90,10 +90,12 @@
   @media (max-width: 960px) {
     .nav-links, .nav-assistant { display: none; }
     .tabbar {
-      display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; inset: auto 0 0 0; z-index: var(--z-nav); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+      display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); position: fixed; inset: auto 0 0 0; z-index: var(--z-nav); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
       background: var(--glass-strong); backdrop-filter: blur(22px) saturate(1.5); border-top: 1px solid var(--line);
     }
-    .tabbar a, .tabbar button { display: grid; justify-items: center; gap: 3px; padding: 6px 2px; font-size: 0.625rem; font-weight: 500; color: var(--text-3); border-radius: var(--radius-sm); }
+    .tabbar a, .tabbar button { display: grid; justify-items: center; gap: 3px; min-width: 0; padding: 6px 2px; font-size: 0.625rem; font-weight: 500; color: var(--text-3); border-radius: var(--radius-sm); }
+    /* Autant de colonnes que d'onglets : un libellé trop long pour un petit téléphone est raccourci plutôt que de déborder. */
+    .tabbar span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tabbar svg { width: 21px; height: 21px; }
     .tabbar a[aria-current='page'], .tabbar button[aria-pressed='true'] { color: var(--accent-hi); }
     html { scroll-padding-bottom: calc(var(--dock-h) + 64px + 96px); }

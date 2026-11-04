@@ -16,6 +16,7 @@ export const keys = {
   tickets: ['tickets'] as const,
   mlb: ['mlb', 'results'] as const,
   mlbHighlights: ['mlb', 'highlights'] as const,
+  aiNews: ['news', 'ai'] as const,
   ticket: (id: string) => ['ticket', id] as const,
 }
 
@@ -149,5 +150,15 @@ export function useMlbHighlights() {
     queryKey: keys.mlbHighlights,
     queryFn: () => call(api.GET('/api/mlb/highlights', { params: { query: { limit: 16 } } })),
     staleTime: 5 * 60_000,
+  })
+}
+
+/** Onglet « Nicholas » : nouvelles du jour sur l'IA (rassemblées et mises en cache 15 min par l'API). Relues toutes les 10 min. */
+export function useAiNews() {
+  return useQuery({
+    queryKey: keys.aiNews,
+    queryFn: () => call(api.GET('/api/news/ai')),
+    staleTime: 5 * 60_000,
+    refetchInterval: 10 * 60_000,
   })
 }

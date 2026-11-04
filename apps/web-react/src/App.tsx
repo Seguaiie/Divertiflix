@@ -15,6 +15,7 @@ import { BrowsePage } from './pages/BrowsePage'
 import { HomePage } from './pages/HomePage'
 import { ListenPage } from './pages/ListenPage'
 import { DomingoPage } from './pages/DomingoPage'
+import { NicholasPage } from './pages/NicholasPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyListPage } from './pages/MyListPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -113,6 +114,7 @@ export function AppRoutes() {
           <Route path="/livres-audio" element={<BrowsePage kind="Audiobook" />} />
           <Route path="/ma-liste" element={<MyListPage />} />
           <Route path="/domingo" element={<DomingoPage />} />
+          <Route path="/nicholas" element={<NicholasPage />} />
           <Route path="/ecouter/:id" element={<ListenPage />} />
           <Route path="/titres/:id" element={<><HomePage /><TitleRoute /></>} />
           <Route path="*" element={<NotFoundPage />} />

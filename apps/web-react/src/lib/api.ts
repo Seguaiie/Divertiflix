@@ -11,6 +11,7 @@ export type MlbGame = Schemas['MlbGameDto']
 export type MlbTeam = Schemas['MlbTeamDto']
 export type MlbHighlight = Schemas['MlbHighlightDto']
 export type MlbInning = Schemas['MlbInningDto']
+export type NewsItem = Schemas['NewsItemDto']
 
 const KEY = 'divertiflix.session'
 export const LOGOUT_EVENT = 'divertiflix:logout'

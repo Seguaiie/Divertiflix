@@ -1,4 +1,4 @@
-import { BookOpen, Clapperboard, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, Trophy, UserRound } from 'lucide-react'
+import { BookOpen, BrainCircuit, Clapperboard, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, Trophy, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
@@ -53,6 +53,7 @@ export function Nav() {
     { to: '/livres-audio', label: t('nav.audiobooks'), icon: BookOpen },
     { to: '/ma-liste', label: t('nav.myList'), icon: ListVideo },
     { to: '/domingo', label: t('nav.domingo'), icon: Trophy },
+    { to: '/nicholas', label: t('nav.nicholas'), icon: BrainCircuit },
   ]
 
   return (

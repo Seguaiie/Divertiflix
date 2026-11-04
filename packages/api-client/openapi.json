@@ -177,6 +177,29 @@
         }
       }
     },
+    "/api/media/news/image/{id}": {
+      "get": {
+        "tags": [
+          "Divertiflix.Api"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{24}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/admin/stats": {
       "get": {
         "tags": [
@@ -1263,6 +1286,35 @@
                   "items": {
                     "$ref": "#/components/schemas/MlbHighlightDto"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/news/ai": {
+      "get": {
+        "tags": [
+          "News"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNewsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNewsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiNewsDto"
                 }
               }
             }
@@ -2599,6 +2651,37 @@
           }
         }
       },
+      "AiNewsDto": {
+        "required": [
+          "items",
+          "sources",
+          "windowHours",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewsItemDto"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewsSourceDto"
+            }
+          },
+          "windowHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AudiobookItemDto": {
         "required": [
           "externalId",
@@ -3252,6 +3335,76 @@
             "format": "int32",
             "default": null,
             "nullable": true
+          }
+        }
+      },
+      "NewsItemDto": {
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "url",
+          "source",
+          "feed",
+          "language",
+          "publishedAt",
+          "imageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "feed": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "NewsSourceDto": {
+        "required": [
+          "name",
+          "language",
+          "count",
+          "ok"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ok": {
+            "type": "boolean"
           }
         }
       },
@@ -4358,6 +4511,9 @@
     },
     {
       "name": "Mlb"
+    },
+    {
+      "name": "News"
     },
     {
       "name": "Notifications"
