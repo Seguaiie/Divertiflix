@@ -84,6 +84,7 @@ start-all.sh, stop-all.sh   lancent et arrêtent tout le développement ; docker
 
 - [Architecture](docs/architecture.md) : composants, flux, décisions.
 - [Sécurité](docs/securite.md) : ce qui est protégé, comment, et ce qui reste à faire.
+- [Ports et flux réseau](docs/ports.md) : ce qui écoute sur le serveur, le pare-feu, et les services extérieurs appelés.
 - [Recommandation](docs/recommandation.md) : le moteur, l'assistant, et son [évaluation sur MovieLens](docs/evaluation-movielens.md).
 - [Démonstration](docs/demo.md) : déroulé de 7 minutes.
 - [Démo hébergée](docs/demo-hebergee.md) : portail et back-office jouables dans le navigateur, sans serveur.

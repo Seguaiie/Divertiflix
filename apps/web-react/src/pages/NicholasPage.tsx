@@ -2,7 +2,8 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { ArrowUpRight, BrainCircuit } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { useAiNews } from '../state/queries'
+import { useAiBenchmarks, useAiNews } from '../state/queries'
+import { AiLeaderboard } from '../components/AiLeaderboard'
 import type { NewsItem } from '../lib/api'
 import './NicholasPage.css'
 
@@ -22,6 +23,7 @@ const isWeb = (url: string) => /^https?:\/\//i.test(url)
 export function NicholasPage() {
   const { t, plural, locale } = useI18n()
   const news = useAiNews()
+  const bench = useAiBenchmarks()
   useDocumentTitle(t('nav.nicholas'))
   const [lang, setLang] = useState<Lang>('all')
   const [source, setSource] = useState<string>('')
@@ -45,6 +47,29 @@ export function NicholasPage() {
         <p className="eyebrow">{t('ai.eyebrow')}</p>
         <h1 className="display">{t('nav.nicholas')}</h1>
         <p><strong>{t('ai.tagline')}</strong> {t('ai.lead', { n: news.data?.sources.length ?? 8 })}</p>
+        <span className="ai-sparks" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</span>
+
+        {/* Chiffres du jour : articles, sources, et le modèle en tête du classement. */}
+        {news.data && (
+          <dl className="ai-stats">
+            <div><dt>{t('ai.statsArticles')}</dt><dd className="tnum">{items.length}</dd></div>
+            <div><dt>{t('ai.statsSources')}</dt><dd className="tnum">{news.data.sources.filter(s => s.ok).length}</dd></div>
+            {bench.data?.leaderboard[0] && <div className="is-leader"><dt>{t('ai.statsLeader')}</dt><dd>{bench.data.leaderboard[0].name}</dd></div>}
+          </dl>
+        )}
+
+        {/* Bandeau défilant des derniers titres (doublé pour une boucle sans à-coup ; arrêté au survol et si les animations sont réduites). */}
+        {items.length > 0 && (
+          <div className="ai-ticker" aria-hidden>
+            <div className="ai-ticker-track">
+              {[0, 1].map(copy => (
+                <span key={copy} className="ai-ticker-run">
+                  {items.slice(0, 12).map(i => <span key={i.id}><b>{i.source}</b> {i.title}</span>)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {news.isPending && <div className="ai-grid" aria-busy="true">{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="ai-skeleton" />)}</div>}
@@ -88,6 +113,8 @@ export function NicholasPage() {
               <Story item={top} big now={news.data.updatedAt} />
             </section>
           )}
+
+          <AiLeaderboard />
 
           {rest.length > 0 && (
             <section aria-labelledby="ai-latest-title">

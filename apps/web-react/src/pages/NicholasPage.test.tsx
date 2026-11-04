@@ -59,15 +59,17 @@ describe('onglet Nicholas (nouvelles de l\'IA)', () => {
     open()
     await screen.findByRole('region', { name: 'À la une' })
 
+    // Le bandeau défilant montre toujours tous les titres : on vérifie l'article à la une et le fil, qui suivent les filtres.
+    const listed = () => [screen.getByRole('region', { name: 'À la une' }), screen.queryByRole('region', { name: 'Fil des nouvelles' })]
+      .flatMap(r => (r ? within(r).getAllByRole('link') : [])).map(l => l.querySelector('.ai-title')?.textContent)
+
     await userEvent.click(screen.getByRole('button', { name: /Français/ }))
     expect(screen.getByRole('button', { name: /Français/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByText('OpenAI ships a new model')).toBeNull()
-    expect(screen.getByText("L'IA au Québec")).toBeInTheDocument()   // à la une à défaut d'image : le plus récent
+    expect(listed()).toEqual(["L'IA au Québec", 'Une IA française'])   // à la une à défaut d'image : le plus récent
     expect(screen.getByText('2 articles', { exact: false })).toBeInTheDocument()
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Source' }), 'Journal du Geek')
-    expect(screen.queryByText("L'IA au Québec")).toBeNull()
-    expect(screen.getByText('Une IA française')).toBeInTheDocument()
+    expect(listed()).toEqual(['Une IA française'])
   })
 
   it('explique quand aucune source ne répond', async () => {

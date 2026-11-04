@@ -55,6 +55,7 @@ builder.Services.AddScoped<Audit>();
 builder.Services.AddScoped<AudiobookshelfCatalog>();
 builder.Services.AddScoped<AudiobookshelfAccounts>();
 // Onglet « Domingo » : résultats MLB (API publique, sans clé), relayés et mis en cache quelques minutes.
+builder.Services.AddHttpClient<AiBenchmarks>(c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
 builder.Services.AddHttpClient<AiNews>(c => { c.Timeout = TimeSpan.FromSeconds(12); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
 builder.Services.AddHttpClient<MlbResults>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd("Divertiflix/1.0"); });
 

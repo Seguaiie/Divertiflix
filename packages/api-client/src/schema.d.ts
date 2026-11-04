@@ -1223,6 +1223,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/news/ai/benchmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["AiBenchmarksDto"];
+                        "application/json": components["schemas"]["AiBenchmarksDto"];
+                        "text/json": components["schemas"]["AiBenchmarksDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -2238,6 +2275,16 @@ export interface components {
             role: components["schemas"]["NullableOfRole"];
             isActive: boolean | null;
         };
+        AiBenchmarksDto: {
+            leaderboard: components["schemas"]["BenchModelDto"][];
+            latest: components["schemas"]["BenchLatestDto"][];
+            benchmarks: components["schemas"]["BenchmarkDto"][];
+            source: string;
+            sourceUrl: string;
+            license: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         AiNewsDto: {
             items: components["schemas"]["NewsItemDto"][];
             sources: components["schemas"]["NewsSourceDto"][];
@@ -2271,6 +2318,38 @@ export interface components {
             accessToken: string;
             refreshToken: string;
             user: components["schemas"]["UserDto"];
+        };
+        BenchEntryDto: {
+            name: string;
+            effort: string | null;
+            organization: string;
+            date: string | null;
+            /** Format: double */
+            score: number;
+        };
+        BenchLatestDto: {
+            name: string;
+            organization: string;
+            date: string | null;
+            /** Format: double */
+            score: number;
+        };
+        BenchmarkDto: {
+            id: string;
+            name: string;
+            top: components["schemas"]["BenchEntryDto"][];
+        };
+        BenchModelDto: {
+            name: string;
+            effort: string | null;
+            organization: string;
+            date: string | null;
+            /** Format: double */
+            score: number;
+            /** Format: double */
+            low: number | null;
+            /** Format: double */
+            high: number | null;
         };
         CardDto: {
             title: components["schemas"]["TitleDto"];

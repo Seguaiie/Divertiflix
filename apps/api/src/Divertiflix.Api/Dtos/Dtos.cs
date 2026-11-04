@@ -161,3 +161,12 @@ public record NewsItemDto(string Id, string Title, string? Summary, string Url, 
 public record NewsSourceDto(string Name, string Language, int Count, bool Ok);
 /// <summary>WindowHours : 24 d'habitude, 72 un jour creux (trop peu d'articles dans les dernières 24 h).</summary>
 public record AiNewsDto(List<NewsItemDto> Items, List<NewsSourceDto> Sources, int WindowHours, DateTime UpdatedAt);
+/// <summary>Modèle classé. Score : ECI pour le classement général, pourcentage (0-100) pour un banc d'essai. Effort : niveau de raisonnement évalué (max, high…).</summary>
+public record BenchModelDto(string Name, string? Effort, string Organization, string? Date, double Score, double? Low, double? High);
+/// <summary>Entrée d'un banc d'essai (score en %). Types distincts par liste : le générateur OpenAPI de .NET 9 décrit sinon un type répété comme vide.</summary>
+public record BenchEntryDto(string Name, string? Effort, string Organization, string? Date, double Score);
+/// <summary>Dernier modèle évalué (indice ECI).</summary>
+public record BenchLatestDto(string Name, string Organization, string? Date, double Score);
+public record BenchmarkDto(string Id, string Name, List<BenchEntryDto> Top);
+/// <summary>Données d'Epoch AI, sous licence CC BY 4.0 : la source et la licence sont affichées avec le classement.</summary>
+public record AiBenchmarksDto(List<BenchModelDto> Leaderboard, List<BenchLatestDto> Latest, List<BenchmarkDto> Benchmarks, string Source, string SourceUrl, string License, DateTime UpdatedAt);

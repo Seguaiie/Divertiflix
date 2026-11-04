@@ -1,0 +1,101 @@
+@layer components {
+  .ai-lb {
+    position: relative; overflow: hidden; display: grid; gap: clamp(18px, 3vw, 28px);
+    margin: clamp(28px, 4vw, 44px) 0; padding: clamp(18px, 3vw, 32px);
+    border-radius: var(--radius-sm);
+    background:
+      radial-gradient(600px 260px at 0% 0%, rgb(255 200 80 / 0.12), transparent 70%),
+      radial-gradient(700px 300px at 100% 100%, rgb(138 77 255 / 0.18), transparent 70%),
+      var(--glass-strong);
+    box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px -50px rgb(138 77 255 / 0.9);
+  }
+  .ai-lb::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, rgb(255 210 90), rgb(183 148 255), rgb(121 232 255)); }
+  .ai-lb-loading { min-height: 420px; }
+  .ai-lb-note { margin: 28px 0; color: var(--text-3); }
+
+  .ai-lb-head { display: grid; gap: 6px; }
+  .ai-lb-title { display: flex; align-items: center; gap: 10px; margin: 0; font-family: var(--font-display); font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 700; }
+  .ai-lb-title svg { width: 1.1em; height: 1.1em; color: rgb(255 210 90); filter: drop-shadow(0 0 12px rgb(255 200 80 / 0.7)); }
+  .ai-lb-head p { margin: 0; color: var(--text-2); max-width: 70ch; }
+  .ai-lb-sub { margin: 0 0 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-2); }
+
+  .ai-lb-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: clamp(18px, 3vw, 32px); align-items: start; }
+
+  /* ------------------------------------------------------------ Podium : or, argent, bronze ; le 1er au centre et plus haut */
+  .ai-podium { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
+  .ai-podium-step {
+    --metal: rgb(205 127 50);
+    position: relative; display: grid; justify-items: center; gap: 4px; text-align: center;
+    padding: 16px 10px 14px; border-radius: 10px 10px 4px 4px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--metal) 26%, transparent), color-mix(in srgb, var(--org) 10%, transparent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--metal) 55%, transparent), 0 14px 40px -20px var(--metal);
+  }
+  .ai-podium-step.p1 { --metal: rgb(255 205 70); order: 2; padding-top: 26px; padding-bottom: 26px; }
+  .ai-podium-step.p2 { --metal: rgb(200 210 230); order: 1; padding-top: 18px; }
+  .ai-podium-step.p3 { order: 3; }
+  .ai-medal { font-size: 1.9rem; line-height: 1; filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--metal) 80%, transparent)); }
+  .ai-podium-step.p1 .ai-medal { font-size: 2.5rem; animation: ai-shine 3s ease-in-out infinite; }
+  @keyframes ai-shine { 50% { filter: drop-shadow(0 0 20px rgb(255 205 70)); scale: 1.08; } }
+  .ai-podium-rank { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--metal); }
+  .ai-podium-name { font-family: var(--font-display); font-weight: 700; font-size: clamp(0.9rem, 1.6vw, 1.1rem); line-height: 1.2; }
+  .ai-podium-score { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.3rem, 2.6vw, 1.9rem); color: var(--metal); text-shadow: 0 0 24px color-mix(in srgb, var(--metal) 60%, transparent); }
+
+  .ai-org { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-3); }
+  .ai-org i { width: 8px; height: 8px; border-radius: 50%; background: var(--org); box-shadow: 0 0 8px var(--org); }
+
+  /* ------------------------------------------------------------ Barres (classement 4 à 10, bancs d'essai) */
+  .ai-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .ai-bar { display: grid; grid-template-columns: 2ch minmax(120px, 0.9fr) minmax(0, 1.4fr) 4.6ch; align-items: center; gap: 10px; }
+  .ai-bars.is-pct .ai-bar { grid-template-columns: 2ch minmax(120px, 0.9fr) minmax(0, 1.4fr) 6.4ch; }
+  .ai-bar-rank { font-size: 0.75rem; font-weight: 700; color: var(--text-3); text-align: right; }
+  .ai-bar-label { display: grid; min-width: 0; }
+  .ai-bar-name { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ai-bar-name em { margin-left: 6px; padding: 0 5px; border-radius: 4px; font-style: normal; font-size: 0.62rem; font-weight: 700; color: var(--text-2); background: rgb(var(--tint) / 0.1); vertical-align: 1px; }
+  .ai-bar-track { height: 10px; border-radius: 999px; background: rgb(var(--tint) / 0.07); overflow: hidden; }
+  .ai-bar-fill {
+    display: block; height: 100%; width: var(--w); border-radius: inherit; transform-origin: left;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--org) 55%, transparent), var(--org));
+    box-shadow: 0 0 14px color-mix(in srgb, var(--org) 60%, transparent);
+    animation: ai-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .ai-bar:nth-child(2) .ai-bar-fill { animation-delay: 0.05s; } .ai-bar:nth-child(3) .ai-bar-fill { animation-delay: 0.1s; }
+  .ai-bar:nth-child(4) .ai-bar-fill { animation-delay: 0.15s; } .ai-bar:nth-child(5) .ai-bar-fill { animation-delay: 0.2s; }
+  .ai-bar:nth-child(n+6) .ai-bar-fill { animation-delay: 0.25s; }
+  @keyframes ai-grow { from { transform: scaleX(0); } }
+  .ai-bar-value { font-size: 0.86rem; font-weight: 700; text-align: right; }
+  .ai-bars.is-pct .ai-bar:first-child .ai-bar-value { color: rgb(255 210 90); }
+
+  /* ------------------------------------------------------------ Derniers modèles */
+  .ai-lb-latest ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .ai-lb-latest li { display: grid; gap: 2px; padding: 9px 12px; border-radius: 8px; background: rgb(var(--tint) / 0.04); box-shadow: inset 3px 0 0 var(--org); }
+  .ai-latest-name { font-weight: 600; font-size: 0.88rem; }
+  .ai-latest-meta { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-3); }
+  .ai-latest-meta b { color: var(--org); font-weight: 700; }
+
+  /* ------------------------------------------------------------ Onglets des bancs d'essai */
+  .ai-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; scrollbar-width: thin; }
+  .ai-tab { flex: none; display: grid; gap: 2px; padding: 9px 14px; text-align: left; border: 0; border-radius: 10px; font: inherit; cursor: pointer; color: var(--text-2); background: rgb(var(--tint) / 0.05); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .ai-tab b { font-size: 0.84rem; }
+  .ai-tab span { font-size: 0.7rem; color: var(--text-3); }
+  .ai-tab.is-on { color: rgb(255 255 255); background: linear-gradient(135deg, rgb(138 77 255 / 0.85), rgb(0 160 230 / 0.85)); box-shadow: 0 8px 24px -10px rgb(138 77 255); }
+  .ai-tab.is-on span { color: rgb(255 255 255 / 0.85); }
+  .ai-tab:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+
+  .ai-lb-source { margin: 0; font-size: 0.75rem; }
+  .ai-lb-source a { display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
+  .ai-lb-source a:hover { color: var(--text); }
+  .ai-lb-source svg { width: 12px; height: 12px; }
+
+  @media (max-width: 900px) {
+    .ai-lb-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .ai-podium { gap: 6px; }
+    .ai-podium-step { padding-inline: 6px; }
+    .ai-bar, .ai-bars.is-pct .ai-bar { grid-template-columns: 2ch minmax(0, 1fr) 6ch; }
+    .ai-bar-track { grid-column: 2 / -1; grid-row: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ai-bar-fill, .ai-podium-step.p1 .ai-medal { animation: none; }
+  }
+}

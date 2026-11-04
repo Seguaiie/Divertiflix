@@ -17,6 +17,7 @@ export const keys = {
   mlb: ['mlb', 'results'] as const,
   mlbHighlights: ['mlb', 'highlights'] as const,
   aiNews: ['news', 'ai'] as const,
+  aiBenchmarks: ['news', 'ai', 'benchmarks'] as const,
   ticket: (id: string) => ['ticket', id] as const,
 }
 
@@ -160,5 +161,14 @@ export function useAiNews() {
     queryFn: () => call(api.GET('/api/news/ai')),
     staleTime: 5 * 60_000,
     refetchInterval: 10 * 60_000,
+  })
+}
+
+/** Onglet « Nicholas » : classement des modèles d'IA (Epoch AI, relu par l'API toutes les 6 h). */
+export function useAiBenchmarks() {
+  return useQuery({
+    queryKey: keys.aiBenchmarks,
+    queryFn: () => call(api.GET('/api/news/ai/benchmarks')),
+    staleTime: 60 * 60_000,
   })
 }

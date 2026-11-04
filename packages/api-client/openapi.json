@@ -1322,6 +1322,35 @@
         }
       }
     },
+    "/api/news/ai/benchmarks": {
+      "get": {
+        "tags": [
+          "News"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiBenchmarksDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiBenchmarksDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiBenchmarksDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/notifications": {
       "get": {
         "tags": [
@@ -2651,6 +2680,51 @@
           }
         }
       },
+      "AiBenchmarksDto": {
+        "required": [
+          "leaderboard",
+          "latest",
+          "benchmarks",
+          "source",
+          "sourceUrl",
+          "license",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "leaderboard": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenchModelDto"
+            }
+          },
+          "latest": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenchLatestDto"
+            }
+          },
+          "benchmarks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenchmarkDto"
+            }
+          },
+          "source": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AiNewsDto": {
         "required": [
           "items",
@@ -2778,6 +2852,125 @@
           },
           "user": {
             "$ref": "#/components/schemas/UserDto"
+          }
+        }
+      },
+      "BenchEntryDto": {
+        "required": [
+          "name",
+          "effort",
+          "organization",
+          "date",
+          "score"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "effort": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "BenchLatestDto": {
+        "required": [
+          "name",
+          "organization",
+          "date",
+          "score"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "BenchmarkDto": {
+        "required": [
+          "id",
+          "name",
+          "top"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "top": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenchEntryDto"
+            }
+          }
+        }
+      },
+      "BenchModelDto": {
+        "required": [
+          "name",
+          "effort",
+          "organization",
+          "date",
+          "score",
+          "low",
+          "high"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "effort": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "low": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "high": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
           }
         }
       },
