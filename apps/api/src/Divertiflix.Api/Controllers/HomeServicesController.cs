@@ -6,19 +6,11 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Divertiflix.Api.Controllers;
 
-/// <summary>Services auto-hébergés : ceux du portail pour tous, l'infrastructure complète pour les administrateurs.</summary>
-[ApiController, Authorize]
+/// <summary>Services auto-hébergés : page « Services » du back-office, réservée aux administrateurs (rien dans le portail).</summary>
+[ApiController, Authorize(Roles = "Admin")]
 public class HomeServicesController(HomeServicesMonitor monitor) : ControllerBase
 {
-    /// <summary>Onglet « Services » du portail : les applications ouvertes à tous, avec leur état.</summary>
-    [HttpGet("api/services")]
-    public List<ServiceProbeDto> Portal() =>
-        monitor.Snapshot().Where(s => s.Portal)
-            // Le détail technique (émetteur du certificat, code HTTP) reste dans la page d'infrastructure.
-            .Select(s => s with { CertIssuer = null, HttpCode = null })
-            .ToList();
-
-    /// <summary>Page « Infrastructure » du back-office : tous les services, avec le détail.</summary>
+    /// <summary>Page « Services » du back-office : tous les services, avec le détail.</summary>
     [HttpGet("api/admin/services"), Authorize(Roles = "Admin")]
     public List<ServiceProbeDto> All() => monitor.Snapshot().ToList();
 

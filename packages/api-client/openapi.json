@@ -1204,44 +1204,6 @@
         }
       }
     },
-    "/api/services": {
-      "get": {
-        "tags": [
-          "HomeServices"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ServiceProbeDto"
-                  }
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ServiceProbeDto"
-                  }
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ServiceProbeDto"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/admin/services": {
       "get": {
         "tags": [

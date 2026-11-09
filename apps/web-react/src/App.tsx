@@ -16,7 +16,6 @@ import { HomePage } from './pages/HomePage'
 import { ListenPage } from './pages/ListenPage'
 import { DomingoPage } from './pages/DomingoPage'
 import { NicolasPage } from './pages/NicolasPage'
-import { ServicesPage } from './pages/ServicesPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyListPage } from './pages/MyListPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -116,7 +115,6 @@ export function AppRoutes() {
           <Route path="/ma-liste" element={<MyListPage />} />
           <Route path="/domingo" element={<DomingoPage />} />
           <Route path="/nicolas" element={<NicolasPage />} />
-          <Route path="/services" element={<ServicesPage />} />
           {/* Ancienne adresse (le nom s'écrivait par erreur « Nicholas ») : les liens déjà partagés mènent toujours à l'onglet. */}
           <Route path="/nicholas" element={<Navigate to="/nicolas" replace />} />
           <Route path="/ecouter/:id" element={<ListenPage />} />

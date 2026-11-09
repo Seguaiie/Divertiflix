@@ -29,11 +29,11 @@ const TLS: Record<string, { label: string; tone: Tone }> = {
 };
 
 /**
- * Infrastructure : état de chaque service auto-hébergé (*.home.arpa), mesuré par l'API chaque minute. Les certificats de l'autorité
+ * Services : état de chaque service auto-hébergé (*.home.arpa), mesuré par l'API chaque minute. Les certificats de l'autorité
  * interne ne durent que 24 h : leur échéance est montrée en heures, en alerte sous 6 h (Traefik doit les renouveler avant).
  */
 @Component({
-  selector: 'app-infrastructure',
+  selector: 'app-services',
   imports: [MatTableModule, MatProgressBarModule, Icon, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
@@ -53,7 +53,7 @@ const TLS: Record<string, { label: string; tone: Tone }> = {
   template: `
     <div class="page">
       <div class="page-head">
-        <div><p class="eyebrow">Administration</p><h1>Infrastructure</h1>
+        <div><p class="eyebrow">Administration</p><h1>Services</h1>
           <p>Services auto-hébergés de la maison, vérifiés chaque minute par l'API : réponse, délai et certificat.</p></div>
         <div class="head-actions">
           @if (lastCheck(); as at) { <span class="checked">Vérifié à {{ at }}</span> }
@@ -79,7 +79,7 @@ const TLS: Record<string, { label: string; tone: Tone }> = {
               <td mat-cell *matCellDef="let s">
                 @if (s.url) { <a class="name" [href]="s.url" target="_blank" rel="noopener noreferrer">{{ s.name }}<app-icon name="external" /></a> }
                 @else { <span class="name">{{ s.name }}</span> }
-                <span class="cell-sub">{{ s.portal ? 'Visible dans le portail' : 'Administration' }}</span>
+                <span class="cell-sub">{{ s.portal ? 'Application de la maison' : 'Administration' }}</span>
               </td>
             </ng-container>
             <ng-container matColumnDef="state">
@@ -118,7 +118,7 @@ const TLS: Record<string, { label: string; tone: Tone }> = {
     </div>
   `,
 })
-export class Infrastructure {
+export class Services {
   private readonly admin = inject(AdminService);
   private readonly snack = inject(MatSnackBar);
 

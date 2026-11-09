@@ -16,7 +16,7 @@ public sealed class HomeServicesOptions
     public bool Enabled { get; set; } = true;
 }
 
-/// <summary>Un service : clé (= nom d'hôte), nom affiché, public visé. Portal : visible de tous ; sinon réservé à l'infrastructure (Admin).</summary>
+/// <summary>Un service : clé (= nom d'hôte), nom affiché. Portal : application de la maison (Jellyfin, Immich…) ; sinon outil d'administration.</summary>
 public sealed record SelfHostedService(string Key, string Name, bool Portal, bool HasWebUi = true);
 
 /// <summary>

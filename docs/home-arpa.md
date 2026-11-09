@@ -7,8 +7,7 @@ certificats de l'autorité interne Step CA (`divertiflixCA`).
 
 | Fonction | Où | État |
 |---|---|---|
-| Onglet **Services** du portail | `/services` | Actif : tuiles de Jellyfin, Jellyseerr, Immich, Vaultwarden, BookStack, ntfy, Homarr, état mesuré chaque minute |
-| Page **Infrastructure** du back-office | `/admin/infrastructure` (administrateurs) | Actif : les 17 services, délai, code HTTP, certificat et échéance (alerte sous 6 h) |
+| Page **Services** du back-office | `/admin/services` (administrateurs seulement ; rien dans le portail) | Actif : les 17 services, état mesuré chaque minute, délai, code HTTP, certificat et échéance (alerte sous 6 h) |
 | Demandes → **Jellyseerr** | back-office, page Demandes | Prêt : actif dès que `JELLYSEERR_API_KEY` est fourni **et** que l'autorité Step CA est approuvée |
 | Alertes **ntfy** (service tombé / revenu) | téléphone | Prêt : actif dès que `NTFY_TOPIC` est fourni **et** que l'autorité Step CA est approuvée |
 | Divertiflix derrière **Traefik** | `https://divertiflix.home.arpa` | Prêt : fichier `infra/traefik/divertiflix.yml` à déposer sur 192.168.8.240 |
@@ -59,5 +58,5 @@ sudo TRUSTED_PROXY=192.168.8.240 ./install-serveur.sh
 
 Step CA délivre par défaut des certificats valables 24 h. Traefik doit le savoir pour les renouveler à temps : dans la configuration
 statique, sur le résolveur ACME de Step CA, `certificatesDuration: 24`. Sans ce réglage, Traefik les croit valables 90 jours et ne
-les renouvelle pas : tous les services passent en erreur de certificat une journée après leur émission. La page Infrastructure affiche
+les renouvelle pas : tous les services passent en erreur de certificat une journée après leur émission. La page Services du back-office affiche
 l'échéance de chaque certificat et alerte sous 6 heures.

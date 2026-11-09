@@ -15,7 +15,8 @@ export const routes: Routes = [
       { path: 'requests', title: 'Demandes · Divertiflix', loadComponent: () => import('./pages/requests/requests').then(m => m.Requests) },
       { path: 'tickets', title: "Billets d'aide · Divertiflix", loadComponent: () => import('./pages/tickets/tickets').then(m => m.Tickets) },
       { path: 'users', title: 'Utilisateurs · Divertiflix', canActivate: [adminGuard], loadComponent: () => import('./pages/users/users').then(m => m.Users) },
-      { path: 'infrastructure', title: 'Infrastructure · Divertiflix', canActivate: [adminGuard], loadComponent: () => import('./pages/infrastructure/infrastructure').then(m => m.Infrastructure) },
+      { path: 'services', title: 'Services · Divertiflix', canActivate: [adminGuard], loadComponent: () => import('./pages/services/services').then(m => m.Services) },
+      { path: 'infrastructure', pathMatch: 'full', redirectTo: 'services' },   // ancien nom de la page
     ],
   },
   { path: '**', redirectTo: '' },

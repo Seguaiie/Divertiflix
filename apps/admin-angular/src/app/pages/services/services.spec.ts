@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { ServiceProbe } from '../../core/models';
-import { Infrastructure } from './infrastructure';
+import { Services } from './services';
 
 const NOW = new Date('2026-11-09T16:30:00Z');
 const probe = (over: Partial<ServiceProbe>): ServiceProbe => ({
@@ -17,7 +17,7 @@ async function setup(rows: ServiceProbe[]) {
   vi.setSystemTime(NOW);
   localStorage.setItem('divertiflix.admin.session', JSON.stringify({ accessToken: 'AT', refreshToken: 'RT', user: { id: 'u1', email: 'root', role: 'Admin' } }));
   TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
-  const fixture = TestBed.createComponent(Infrastructure);
+  const fixture = TestBed.createComponent(Services);
   const ctl = TestBed.inject(HttpTestingController);
   fixture.detectChanges();
   ctl.expectOne('/api/admin/services').flush(rows);
@@ -27,7 +27,7 @@ async function setup(rows: ServiceProbe[]) {
   return { fixture, ctl, el: fixture.nativeElement as HTMLElement };
 }
 
-describe('Infrastructure', () => {
+describe('Services', () => {
   afterEach(() => { vi.useRealTimers(); localStorage.clear(); });
 
   it('montre l\'état mesuré, la raison d\'une panne et l\'échéance proche des certificats de 24 h', async () => {
@@ -41,6 +41,7 @@ describe('Infrastructure', () => {
 
     const jellyfin = rows[0]!;
     expect(jellyfin.textContent).toContain('En ligne');
+    expect(jellyfin.textContent).toContain('Application de la maison');
     expect(jellyfin.textContent).toContain('285 ms');
     expect(jellyfin.textContent).toContain('Autorité inconnue de ce serveur');
     expect(jellyfin.querySelector('.cell-sub.soon')?.textContent).toBe('expire dans 5 h 07');   // moins de 6 h : en alerte

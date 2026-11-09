@@ -1,4 +1,4 @@
-import { BookOpen, BrainCircuit, Clapperboard, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Server, Sparkles, Trophy, UserRound } from 'lucide-react'
+import { BookOpen, BrainCircuit, Clapperboard, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, Trophy, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
@@ -54,8 +54,6 @@ export function Nav() {
     { to: '/ma-liste', label: t('nav.myList'), icon: ListVideo },
     { to: '/domingo', label: t('nav.domingo'), icon: Trophy },
     { to: '/nicolas', label: t('nav.nicolas'), icon: BrainCircuit },
-    // Pas dans la barre d'onglets mobile (déjà 7 entrées) : sur téléphone, « Services » est dans le menu du profil.
-    { to: '/services', label: t('nav.services'), icon: Server, tabbar: false },
   ]
 
   return (
@@ -87,7 +85,6 @@ export function Nav() {
               <button role="menuitem" onClick={() => { menu.close(); selectProfile(null); navigate('/profils') }}><UserRound aria-hidden />{t('menu.switchProfile')}</button>
               <button role="menuitem" onClick={() => { menu.close(true); openRequest() }}><PlusCircle aria-hidden />{t('menu.request')}</button>
               <button role="menuitem" onClick={() => { menu.close(true); openSupport() }}><LifeBuoy aria-hidden />{t('menu.help')}</button>
-              <button role="menuitem" onClick={() => { menu.close(); navigate('/services') }}><Server aria-hidden />{t('nav.services')}</button>
               <button role="menuitem" onClick={() => setLocale(locale === 'fr' ? 'en' : 'fr')}><Languages aria-hidden />{locale === 'fr' ? 'English' : 'Français'}</button>
               {isStaff && <a role="menuitem" href="/admin/"><Settings2 aria-hidden />{t('menu.backoffice')}</a>}
               <hr />
@@ -99,7 +96,7 @@ export function Nav() {
 
       {/* Mobile : barre d'onglets en bas, à portée du pouce. */}
       <nav className="tabbar" aria-label={t('nav.main')}>
-        {links.filter(l => l.tabbar !== false).map(l => (
+        {links.map(l => (
           <NavLink key={l.to} to={l.to} end={l.end}><l.icon aria-hidden /><span>{l.label}</span></NavLink>
         ))}
         <button onClick={() => setAssistantOpen(!assistantOpen)} aria-pressed={assistantOpen}><Sparkles aria-hidden /><span>{t('nav.assistantShort')}</span></button>

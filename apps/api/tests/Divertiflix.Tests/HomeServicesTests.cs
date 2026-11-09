@@ -60,20 +60,14 @@ public class HomeServicesTests(ServicesFactory f) : IClassFixture<ServicesFactor
     }
 
     [Fact]
-    public async Task The_portal_lists_only_the_shared_apps_without_technical_details_and_the_infrastructure_is_admin_only()
+    public async Task Services_are_for_administrators_only_and_absent_from_the_portal()
     {
-        var (admin, _) = await f.LoginAdminAsync();
-        await admin.PostAsync("/api/admin/services/refresh", new { });
-
         var (user, _) = await f.RegisterAsync();
-        var portal = (await user.GetAsync<List<ServiceProbeDto>>("/api/services"))!;
-        Assert.Equal(new[] { "jellyfin", "jellyseerr", "immich", "vaultwarden", "bookstack", "ntfy", "homarr" }, portal.Select(s => s.Key));
-        Assert.All(portal, s => Assert.Null(s.CertIssuer));
-        Assert.All(portal, s => Assert.Null(s.HttpCode));
-
         Assert.Equal(HttpStatusCode.Forbidden, (await user.GetAsync("/api/admin/services")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await user.PostAsync("/api/admin/services/refresh", new { })).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await f.CreateClient().GetAsync("/api/services")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await f.CreateClient().GetAsync("/api/admin/services")).StatusCode);
+        // L'ancienne route du portail n'existe plus : l'état des services n'est pas exposé aux abonnés.
+        Assert.Equal(HttpStatusCode.NotFound, (await user.GetAsync("/api/services")).StatusCode);
     }
 
     private static X509Certificate2 Cert(string cn, DateTimeOffset from, DateTimeOffset to)
