@@ -75,6 +75,7 @@ import { Icon } from '../../shared/icon';
             @if ((store.stats()?.ticketsOpen ?? 0) > 0) { <span class="count tnum" [attr.aria-label]="store.stats()!.ticketsOpen + ' ouverts'">{{ store.stats()!.ticketsOpen }}</span> }</a>
           @if (auth.isAdmin()) {
             <a class="item" routerLink="/users" routerLinkActive="active" ariaCurrentWhenActive="page"><app-icon name="users" />Utilisateurs</a>
+            <a class="item" routerLink="/infrastructure" routerLinkActive="active" ariaCurrentWhenActive="page"><app-icon name="server" />Infrastructure</a>
           }
           <span class="sep"></span>
           <div class="foot"><a class="item" href="/"><app-icon name="external" />Ouvrir le portail</a></div>

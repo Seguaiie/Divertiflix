@@ -19,3 +19,4 @@ export type TicketCategory = Schemas['TicketCategory'];
 export type Stats = Schemas['StatsDto'];
 export type ServiceStatus = Schemas['ServiceStatus'];
 export type SystemStatus = Schemas['StatusDto'];
+export type ServiceProbe = Schemas['ServiceProbeDto'];

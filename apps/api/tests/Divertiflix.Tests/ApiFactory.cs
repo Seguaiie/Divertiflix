@@ -32,6 +32,7 @@ public class ApiFactory : WebApplicationFactory<Program>
     {
         ["RateLimit:AuthPerMinute"] = "100000", ["RateLimit:WritePerMinute"] = "100000", ["RateLimit:AssistantPerMinute"] = "100000",
         ["RateLimit:SyncPerMinute"] = "100000", ["RateLimit:MediaPerMinute"] = "100000",
+        ["HomeServices:Enabled"] = "false",   // pas de sonde de fond vers les vrais services *.home.arpa pendant les tests
     };
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

@@ -1108,6 +1108,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ServiceProbeDto"][];
+                        "application/json": components["schemas"]["ServiceProbeDto"][];
+                        "text/json": components["schemas"]["ServiceProbeDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ServiceProbeDto"][];
+                        "application/json": components["schemas"]["ServiceProbeDto"][];
+                        "text/json": components["schemas"]["ServiceProbeDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/services/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ServiceProbeDto"][];
+                        "application/json": components["schemas"]["ServiceProbeDto"][];
+                        "text/json": components["schemas"]["ServiceProbeDto"][];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mlb/results": {
         parameters: {
             query?: never;
@@ -2695,6 +2806,29 @@ export interface components {
             items: components["schemas"]["CardDto"][];
             /** @default null */
             requests: components["schemas"]["RequestCardDto"][] | null;
+        };
+        ServiceProbeDto: {
+            key: string;
+            name: string;
+            url: string | null;
+            portal: boolean;
+            state: string;
+            /** Format: int32 */
+            latencyMs: number | null;
+            /** Format: int32 */
+            httpCode: number | null;
+            tls: string | null;
+            /** Format: date-time */
+            certNotAfter: string | null;
+            certIssuer: string | null;
+            error: string | null;
+            /** Format: date-time */
+            checkedAt: string | null;
+            /**
+             * Format: date-time
+             * @default null
+             */
+            since: string | null;
         };
         ServiceStatus: {
             id: string;

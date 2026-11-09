@@ -16,6 +16,7 @@ export type BenchModel = Schemas['BenchModelDto']
 export type BenchEntry = Schemas['BenchEntryDto']
 export type BenchLatest = Schemas['BenchLatestDto']
 export type Benchmark = Schemas['BenchmarkDto']
+export type ServiceProbe = Schemas['ServiceProbeDto']
 
 const KEY = 'divertiflix.session'
 export const LOGOUT_EVENT = 'divertiflix:logout'

@@ -1,0 +1,67 @@
+@layer components {
+  .svc-hero {
+    position: relative; overflow: hidden; isolation: isolate;
+    padding: clamp(22px, 4vw, 40px) clamp(18px, 4vw, 40px);
+    border-radius: var(--radius-sm);
+    background:
+      radial-gradient(600px 280px at 0% 0%, rgb(40 200 170 / 0.32), transparent 65%),
+      radial-gradient(600px 300px at 100% 100%, rgb(90 110 255 / 0.35), transparent 65%),
+      linear-gradient(135deg, rgb(14 46 88 / 0.9), rgb(var(--ink) / 0.6));
+    box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px -40px rgb(40 200 170 / 0.6);
+  }
+  /* Grille de « baies de serveur » discrète en fond. */
+  .svc-hero::before {
+    content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0.18;
+    background-image: linear-gradient(rgb(120 230 210 / 0.5) 1px, transparent 1px), linear-gradient(90deg, rgb(120 230 210 / 0.5) 1px, transparent 1px);
+    background-size: 28px 28px; mask-image: linear-gradient(90deg, transparent, rgb(0 0 0) 55%);
+  }
+  .svc-hero .eyebrow { color: rgb(120 230 210); }
+
+  .svc-summary { display: inline-flex; align-items: center; gap: 10px; justify-self: start; margin-top: 6px; padding: 7px 14px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; color: rgb(170 245 220); background: rgb(40 200 150 / 0.14); box-shadow: inset 0 0 0 1px rgb(40 200 150 / 0.45); }
+  .svc-summary .svc-dot { --dot: rgb(40 210 150); }
+  .svc-summary.is-warn { color: rgb(255 210 150); background: rgb(255 150 40 / 0.14); box-shadow: inset 0 0 0 1px rgb(255 160 60 / 0.5); }
+  .svc-summary.is-warn .svc-dot { --dot: rgb(255 160 60); }
+
+  .svc-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+  .svc-skeleton { height: 150px; border-radius: var(--radius-sm); background: var(--glass-strong); }
+
+  .svc-tile {
+    --dot: rgb(140 150 175);
+    position: relative; overflow: hidden; height: 100%;
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start;
+    padding: 18px; border-radius: var(--radius-sm); color: inherit; text-decoration: none;
+    background: radial-gradient(260px 140px at 0% 0%, color-mix(in srgb, var(--svc) 18%, transparent), transparent 70%), var(--glass-strong);
+    box-shadow: 0 0 0 1px var(--line-strong);
+    transition: translate 0.18s ease, box-shadow 0.18s ease;
+  }
+  .svc-tile::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: var(--svc); }
+  .svc-tile:hover { translate: 0 -3px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--svc) 55%, transparent), 0 18px 40px -18px var(--svc); }
+  .svc-tile:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 3px; }
+  .svc-tile.is-up { --dot: rgb(40 210 150); }
+  .svc-tile.is-degraded { --dot: rgb(255 170 60); }
+  .svc-tile.is-down { --dot: rgb(255 70 90); }
+  .svc-tile.is-down .svc-icon { filter: grayscale(0.7); opacity: 0.7; }
+
+  .svc-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; color: rgb(255 255 255); background: linear-gradient(135deg, var(--svc), color-mix(in srgb, var(--svc) 55%, rgb(var(--ink)))); box-shadow: 0 10px 26px -10px var(--svc); }
+  .svc-icon svg { width: 26px; height: 26px; }
+  .svc-body { display: grid; gap: 5px; min-width: 0; }
+  .svc-name { display: flex; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 700; font-size: 1.08rem; }
+  .svc-name svg { width: 14px; height: 14px; color: var(--text-3); }
+  .svc-desc { font-size: 0.84rem; color: var(--text-2); }
+  .svc-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.75rem; color: var(--text-3); }
+  .svc-state b { color: var(--dot); font-weight: 700; }
+  .svc-error { font-size: 0.72rem; color: rgb(255 170 170); }
+
+  .svc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dot); box-shadow: 0 0 0 0 var(--dot); flex: none; }
+  .svc-tile.is-up .svc-dot, .svc-summary:not(.is-warn) .svc-dot { animation: svc-pulse 2.4s ease-out infinite; }
+  @keyframes svc-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dot) 70%, transparent); } 100% { box-shadow: 0 0 0 9px transparent; } }
+
+  .svc-note { display: flex; gap: 10px; align-items: flex-start; margin: 24px 0 0; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-2); background: rgb(var(--tint) / 0.05); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .svc-note svg { flex: none; width: 18px; height: 18px; color: rgb(255 190 90); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .svc-tile { transition: none; }
+    .svc-tile:hover { translate: none; }
+    .svc-tile.is-up .svc-dot, .svc-summary .svc-dot { animation: none; }
+  }
+}

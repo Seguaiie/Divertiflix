@@ -1204,6 +1204,120 @@
         }
       }
     },
+    "/api/services": {
+      "get": {
+        "tags": [
+          "HomeServices"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/services": {
+      "get": {
+        "tags": [
+          "HomeServices"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/services/refresh": {
+      "post": {
+        "tags": [
+          "HomeServices"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceProbeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mlb/results": {
       "get": {
         "tags": [
@@ -4160,6 +4274,79 @@
           }
         }
       },
+      "ServiceProbeDto": {
+        "required": [
+          "key",
+          "name",
+          "url",
+          "portal",
+          "state",
+          "latencyMs",
+          "httpCode",
+          "tls",
+          "certNotAfter",
+          "certIssuer",
+          "error",
+          "checkedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "portal": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          },
+          "latencyMs": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "httpCode": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "tls": {
+            "type": "string",
+            "nullable": true
+          },
+          "certNotAfter": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "certIssuer": {
+            "type": "string",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "default": null,
+            "nullable": true
+          }
+        }
+      },
       "ServiceStatus": {
         "required": [
           "id",
@@ -4706,6 +4893,9 @@
     },
     {
       "name": "Home"
+    },
+    {
+      "name": "HomeServices"
     },
     {
       "name": "Mlb"

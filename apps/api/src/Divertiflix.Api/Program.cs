@@ -55,6 +55,11 @@ builder.Services.AddScoped<Audit>();
 builder.Services.AddScoped<AudiobookshelfCatalog>();
 builder.Services.AddScoped<AudiobookshelfAccounts>();
 // Onglet « Domingo » : résultats MLB (API publique, sans clé), relayés et mis en cache quelques minutes.
+// Services auto-hébergés (Jellyfin, Jellyseerr, Sonarr… sur *.home.arpa) : sondés chaque minute, état montré dans le portail et le back-office.
+builder.Services.Configure<HomeServicesOptions>(builder.Configuration.GetSection("HomeServices"));
+builder.Services.AddScoped<HomeServiceProber>();
+builder.Services.AddSingleton<HomeServicesMonitor>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<HomeServicesMonitor>());
 builder.Services.AddHttpClient<AiBenchmarks>(c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
 builder.Services.AddHttpClient<AiNews>(c => { c.Timeout = TimeSpan.FromSeconds(12); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
 builder.Services.AddHttpClient<MlbResults>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd("Divertiflix/1.0"); });

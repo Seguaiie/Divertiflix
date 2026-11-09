@@ -171,3 +171,11 @@ public record BenchLatestDto(string Name, string Organization, string? Date, dou
 public record BenchmarkDto(string Id, string Name, List<BenchEntryDto> Top);
 /// <summary>Données d'Epoch AI, sous licence CC BY 4.0 : la source et la licence sont affichées avec le classement.</summary>
 public record AiBenchmarksDto(List<BenchModelDto> Leaderboard, List<BenchLatestDto> Latest, List<BenchmarkDto> Benchmarks, string Source, string SourceUrl, string License, DateTime UpdatedAt);
+
+// ------------------------------------------------------------------ Services auto-hébergés (onglet « Services », page « Infrastructure »)
+/// <summary>
+/// État d'un service. State : up, degraded, down, unknown (pas encore sondé), noui (pas d'interface web). Tls : verified, untrusted
+/// (autorité inconnue de ce serveur), name-mismatch, expired, traefik-default (route absente). Since : depuis quand l'état n'a pas changé.
+/// </summary>
+public record ServiceProbeDto(string Key, string Name, string? Url, bool Portal, string State, int? LatencyMs, int? HttpCode, string? Tls,
+    DateTime? CertNotAfter, string? CertIssuer, string? Error, DateTime? CheckedAt, DateTime? Since = null);

@@ -18,6 +18,7 @@ export const keys = {
   mlbHighlights: ['mlb', 'highlights'] as const,
   aiNews: ['news', 'ai'] as const,
   aiBenchmarks: ['news', 'ai', 'benchmarks'] as const,
+  services: ['services'] as const,
   ticket: (id: string) => ['ticket', id] as const,
 }
 
@@ -170,5 +171,15 @@ export function useAiBenchmarks() {
     queryKey: keys.aiBenchmarks,
     queryFn: () => call(api.GET('/api/news/ai/benchmarks')),
     staleTime: 60 * 60_000,
+  })
+}
+
+/** Onglet « Services » : applications auto-hébergées et leur état (sondé chaque minute par l'API). */
+export function useHomeServices() {
+  return useQuery({
+    queryKey: keys.services,
+    queryFn: () => call(api.GET('/api/services')),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   })
 }

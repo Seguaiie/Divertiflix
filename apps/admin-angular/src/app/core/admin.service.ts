@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import type { Observable } from 'rxjs';
 import type {
-  AdminRequest, AdminTicket, AdminTitle, AdminUser, Paged, RequestStatus, Role, Stats, SystemStatus, TicketDetail, TicketStatus,
+  AdminRequest, AdminTicket, AdminTitle, AdminUser, Paged, RequestStatus, Role, ServiceProbe, Stats, SystemStatus, TicketDetail, TicketStatus,
   TitleKind, TitleUpsert,
 } from './models';
 
@@ -19,6 +19,9 @@ export class AdminService {
 
   stats(): Observable<Stats> { return this.http.get<Stats>('/api/admin/stats'); }
   status(): Observable<SystemStatus> { return this.http.get<SystemStatus>('/api/status'); }
+  /** Services auto-hébergés (*.home.arpa) : dernier état mesuré, et sonde immédiate. Réservé aux administrateurs. */
+  services(): Observable<ServiceProbe[]> { return this.http.get<ServiceProbe[]>('/api/admin/services'); }
+  refreshServices(): Observable<ServiceProbe[]> { return this.http.post<ServiceProbe[]>('/api/admin/services/refresh', {}); }
 
   titles(o: { q?: string; kind?: TitleKind; page?: number; pageSize?: number } = {}): Observable<Paged<AdminTitle>> {
     return this.http.get<Paged<AdminTitle>>('/api/admin/titles', { params: query(o) });
