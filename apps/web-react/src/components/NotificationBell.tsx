@@ -46,7 +46,9 @@ export function NotificationBell() {
                     if (!n.read) read.mutate([n.id])
                     pop.close()
                     if (n.link?.startsWith('/?aide=')) openSupport(n.link.split('=')[1])
-                    else if (n.link) navigate(n.link)
+                    // Lien vers une application de la maison (ex. Jellyfin pour une demande disponible) : nouvel onglet, sans transmettre la page.
+                    else if (n.link?.startsWith('https://')) window.open(n.link, '_blank', 'noopener,noreferrer')
+                    else if (n.link?.startsWith('/')) navigate(n.link)
                   }}>
                     <Icon aria-hidden />
                     <span className="notif-text"><strong>{title}</strong><span>{text}</span></span>

@@ -1,0 +1,23 @@
+# Traefik (configuration dynamique, fournisseur « file ») : publie Divertiflix sur https://divertiflix.home.arpa.
+# À déposer dans le dossier surveillé par Traefik sur 192.168.8.240 (ex. /etc/traefik/dynamic/divertiflix.yml).
+#
+# À adapter :
+#   - entryPoints : le nom de votre point d'entrée HTTPS (souvent « websecure »).
+#   - certResolver : le nom du résolveur ACME qui obtient les certificats auprès de Step CA (le même que pour Jellyfin, Sonarr…).
+#
+# Côté DNS (dnsmasq) : address=/divertiflix.home.arpa/192.168.8.240
+# Côté Divertiflix : TRUSTED_PROXY=192.168.8.240 sudo ./install-serveur.sh   (adresse réelle des visiteurs pour les limites de débit)
+http:
+  routers:
+    divertiflix:
+      rule: Host(`divertiflix.home.arpa`)
+      entryPoints: [websecure]
+      service: divertiflix
+      tls:
+        certResolver: stepca
+  services:
+    divertiflix:
+      loadBalancer:
+        passHostHeader: true          # le site construit ses adresses WebSocket (notifications en direct) sur le nom demandé
+        servers:
+          - url: "http://192.168.8.115:80"

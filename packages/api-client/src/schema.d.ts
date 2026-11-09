@@ -2334,6 +2334,10 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** @default null */
+            seerrState: string | null;
+            /** @default null */
+            seerrNote: string | null;
         };
         AdminTicketDto: {
             ticket: components["schemas"]["TicketSummaryDto"];

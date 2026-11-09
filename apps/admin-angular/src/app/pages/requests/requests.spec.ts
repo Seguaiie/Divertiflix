@@ -8,7 +8,7 @@ import { Requests } from './requests';
 
 const req = (over: Partial<AdminRequest>): AdminRequest => ({
   id: 'r1', name: 'Nosferatu', kind: 'Movie', year: 1922, note: 'Version restaurée', status: 'Pending', titleId: null,
-  requestedBy: 'camille@test.com', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...over,
+  requestedBy: 'camille@test.com', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seerrState: null, seerrNote: null, ...over,
 });
 
 function setup(role: 'Admin' | 'Support') {
@@ -71,6 +71,22 @@ describe('Requests', () => {
     fixture.detectChanges();
     const names = [...el.querySelectorAll('button[aria-label]')].map(b => b.getAttribute('aria-label'));
     expect(names).toEqual(['Approuver : Nosferatu', 'Refuser : Nosferatu', 'Approuver : Metropolis', 'Refuser : Metropolis']);
+  });
+
+  it('montre le suivi Jellyseerr sous l\'état de la demande', async () => {
+    const { fixture, ctl, el } = setup('Admin');
+    ctl.expectOne(r => r.url === '/api/admin/requests').flush([
+      req({ id: 'a', name: 'Dune', status: 'Downloading', seerrState: 'sent', seerrNote: 'Dune (2021) · TMDB 438631' }),
+      req({ id: 'b', name: 'Film inconnu', status: 'Approved', seerrState: 'notfound', seerrNote: 'Introuvable dans Jellyseerr : à traiter à la main.' }),
+      req({ id: 'c', name: 'Nosferatu', status: 'Pending' }),
+    ]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const states = [...el.querySelectorAll('.seerr')].map(s => [s.getAttribute('data-state'), s.textContent!.trim()]);
+    expect(states).toEqual([['sent', 'Jellyseerr · transmise'], ['notfound', 'Jellyseerr · introuvable']]);
+    expect(el.textContent).toContain('Dune (2021) · TMDB 438631');
+    expect(el.textContent).toContain('Introuvable dans Jellyseerr : à traiter à la main.');
   });
 
   it("n'offre aucune action au rôle Support (lecture seule)", async () => {

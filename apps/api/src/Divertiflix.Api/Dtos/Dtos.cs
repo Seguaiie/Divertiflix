@@ -96,7 +96,8 @@ public record ChatResponse(string Reply, string? Param, string? UnknownTitle, IR
 // ------------------------------------------------------------------ Demandes, notifications, support
 
 public record RequestCreate([Required, MaxLength(200)] string Name, TitleKind Kind, [Range(1, 2200)] int? Year, [MaxLength(500)] string? Note, Guid? TitleId);
-public record AdminRequestDto(Guid Id, string Name, TitleKind Kind, int? Year, string? Note, RequestStatus Status, Guid? TitleId, string RequestedBy, DateTime CreatedAt, DateTime UpdatedAt);
+/// <summary>Jellyseerr : état du suivi automatique (sent, notfound, error) et son explication ; null si la demande n'est pas passée par Jellyseerr.</summary>
+public record AdminRequestDto(Guid Id, string Name, TitleKind Kind, int? Year, string? Note, RequestStatus Status, Guid? TitleId, string RequestedBy, DateTime CreatedAt, DateTime UpdatedAt, string? SeerrState = null, string? SeerrNote = null);
 public record RequestStatusUpdate(RequestStatus Status, Guid? TitleId, [MaxLength(300)] string? Reason);
 
 public record NotificationDto(Guid Id, string Kind, string Title, string? Body, string? Link, DateTime CreatedAt, bool Read);

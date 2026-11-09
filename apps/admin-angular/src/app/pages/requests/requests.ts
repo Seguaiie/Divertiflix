@@ -27,6 +27,9 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
   imports: [MatTableModule, MatButtonModule, MatButtonToggleModule, MatProgressBarModule, MatTooltipModule, LoadError],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
+    .seerr { font-weight: 600; }
+    .seerr[data-state="sent"] { color: var(--ok); }
+    .seerr[data-state="notfound"], .seerr[data-state="error"] { color: var(--warn); }
     .note-text { display: block; margin-top: 4px; color: var(--text-2); font-size: 0.8125rem; max-width: 56ch; font-style: italic; overflow-wrap: anywhere; }
     td.mat-mdc-cell:first-child { min-width: 190px; }
     /* Les boutons passent à la ligne quand la colonne est étroite : un peu d'air pour qu'ils ne touchent pas les bordures de la ligne. */
@@ -68,7 +71,11 @@ const ACTIVE: RequestStatus[] = ['Pending', 'Approved', 'Downloading'];
             </ng-container>
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>État</th>
-              <td mat-cell *matCellDef="let r"><span class="chip" [attr.data-tone]="tone(r.status)">{{ label(r.status) }}</span></td>
+              <td mat-cell *matCellDef="let r"><span class="chip" [attr.data-tone]="tone(r.status)">{{ label(r.status) }}</span>
+                @if (r.seerrState) {
+                  <span class="cell-sub seerr" [attr.data-state]="r.seerrState">Jellyseerr · {{ r.seerrState === 'sent' ? 'transmise' : r.seerrState === 'notfound' ? 'introuvable' : 'en échec' }}</span>
+                  @if (r.seerrNote) { <span class="cell-sub">{{ r.seerrNote }}</span> }
+                }</td>
             </ng-container>
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef class="actions"><span class="visually-hidden">Actions</span></th>

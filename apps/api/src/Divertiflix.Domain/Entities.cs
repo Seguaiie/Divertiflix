@@ -156,6 +156,15 @@ public class MediaRequest
     public RequestStatus Status { get; set; } = RequestStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    // Suivi dans Jellyseerr (demande approuvée transmise automatiquement ; voir JellyseerrSync).
+    /// <summary>sent (transmise, suivie), notfound (aucun résultat : définitif), error (échec passager : nouvel essai).</summary>
+    public string? SeerrState { get; set; }
+    public string? SeerrNote { get; set; }
+    /// <summary>movie ou tv.</summary>
+    public string? SeerrMediaType { get; set; }
+    public int? SeerrTmdbId { get; set; }
+    public int? SeerrRequestId { get; set; }
 }
 
 public class Notification

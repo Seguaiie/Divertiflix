@@ -12,7 +12,7 @@ namespace Divertiflix.Api.Controllers;
 
 /// <summary>Console d'exploitation (back-office Angular) : statistiques, comptes, demandes, billets.</summary>
 [ApiController, Route("api/admin"), Authorize(Roles = "Admin,Support")]
-public class AdminController(DivertiflixDbContext db, Notifier notifier, CatalogCache cache, Audit audit, AccountGuard accounts) : ControllerBase
+public class AdminController(DivertiflixDbContext db, Notifier notifier, CatalogCache cache, Audit audit, AccountGuard accounts, JellyseerrSync seerrSync) : ControllerBase
 {
     [HttpGet("stats")]
     public async Task<StatsDto> Stats()
@@ -90,7 +90,7 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
         if (status is { } s) q = q.Where(r => r.Status == s);
         var rows = await q.OrderBy(r => r.Status == RequestStatus.Pending ? 0 : r.Status == RequestStatus.Available || r.Status == RequestStatus.Declined ? 2 : 1)
             .ThenByDescending(r => r.UpdatedAt).Take(200).ToListAsync();
-        return rows.Select(r => new AdminRequestDto(r.Id, r.Name, r.Kind, r.Year, r.Note, r.Status, r.TitleId, r.User!.Email, r.CreatedAt, r.UpdatedAt)).ToList();
+        return rows.Select(r => new AdminRequestDto(r.Id, r.Name, r.Kind, r.Year, r.Note, r.Status, r.TitleId, r.User!.Email, r.CreatedAt, r.UpdatedAt, r.SeerrState, r.SeerrNote)).ToList();
     }
 
     private static readonly Dictionary<RequestStatus, RequestStatus[]> Transitions = new()
@@ -128,7 +128,8 @@ public class AdminController(DivertiflixDbContext db, Notifier notifier, Catalog
         await tx.CommitAsync();
         cache.Invalidate();
         await notifier.PushAsync(n);
-        return new AdminRequestDto(r.Id, r.Name, r.Kind, r.Year, r.Note, r.Status, r.TitleId, r.User!.Email, r.CreatedAt, r.UpdatedAt);
+        if (req.Status == RequestStatus.Approved) seerrSync.Kick();   // film ou série approuvé : transmis à Jellyseerr sans attendre
+        return new AdminRequestDto(r.Id, r.Name, r.Kind, r.Year, r.Note, r.Status, r.TitleId, r.User!.Email, r.CreatedAt, r.UpdatedAt, r.SeerrState, r.SeerrNote);
     }
 
     // ------------------------------------------------------------------ Billets d'assistance

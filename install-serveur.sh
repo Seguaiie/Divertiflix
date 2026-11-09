@@ -25,6 +25,13 @@
 #   AD_DOMAIN=         domaine des comptes (ex. ad.home.arpa) : connexion au back-office avec l'identifiant AD ; mémorisé (ActiveDirectory__Domain)
 #   AD_PORT=389        389 (LDAP) ou 636 (LDAPS, avec AD_SSL=1) ; mémorisé (ActiveDirectory__Port)
 #   AD_SSL=1           LDAPS (recommandé : sinon le mot de passe circule en clair sur le réseau) ; mémorisé (ActiveDirectory__UseSsl)
+#   CA_CERT=           chemin d'un certificat d'autorité à approuver sur le serveur (ex. racine Step CA des services *.home.arpa) ;
+#                      installé dans /usr/local/share/ca-certificates (une fois suffit)
+#   JELLYSEERR_API_KEY= clé d'API Jellyseerr : demandes approuvées transmises et suivies automatiquement ; mémorisée (Jellyseerr__ApiKey)
+#   NTFY_TOPIC=        sujet ntfy des alertes d'infrastructure (ex. divertiflix-alertes) ; mémorisé (Ntfy__Topic)
+#   NTFY_TOKEN=        jeton ntfy si les publications anonymes sont refusées ; mémorisé (Ntfy__Token)
+#   TRUSTED_PROXY=     adresse du mandataire devant Divertiflix (ex. 192.168.8.240 pour Traefik) : nginx lit alors l'adresse réelle des
+#                      visiteurs dans X-Forwarded-For (limites de débit par personne, pas par mandataire) ; mémorisé dans .env
 #   APP_USER=divertiflix
 # Idempotent : relancer le script redéploie la dernière version sans toucher aux secrets ni à la base.
 # HTTPS : le site nginx est réécrit à chaque exécution, mais DOMAIN et CERTBOT_EMAIL (ni l'un ni l'autre n'est un secret) sont enregistrés
@@ -143,6 +150,25 @@ MQTT_BIND=${MQTT_BIND:-127.0.0.1}
 [ -z "${AD_DOMAIN:-}" ] || env_set ActiveDirectory__Domain "$AD_DOMAIN"
 [ -z "${AD_PORT:-}" ] || env_set ActiveDirectory__Port "$AD_PORT"
 [ -z "${AD_SSL:-}" ] || env_set ActiveDirectory__UseSsl "$([ "$AD_SSL" = 1 ] && echo true || echo false)"
+# Services auto-hébergés : Jellyseerr (demandes) et ntfy (alertes), mêmes règles. Le jeton et la clé restent dans .env (600).
+[ -z "${JELLYSEERR_API_KEY:-}" ] || env_set Jellyseerr__ApiKey "$JELLYSEERR_API_KEY"
+[ -z "${NTFY_TOPIC:-}" ] || env_set Ntfy__Topic "$NTFY_TOPIC"
+[ -z "${NTFY_TOKEN:-}" ] || env_set Ntfy__Token "$NTFY_TOKEN"
+
+# Autorité de certification supplémentaire (ex. Step CA des services *.home.arpa) : sans elle, l'API refuse leurs certificats.
+if [ -n "${CA_CERT:-}" ]; then
+  openssl x509 -in "$CA_CERT" -noout 2>/dev/null || { echo "CA_CERT : $CA_CERT n'est pas un certificat lisible."; exit 1; }
+  install -m 644 "$CA_CERT" "/usr/local/share/ca-certificates/divertiflix-$(basename "${CA_CERT%.*}").crt"
+  update-ca-certificates >/dev/null
+  echo ">> Autorité approuvée : $(openssl x509 -in "$CA_CERT" -noout -subject)"
+fi
+
+# Mandataire de confiance (ex. Traefik) : nginx prend l'adresse réelle du visiteur dans X-Forwarded-For, seulement si la requête vient de lui.
+if [ -n "${TRUSTED_PROXY:-}" ]; then
+  [[ "$TRUSTED_PROXY" =~ ^[0-9a-fA-F:.]+(/[0-9]{1,3})?$ ]] || { echo "TRUSTED_PROXY : adresse ou réseau invalide."; exit 1; }
+  env_set TRUSTED_PROXY "$TRUSTED_PROXY"
+fi
+TRUSTED_PROXY=$(env_get TRUSTED_PROXY)
 
 # HTTPS. nginx est réécrit à chaque exécution : une relance sans DOMAIN ni CERTBOT_EMAIL (le pipeline GitLab) le repasserait en HTTP seul, et
 # les navigateurs qui ont retenu HSTS (un an) n'atteindraient plus le site. Ces deux valeurs ne sont pas des secrets : enregistrées dans .env
@@ -291,6 +317,12 @@ HDR
     echo 'add_header Strict-Transport-Security "max-age=31536000" always;'
   fi
 } > /etc/nginx/snippets/divertiflix-security.conf
+
+if [ -n "$TRUSTED_PROXY" ]; then
+  printf 'set_real_ip_from %s;\nreal_ip_header X-Forwarded-For;\nreal_ip_recursive on;\n' "$TRUSTED_PROXY" > /etc/nginx/conf.d/divertiflix-realip.conf
+else
+  rm -f /etc/nginx/conf.d/divertiflix-realip.conf
+fi
 
 cat > /etc/nginx/conf.d/divertiflix-http.conf <<'HTTPCONF'
 # Version de nginx masquée (en-tête Server, pages d'erreur) pour tous les serveurs : au niveau http, la directive couvre aussi le serveur du

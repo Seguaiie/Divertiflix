@@ -2601,6 +2601,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "seerrState": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          },
+          "seerrNote": {
+            "type": "string",
+            "default": null,
+            "nullable": true
           }
         }
       },

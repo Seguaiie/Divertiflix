@@ -100,3 +100,72 @@ public class HomeServicesTests(ServicesFactory f) : IClassFixture<ServicesFactor
         Assert.Equal("down", HomeServiceProber.Evaluate(404, "traefik-default").State);
     }
 }
+
+/// <summary>Sonde dont Jellyfin tombe et revient à la demande ; faux serveur ntfy qui note chaque publication.</summary>
+public sealed class FlappingProber : HomeServiceProber
+{
+    public static volatile bool JellyfinDown;
+    protected override Task<(int Code, string? Tls, DateTime? NotAfter, string? Issuer)> SendAsync(string url, CancellationToken ct) =>
+        new Uri(url).Host == "jellyfin.home.arpa" && JellyfinDown
+            ? Task.FromException<(int, string?, DateTime?, string?)>(new HttpRequestException("refused", new SocketException((int)SocketError.ConnectionRefused)))
+            : Task.FromResult((200, (string?)"verified", (DateTime?)null, (string?)null));
+}
+
+internal sealed class FakeNtfy : HttpMessageHandler
+{
+    public static readonly List<(string Url, string Title, string Priority, string? Click, string Body, string? Auth)> Posts = [];
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage r, CancellationToken ct)
+    {
+        var body = await r.Content!.ReadAsStringAsync(ct);
+        lock (Posts) Posts.Add((r.RequestUri!.ToString(), r.Headers.GetValues("Title").Single(), r.Headers.GetValues("Priority").Single(),
+            r.Headers.TryGetValues("Click", out var c) ? c.Single() : null, body, r.Headers.Authorization?.ToString()));
+        return new HttpResponseMessage(HttpStatusCode.OK);
+    }
+}
+
+public class NtfyFactory : ApiFactory
+{
+    protected override Dictionary<string, string> Settings => new(base.Settings)
+    {
+        ["Ntfy:Url"] = "https://ntfy.test", ["Ntfy:Topic"] = "divertiflix-alertes", ["Ntfy:Token"] = "tk_test",
+    };
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(s =>
+        {
+            s.Replace(ServiceDescriptor.Scoped<HomeServiceProber, FlappingProber>());
+            s.AddHttpClient(NtfyAlerts.ClientName).ConfigurePrimaryHttpMessageHandler(() => new FakeNtfy());
+        });
+    }
+}
+
+public class NtfyAlertsTests(NtfyFactory f) : IClassFixture<NtfyFactory>
+{
+    [Fact]
+    public async Task A_service_going_down_then_up_sends_one_alert_each_way_and_nothing_otherwise()
+    {
+        var (admin, _) = await f.LoginAdminAsync();
+        async Task Probe() => Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync("/api/admin/services/refresh", new { })).StatusCode);
+
+        FlappingProber.JellyfinDown = false;
+        await Probe();   // premier relevé : pas d'alerte
+        await Probe();   // rien ne change : pas d'alerte
+        lock (FakeNtfy.Posts) Assert.Empty(FakeNtfy.Posts);
+
+        FlappingProber.JellyfinDown = true;
+        await Probe();
+        await Probe();   // toujours hors ligne : une seule alerte
+        FlappingProber.JellyfinDown = false;
+        await Probe();
+
+        lock (FakeNtfy.Posts)
+        {
+            Assert.Equal(2, FakeNtfy.Posts.Count);
+            var down = FakeNtfy.Posts[0];
+            Assert.Equal(("https://ntfy.test/divertiflix-alertes", "Jellyfin hors ligne", "high", "https://jellyfin.home.arpa/", "Connexion refusée", "Bearer tk_test"),
+                (down.Url, down.Title, down.Priority, down.Click, down.Body, down.Auth));
+            Assert.Equal(("Jellyfin de nouveau en ligne", "default"), (FakeNtfy.Posts[1].Title, FakeNtfy.Posts[1].Priority));
+        }
+    }
+}

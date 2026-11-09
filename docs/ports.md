@@ -73,6 +73,7 @@ Le pare-feu laisse tout sortir (`Default: allow (outgoing)`). Si un pare-feu est
 | `techcrunch.com`, `www.theverge.com`, `www.technologyreview.com`, `arstechnica.com`, `www.wired.com`, `www.theguardian.com`, `www.journaldugeek.com`, `news.google.com` | 443 | HTTPS | Nouvelles de l'IA (onglet Nicolas) | Liste dans `Services/AiNews.cs` |
 | Sites des images de presse (variable) | 443 | HTTPS | Images des articles, relayées par l'API | Seulement les images trouvées dans les fils |
 | `epoch.ai` | 443 | HTTPS | Classement des modèles d'IA (onglet Nicolas) | `Services/AiBenchmarks.cs` |
+| `*.home.arpa` → `192.168.8.240` (Traefik) | 443 | HTTPS | Surveillance des services auto-hébergés chaque minute ; Jellyseerr (demandes) ; ntfy (alertes) | `Services/HomeServices.cs`, `Jellyseerr__*`, `Ntfy__*` — voir [home-arpa.md](home-arpa.md) |
 
 Le nom `DC-01.ad.home.arpa` est déclaré dans `/etc/hosts` du serveur (le DNS du routeur ne le connaît pas), et l'autorité
 de certification de l'AD (`ad-DC-01-CA`) est installée dans `/usr/local/share/ca-certificates/` : sans elle, LDAPS est refusé.

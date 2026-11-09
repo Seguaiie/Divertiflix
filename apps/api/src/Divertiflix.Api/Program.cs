@@ -60,6 +60,14 @@ builder.Services.Configure<HomeServicesOptions>(builder.Configuration.GetSection
 builder.Services.AddScoped<HomeServiceProber>();
 builder.Services.AddSingleton<HomeServicesMonitor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<HomeServicesMonitor>());
+builder.Services.Configure<NtfyOptions>(builder.Configuration.GetSection("Ntfy"));
+builder.Services.AddHttpClient(NtfyAlerts.ClientName, c => c.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<NtfyAlerts>();
+// Jellyseerr : demandes approuvées transmises automatiquement, puis suivies jusqu'à « disponible » (inactif sans Jellyseerr__ApiKey).
+builder.Services.Configure<JellyseerrOptions>(builder.Configuration.GetSection("Jellyseerr"));
+builder.Services.AddHttpClient<JellyseerrClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddSingleton<JellyseerrSync>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<JellyseerrSync>());
 builder.Services.AddHttpClient<AiBenchmarks>(c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
 builder.Services.AddHttpClient<AiNews>(c => { c.Timeout = TimeSpan.FromSeconds(12); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
 builder.Services.AddHttpClient<MlbResults>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd("Divertiflix/1.0"); });
@@ -154,6 +162,8 @@ app.UseCors();
 MediaEndpoints.Map(app);
 AudiobookshelfEndpoints.Map(app);
 MlbMediaEndpoints.Map(app);
+// Un service auto-hébergé tombe ou revient : alerte ntfy (si un sujet est configuré).
+app.Services.GetRequiredService<HomeServicesMonitor>().Changed += app.Services.GetRequiredService<NtfyAlerts>().ServiceChangedAsync;
 NewsMediaEndpoints.Map(app);
 app.UseAuthentication();
 app.UseRateLimiter();   // après l'authentification : les plafonds « write » et « assistant » sont par utilisateur

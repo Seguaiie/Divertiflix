@@ -91,6 +91,9 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
             e.Property(r => r.Note).HasMaxLength(500);
             e.Property(r => r.Kind).HasConversion<string>();
             e.Property(r => r.Status).HasConversion<string>();
+            e.Property(r => r.SeerrState).HasMaxLength(20);
+            e.Property(r => r.SeerrNote).HasMaxLength(300);
+            e.Property(r => r.SeerrMediaType).HasMaxLength(10);
             e.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(r => r.Title).WithMany().HasForeignKey(r => r.TitleId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(r => r.UpdatedAt);
