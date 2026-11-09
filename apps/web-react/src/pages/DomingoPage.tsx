@@ -60,7 +60,7 @@ export function DomingoPage() {
               <span className="mlb-day-count tnum">{plural('mlb.games', day.games.length)}</span>
             </h2>
             <ul className="mlb-games">
-              {day.games.map(g => <li key={g.id}><GameCard game={g} /></li>)}
+              {day.games.map(g => <li key={g.id}><GameRow game={g} /></li>)}
             </ul>
           </section>
         ))}
@@ -156,13 +156,15 @@ function Featured({ game }: { game: MlbGame }) {
   )
 }
 
-function GameCard({ game }: { game: MlbGame }) {
+function GameRow({ game }: { game: MlbGame }) {
   const { t } = useI18n()
   const live = game.status === 'Live'
   return (
     <article className={`mlb-game${live ? ' is-live' : ''}`} style={teamVars(game)} aria-label={t('mlb.matchup', { away: game.away.name, home: game.home.name })}>
       <header className="mlb-game-head"><Status game={game} /></header>
+      {/* Une ligne par match : visiteurs à gauche, locaux à droite, les deux scores face à face au centre. */}
       <TeamRow team={game.away} side="away" final={!live} />
+      <span className="mlb-vs" aria-hidden>–</span>
       <TeamRow team={game.home} side="home" final={!live} />
       {game.venue && <p className="mlb-venue">{game.venue}</p>}
     </article>
@@ -174,7 +176,7 @@ function TeamRow({ team, side, final }: { team: MlbTeam; side: 'away' | 'home'; 
   // Le gagnant ressort ; en cours de match, personne n'a encore gagné.
   const lead = final && team.isWinner
   return (
-    <div className={`mlb-team${lead ? ' is-winner' : ''}${final && !team.isWinner ? ' is-loser' : ''}`} style={{ '--team': `var(--${side})` } as CSSProperties}>
+    <div className={`mlb-team side-${side}${lead ? ' is-winner' : ''}${final && !team.isWinner ? ' is-loser' : ''}`} style={{ '--team': `var(--${side})` } as CSSProperties}>
       <img className="mlb-logo" src={team.logoUrl} alt="" width={30} height={30} loading="lazy"
         onError={e => { e.currentTarget.style.visibility = 'hidden' }} />
       <span className="mlb-name">

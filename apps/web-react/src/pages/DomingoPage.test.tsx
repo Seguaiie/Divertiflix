@@ -51,6 +51,10 @@ describe('onglet Domingo (résultats MLB)', () => {
     expect(within(g3).getByText('Final (11 manches)')).toBeInTheDocument()
     expect(within(g3).getByText('World Series · Match 3')).toBeInTheDocument()
     expect(g3.querySelector('.is-winner')?.textContent).toContain('Tampa Bay Rays')
+    // Une ligne par match : visiteurs à gauche, locaux à droite, séparés au centre.
+    expect(g3.querySelector('.mlb-team.side-away')?.textContent).toContain('Milwaukee Brewers')
+    expect(g3.querySelector('.mlb-team.side-home')?.textContent).toContain('Tampa Bay Rays')
+    expect(g3.querySelectorAll('.mlb-vs')).toHaveLength(1)
     expect(within(g3).getByTitle('Victoire')).toHaveTextContent('V')   // badge du gagnant
     // Couleurs des équipes passées à la carte (Brewers en or, Rays en bleu pâle).
     expect(g3.style.getPropertyValue('--away')).toBe('#ffc52f')
