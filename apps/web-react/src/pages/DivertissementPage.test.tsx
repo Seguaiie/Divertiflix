@@ -16,7 +16,7 @@ const emilien = {
   ],
   updatedAt: '2026-11-16T12:00:00Z',
 }
-const alexi = { sections: [{ key: 'idle', label: 'Idle games', items: [item('3', 'Nouveau idle game', 'r/incremental_games')], sources: [] }], updatedAt: '2026-11-16T12:00:00Z' }
+const alexi = { sections: [{ key: 'slop', label: 'Slop meme', items: [item('3', 'Pire slop meme du jour', 'r/AIslop')], sources: [] }], updatedAt: '2026-11-16T12:00:00Z' }
 
 const open = (route = '/divertissement/emilien') =>
   renderApp(<Routes><Route path="/divertissement/:person" element={<DivertissementPage />} /></Routes>, { route })
@@ -46,7 +46,7 @@ describe('onglet Divertissement (centres d\'intérêt de l\'équipe)', () => {
     const nav = screen.getByRole('navigation', { name: 'Choisir un membre de l\'équipe' })
     await user.click(within(nav).getByRole('link', { name: 'Alexi' }))
 
-    expect(await screen.findByText('Nouveau idle game')).toBeInTheDocument()
+    expect(await screen.findByText('Pire slop meme du jour')).toBeInTheDocument()
     expect(screen.queryByText('Mise à jour OSRS')).not.toBeInTheDocument()
   })
 

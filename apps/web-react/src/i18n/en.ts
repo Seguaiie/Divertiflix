@@ -62,7 +62,7 @@ export const en: Record<Key, string> & Record<string, string> = {
   'hobby.osrs': 'Old School RuneScape',
   'hobby.lol': 'LoL esports scene',
   'hobby.fantasy': 'Fantasy (literature)',
-  'hobby.idle': 'Idle games',
+  'hobby.slop': 'Slop meme',
   'hobby.board': 'Board games',
   'hobby.mailcow': 'Mailcow',
   'hobby.cars': 'Cars',

@@ -60,7 +60,7 @@ export const fr = {
   'hobby.osrs': 'Old School RuneScape',
   'hobby.lol': 'Scène LoL esport',
   'hobby.fantasy': 'Fantasy (littérature)',
-  'hobby.idle': 'Idle games',
+  'hobby.slop': 'Slop meme',
   'hobby.board': 'Jeux de société',
   'hobby.mailcow': 'Mailcow',
   'hobby.cars': 'Voitures',

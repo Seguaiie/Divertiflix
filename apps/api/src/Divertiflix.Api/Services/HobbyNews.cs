@@ -22,7 +22,11 @@ public sealed class HobbyNews(RssFeeds feeds, IMemoryCache cache)
         ],
         [Teammate.Alexi] =
         [
-            new("idle", "Idle games", [new("r/incremental_games", "https://www.reddit.com/r/incremental_games/.rss", "en", Max: 20)]),
+            new("slop", "Slop meme",
+            [
+                new("r/AIslop", "https://www.reddit.com/r/AIslop/.rss", "en", Max: 20),
+                new("Google Actualités", "https://news.google.com/rss/search?q=%22AI+slop%22&hl=en-US&gl=US&ceid=US:en", "en", Max: 20, Aggregator: true),
+            ]),
             new("board", "Jeux de société", [new("r/boardgames", "https://www.reddit.com/r/boardgames/.rss", "en", Max: 20)]),
             new("mailcow", "Mailcow", [new("Google Actualités", "https://news.google.com/rss/search?q=mailcow&hl=en-US&gl=US&ceid=US:en", "en", Max: 20, Aggregator: true)]),
         ],
