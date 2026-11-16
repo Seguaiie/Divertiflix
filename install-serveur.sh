@@ -30,6 +30,10 @@
 #   JELLYSEERR_API_KEY= clé d'API Jellyseerr : demandes approuvées transmises et suivies automatiquement ; mémorisée (Jellyseerr__ApiKey)
 #   NTFY_TOPIC=        sujet ntfy des alertes d'infrastructure (ex. divertiflix-alertes) ; mémorisé (Ntfy__Topic)
 #   NTFY_TOKEN=        jeton ntfy si les publications anonymes sont refusées ; mémorisé (Ntfy__Token)
+#   PUSH_VAPID_PUBLIC_KEY=   clé publique VAPID des notifications infonuagiques (Web Push) ; mémorisée (Push__PublicKey)
+#   PUSH_VAPID_PRIVATE_KEY=  clé privée VAPID correspondante ; mémorisée (Push__PrivateKey), jamais envoyée au navigateur
+#                            les deux clés se génèrent avec `npx --yes web-push generate-vapid-keys` ; sans elles, inactif
+#   PUSH_VAPID_SUBJECT=      mailto: ou URL du site exigé par la norme Web Push ; mémorisé (Push__Subject)
 #   TRUSTED_PROXY=     adresse du mandataire devant Divertiflix (ex. 192.168.8.240 pour Traefik) : nginx lit alors l'adresse réelle des
 #                      visiteurs dans X-Forwarded-For (limites de débit par personne, pas par mandataire) ; mémorisé dans .env
 #   APP_USER=divertiflix
@@ -154,6 +158,9 @@ MQTT_BIND=${MQTT_BIND:-127.0.0.1}
 [ -z "${JELLYSEERR_API_KEY:-}" ] || env_set Jellyseerr__ApiKey "$JELLYSEERR_API_KEY"
 [ -z "${NTFY_TOPIC:-}" ] || env_set Ntfy__Topic "$NTFY_TOPIC"
 [ -z "${NTFY_TOKEN:-}" ] || env_set Ntfy__Token "$NTFY_TOKEN"
+[ -z "${PUSH_VAPID_PUBLIC_KEY:-}" ] || env_set Push__PublicKey "$PUSH_VAPID_PUBLIC_KEY"
+[ -z "${PUSH_VAPID_PRIVATE_KEY:-}" ] || env_set Push__PrivateKey "$PUSH_VAPID_PRIVATE_KEY"
+[ -z "${PUSH_VAPID_SUBJECT:-}" ] || env_set Push__Subject "$PUSH_VAPID_SUBJECT"
 
 # Autorité de certification supplémentaire (ex. Step CA des services *.home.arpa) : sans elle, l'API refuse leurs certificats.
 if [ -n "${CA_CERT:-}" ]; then

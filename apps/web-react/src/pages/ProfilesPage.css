@@ -17,6 +17,11 @@
   .who-pick:hover .who-add-icon { border-color: var(--text-2); color: var(--text); }
   .who-add-icon svg { width: 34px; height: 34px; }
   .who-edit { display: grid; justify-items: center; gap: 12px; width: 168px; }
+  .who-lock { width: 220px; }
+  .who-lock .field { width: 100%; }
+  .who-lock .hint { font-size: 0.75rem; color: var(--text-3); text-align: center; }
+  .who-lock-badge { position: absolute; bottom: 2px; right: 2px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgb(var(--ink) / 0.78); color: var(--text); box-shadow: 0 0 0 2px var(--bg-0); }
+  .who-lock-badge svg { width: 14px; height: 14px; }
   .who-confirm { display: grid; justify-items: center; gap: 6px; font-size: 0.8125rem; color: var(--text-2); }
   .who-confirm { grid-auto-flow: column; }
 }

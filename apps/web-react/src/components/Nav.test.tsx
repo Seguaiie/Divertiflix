@@ -36,6 +36,8 @@ describe('Nav : menu du profil', () => {
     await user.keyboard('{ArrowDown}')
     expect(item('Changer de profil')).toHaveFocus()
     await user.keyboard('{ArrowDown}')
+    expect(item('Historique')).toHaveFocus()
+    await user.keyboard('{ArrowDown}')
     expect(item('Demander un titre')).toHaveFocus()
     await user.keyboard('{End}')
     expect(item('Se déconnecter')).toHaveFocus()

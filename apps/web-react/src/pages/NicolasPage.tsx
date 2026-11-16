@@ -15,9 +15,9 @@ function hue(name: string) {
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360
   return h
 }
-const sourceVars = (source: string) => ({ '--src-h': hue(source) }) as CSSProperties
-const initials = (source: string) => source.split(/[\s.-]+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('')
-const isWeb = (url: string) => /^https?:\/\//i.test(url)
+export const sourceVars = (source: string) => ({ '--src-h': hue(source) }) as CSSProperties
+export const initials = (source: string) => source.split(/[\s.-]+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('')
+export const isWeb = (url: string) => /^https?:\/\//i.test(url)
 
 /** Onglet « Nicolas » : les nouvelles du jour sur l'intelligence artificielle. */
 export function NicolasPage() {
@@ -141,7 +141,7 @@ export function NicolasPage() {
 }
 
 /** « Nouveau » : publié moins de 2 h avant la dernière mise à jour des nouvelles (repère stable, pas l'horloge à chaque rendu). */
-function Story({ item, big = false, now }: { item: NewsItem; big?: boolean; now: string }) {
+export function Story({ item, big = false, now }: { item: NewsItem; big?: boolean; now: string }) {
   const { t, ago, plural } = useI18n()
   const fresh = new Date(now).getTime() - new Date(item.publishedAt).getTime() < 2 * 3600_000
   const [broken, setBroken] = useState(false)

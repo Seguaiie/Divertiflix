@@ -63,13 +63,19 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<HomeServicesMonito
 builder.Services.Configure<NtfyOptions>(builder.Configuration.GetSection("Ntfy"));
 builder.Services.AddHttpClient(NtfyAlerts.ClientName, c => c.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddSingleton<NtfyAlerts>();
+// Notifications infonuagiques (Web Push) : inactives tant que Push__PublicKey et Push__PrivateKey ne sont pas fournis (clés VAPID).
+builder.Services.Configure<PushOptions>(builder.Configuration.GetSection("Push"));
+builder.Services.AddHttpClient<WebPushSender>(c => c.Timeout = TimeSpan.FromSeconds(10));
 // Jellyseerr : demandes approuvées transmises automatiquement, puis suivies jusqu'à « disponible » (inactif sans Jellyseerr__ApiKey).
 builder.Services.Configure<JellyseerrOptions>(builder.Configuration.GetSection("Jellyseerr"));
 builder.Services.AddHttpClient<JellyseerrClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddSingleton<JellyseerrSync>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<JellyseerrSync>());
 builder.Services.AddHttpClient<AiBenchmarks>(c => { c.Timeout = TimeSpan.FromSeconds(30); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
-builder.Services.AddHttpClient<AiNews>(c => { c.Timeout = TimeSpan.FromSeconds(12); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
+// Lecture des fils RSS/Atom, partagée par les onglets « Nicolas » (IA) et « Divertissement » (centres d'intérêt de l'équipe).
+builder.Services.AddHttpClient<RssFeeds>(c => { c.Timeout = TimeSpan.FromSeconds(12); c.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Divertiflix/1.0)"); });
+builder.Services.AddSingleton<AiNews>();
+builder.Services.AddSingleton<HobbyNews>();
 builder.Services.AddHttpClient<MlbResults>(c => { c.Timeout = TimeSpan.FromSeconds(15); c.DefaultRequestHeaders.UserAgent.ParseAdd("Divertiflix/1.0"); });
 
 // Pont MQTT -> SignalR (capteurs ESP32 publiés sur Mosquitto). Se reconnecte seul, ne bloque jamais le démarrage.

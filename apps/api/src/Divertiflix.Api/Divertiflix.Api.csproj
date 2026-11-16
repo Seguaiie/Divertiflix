@@ -15,6 +15,7 @@
     </PackageReference>
     <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
     <PackageReference Include="Novell.Directory.Ldap.NETStandard" Version="3.6.0" />
+    <PackageReference Include="WebPush" Version="1.0.12" />
   </ItemGroup>
 
   <!-- Médias de démonstration générés par tools/demo-media : copiés avec l'application, servis par /api/media. -->

@@ -2,7 +2,7 @@ import type { AdminTitle, TitleKind, TitleUpsert } from './models';
 
 export interface TitleFormValue {
   name: string; synopsis: string; kind: TitleKind; genre: string; year: number; durationMinutes: number;
-  posterUrl: string; backdropUrl: string; streamUrl: string; author: string; narrator: string;
+  posterUrl: string; backdropUrl: string; streamUrl: string; trailerUrl: string; author: string; narrator: string;
   director: string; rating: number | null; maturity: string; credits: string; keywords: string; cast: string;
 }
 
@@ -32,6 +32,7 @@ export function toUpsert(v: TitleFormValue): TitleUpsert {
     posterUrl: orNull(v.posterUrl),
     backdropUrl: orNull(v.backdropUrl),
     streamUrl: orNull(v.streamUrl),
+    trailerUrl: orNull(v.trailerUrl),
     // L'auteur et le narrateur n'ont de sens que pour un livre audio : on n'enregistre pas de valeurs orphelines.
     author: book ? orNull(v.author) : null,
     narrator: book ? orNull(v.narrator) : null,
@@ -48,7 +49,7 @@ export function fromTitle(t: AdminTitle | null): TitleFormValue {
   return {
     name: t?.name ?? '', synopsis: t?.synopsis ?? '', kind: t?.kind ?? 'Movie', genre: t?.genre ?? '',
     year: t?.year ?? new Date().getFullYear(), durationMinutes: t?.durationMinutes ?? 90,
-    posterUrl: t?.posterUrl ?? '', backdropUrl: t?.backdropUrl ?? '', streamUrl: t?.streamUrl ?? '',
+    posterUrl: t?.posterUrl ?? '', backdropUrl: t?.backdropUrl ?? '', streamUrl: t?.streamUrl ?? '', trailerUrl: t?.trailerUrl ?? '',
     author: t?.author ?? '', narrator: t?.narrator ?? '', director: t?.director ?? '', rating: t?.rating ?? null,
     maturity: t?.maturity ?? '', credits: t?.credits ?? '', keywords: (t?.keywords ?? []).join(', '), cast: (t?.cast ?? []).join(', '),
   };

@@ -48,7 +48,7 @@ describe('fromTitle', () => {
     const t = {
       id: '1', name: 'Candide', synopsis: 'Conte', year: 1759, kind: 'Audiobook', genre: 'Satire', durationMinutes: 180,
       posterUrl: '/p.webp', backdropUrl: null, streamUrl: 'media:candide/audio.m4a', author: 'Voltaire', narrator: 'Léa', externalSource: 'demo',
-      keywords: ['conte', 'satire'], cast: [], director: null, rating: 8.2, maturity: 'TP', addedAt: '2026-01-01T00:00:00Z', isPlayable: true, streamKind: 'Audio', credits: 'Domaine public',
+      keywords: ['conte', 'satire'], cast: [], director: null, rating: 8.2, maturity: 'TP', addedAt: '2026-01-01T00:00:00Z', isPlayable: true, streamKind: 'Audio', credits: 'Domaine public', trailerUrl: null,
     } as AdminTitle;
     const u = toUpsert(fromTitle(t));
     expect(u).toMatchObject({ name: 'Candide', kind: 'Audiobook', author: 'Voltaire', narrator: 'Léa', streamUrl: 'media:candide/audio.m4a', keywords: ['conte', 'satire'], rating: 8.2, maturity: 'TP', credits: 'Domaine public' });

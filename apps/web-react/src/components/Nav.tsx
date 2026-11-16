@@ -1,4 +1,4 @@
-import { BookOpen, BrainCircuit, Clapperboard, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, Trophy, UserRound } from 'lucide-react'
+import { BookOpen, BrainCircuit, Clapperboard, Gamepad2, History, Home, LifeBuoy, Languages, ListVideo, LogOut, PlusCircle, Search, Settings2, Sparkles, Trophy, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
@@ -54,6 +54,7 @@ export function Nav() {
     { to: '/ma-liste', label: t('nav.myList'), icon: ListVideo },
     { to: '/domingo', label: t('nav.domingo'), icon: Trophy },
     { to: '/nicolas', label: t('nav.nicolas'), icon: BrainCircuit },
+    { to: '/divertissement', label: t('nav.divertissement'), icon: Gamepad2 },
   ]
 
   return (
@@ -83,6 +84,7 @@ export function Nav() {
                 <div><strong>{profile?.name}</strong><span>{user?.email}</span></div>
               </div>
               <button role="menuitem" onClick={() => { menu.close(); selectProfile(null); navigate('/profils') }}><UserRound aria-hidden />{t('menu.switchProfile')}</button>
+              <button role="menuitem" onClick={() => { menu.close(); navigate('/historique') }}><History aria-hidden />{t('nav.history')}</button>
               <button role="menuitem" onClick={() => { menu.close(true); openRequest() }}><PlusCircle aria-hidden />{t('menu.request')}</button>
               <button role="menuitem" onClick={() => { menu.close(true); openSupport() }}><LifeBuoy aria-hidden />{t('menu.help')}</button>
               <button role="menuitem" onClick={() => setLocale(locale === 'fr' ? 'en' : 'fr')}><Languages aria-hidden />{locale === 'fr' ? 'English' : 'Français'}</button>

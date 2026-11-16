@@ -59,6 +59,11 @@
   jeton d'accès : tant que le compte est actif, une URL de flux déjà émise (copiée, volée) reste valable jusqu'à son échéance, même après
   `logout-all`.
 - Les routes de synchronisation machine à machine exigent une clé partagée comparée en temps constant ; sans clé configurée, elles sont fermées.
+- **Code de profil et restriction d'âge** : un profil peut poser un code et une classification maximale (`PUT /api/profiles/{id}/lock`), vérifiés
+  par `POST /api/profiles/{id}/unlock` avant que le portail ne l'ouvre, et la restriction est revérifiée côté serveur à la lecture
+  (`/api/titles/{id}/playback`). **Ce n'est pas une frontière de sécurité** : les profils d'un même compte ne sont pas des comptes séparés, le
+  code est géré sans lui-même (pas de « code actuel » exigé pour le changer) et aucune limite de tentatives ne lui est propre — c'est un
+  contrôle parental, pensé contre un enfant qui choisit le mauvais profil, pas contre quelqu'un qui maîtrise déjà le compte.
 
 ## Limitation de débit
 

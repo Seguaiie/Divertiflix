@@ -18,6 +18,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
     public DbSet<TicketMessage> TicketMessages => Set<TicketMessage>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AudiobookshelfAccount> AudiobookshelfAccounts => Set<AudiobookshelfAccount>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -40,6 +41,7 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
         b.Entity<Profile>(e =>
         {
             e.Property(p => p.Name).HasMaxLength(50);
+            e.Property(p => p.MaturityLimit).HasMaxLength(10);
             e.HasMany(p => p.Watchlist).WithOne().HasForeignKey(w => w.ProfileId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<Title>(e =>
@@ -119,6 +121,15 @@ public class DivertiflixDbContext(DbContextOptions<DivertiflixDbContext> options
             e.HasIndex(t => t.Status);
         });
         b.Entity<TicketMessage>(e => e.Property(m => m.Body).HasMaxLength(4000));
+        b.Entity<PushSubscription>(e =>
+        {
+            e.Property(s => s.Endpoint).HasMaxLength(500);
+            e.Property(s => s.P256dh).HasMaxLength(255);
+            e.Property(s => s.Auth).HasMaxLength(255);
+            e.HasIndex(s => s.Endpoint).IsUnique();
+            e.HasIndex(s => s.UserId);
+            e.HasOne<User>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
         b.Entity<AuditLog>(e =>
         {
             e.Property(a => a.Action).HasMaxLength(60);

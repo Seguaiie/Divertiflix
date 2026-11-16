@@ -1,0 +1,20 @@
+@layer components {
+  .hobby-hero {
+    position: relative; overflow: hidden; isolation: isolate;
+    padding: clamp(22px, 4vw, 40px) clamp(18px, 4vw, 40px);
+    border-radius: var(--radius-sm);
+    background:
+      radial-gradient(620px 300px at 0% 0%, rgb(255 140 60 / 0.4), transparent 65%),
+      radial-gradient(560px 320px at 100% 100%, rgb(255 60 140 / 0.3), transparent 65%),
+      linear-gradient(135deg, rgb(var(--ink) / 0.92), rgb(var(--tint) / 0.05));
+    box-shadow: 0 0 0 1px var(--line-strong), 0 30px 80px -40px rgb(255 100 80 / 0.6);
+  }
+  .hobby-hero .eyebrow { color: rgb(255 170 120); }
+  .hobby-hero-orb {
+    position: absolute; top: 18px; right: 22px; width: 64px; height: 64px; border-radius: 50%;
+    display: grid; place-items: center; color: rgb(255 255 255 / 0.9);
+    background: radial-gradient(circle, rgb(255 140 60 / 0.5), transparent 70%);
+  }
+  .hobby-hero-orb svg { width: 32px; height: 32px; }
+  .hobby-switch { margin: 20px 0 clamp(20px, 3vw, 32px); }
+}

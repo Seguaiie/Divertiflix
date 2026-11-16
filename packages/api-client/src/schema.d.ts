@@ -1334,6 +1334,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/news/divertissement/{person}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    person: "Emilien" | "Alexi" | "Abdoullah" | "Maxence";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HobbyNewsDto"];
+                        "application/json": components["schemas"]["HobbyNewsDto"];
+                        "text/json": components["schemas"]["HobbyNewsDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -1538,6 +1577,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/profiles/{id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfileLockUpdate"];
+                    "text/json": components["schemas"]["ProfileLockUpdate"];
+                    "application/*+json": components["schemas"]["ProfileLockUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProfileDto"];
+                        "application/json": components["schemas"]["ProfileDto"];
+                        "text/json": components["schemas"]["ProfileDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profiles/{id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfileUnlock"];
+                    "text/json": components["schemas"]["ProfileUnlock"];
+                    "application/*+json": components["schemas"]["ProfileUnlock"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/profiles/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["CardDto"][];
+                        "application/json": components["schemas"]["CardDto"][];
+                        "text/json": components["schemas"]["CardDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/profiles/{id}/watchlist": {
         parameters: {
             query?: never;
@@ -1732,6 +1896,101 @@ export interface paths {
         };
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/push/public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["PushPublicKeyDto"];
+                        "application/json": components["schemas"]["PushPublicKeyDto"];
+                        "text/json": components["schemas"]["PushPublicKeyDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/push/subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PushSubscribeRequest"];
+                    "text/json": components["schemas"]["PushSubscribeRequest"];
+                    "application/*+json": components["schemas"]["PushSubscribeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete: {
+            parameters: {
+                query: {
+                    endpoint: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2336,6 +2595,8 @@ export interface components {
             isPlayable: boolean;
             streamKind: components["schemas"]["NullableOfStreamKind"];
             credits: string | null;
+            /** @default null */
+            trailerUrl: string | null;
         };
         AdminUserDto: {
             /** Format: uuid */
@@ -2500,6 +2761,17 @@ export interface components {
         HeroDto: {
             card: components["schemas"]["CardDto"];
             mode: string;
+        };
+        HobbyNewsDto: {
+            sections: components["schemas"]["HobbySectionDto"][];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        HobbySectionDto: {
+            key: string;
+            label: string;
+            items: components["schemas"]["NewsItemDto"][];
+            sources: components["schemas"]["NewsSourceDto"][];
         };
         HomeDto: {
             hero: components["schemas"]["HeroDto"][];
@@ -2677,6 +2949,17 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** @default false */
+            hasPin: boolean;
+            /** @default null */
+            maturityLimit: string | null;
+        };
+        ProfileLockUpdate: {
+            pin: string | null;
+            maturityLimit: string | null;
+        };
+        ProfileUnlock: {
+            pin: string;
         };
         ProfileUpsert: {
             name: string;
@@ -2696,6 +2979,14 @@ export interface components {
             positionSeconds: number;
             /** Format: int32 */
             durationSeconds: number;
+        };
+        PushPublicKeyDto: {
+            publicKey: string;
+        };
+        PushSubscribeRequest: {
+            endpoint: string;
+            p256dh: string;
+            auth: string;
         };
         RatingUpsert: {
             /** Format: int32 */
@@ -2911,6 +3202,8 @@ export interface components {
             isPlayable: boolean;
             streamKind: components["schemas"]["NullableOfStreamKind"];
             credits: string | null;
+            /** @default null */
+            trailerUrl: string | null;
         };
         /** @enum {unknown} */
         TitleKind: "Movie" | "Series" | "Audiobook";
@@ -2946,6 +3239,8 @@ export interface components {
             maturity: string | null;
             /** @default null */
             credits: string | null;
+            /** @default null */
+            trailerUrl: string | null;
         };
         UserDto: {
             /** Format: uuid */

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppRoutes } from '../App'
 import { makeCard, mockApi, PROFILE_ID, renderApp, signIn } from '../test/utils'
 
@@ -146,5 +146,34 @@ describe('fiche d\'un titre : superposition', () => {
 
     await user.click(await screen.findByRole('link', { name: /Atlas de poche/ }))
     expect((await screen.findByRole('dialog')).closest('.overlay')?.parentElement).toBe(document.body)
+  })
+})
+
+describe('fiche d\'un titre : bande-annonce', () => {
+  it('le bouton bande-annonce ouvre le lien dans un nouvel onglet, et n\'apparaît pas sans lien', async () => {
+    const user = userEvent.setup()
+    const withTrailer = makeCard({}, { id: A.title.id, name: A.title.name, trailerUrl: 'https://videos.test/bande-annonce' })
+    mockApi({
+      '/api/profiles': [{ id: PROFILE_ID, name: 'Camille' }], '/api/titles/genres': [],
+      '/api/titles': { items: [withTrailer.title], page: 1, pageSize: 24, total: 1 },
+      [`/api/profiles/${PROFILE_ID}/watchlist`]: [],
+      [`/api/titles/${A.title.id}/detail`]: detail(withTrailer, []),
+    })
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    renderApp(<AppRoutes />, { route: '/films' })
+
+    await user.click(await screen.findByRole('link', { name: new RegExp(A.title.name) }))
+    await user.click(await screen.findByRole('button', { name: 'Bande-annonce' }))
+    expect(open).toHaveBeenCalledWith('https://videos.test/bande-annonce', '_blank', 'noopener,noreferrer')
+  })
+
+  it('pas de bouton bande-annonce quand le titre n\'en a pas', async () => {
+    const user = userEvent.setup()
+    routes()
+    renderApp(<AppRoutes />, { route: '/films' })
+
+    await user.click(await screen.findByRole('link', { name: /Atlas de poche/ }))
+    await screen.findByRole('heading', { level: 2, name: 'Atlas de poche' })
+    expect(screen.queryByRole('button', { name: 'Bande-annonce' })).not.toBeInTheDocument()
   })
 })

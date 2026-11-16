@@ -1,4 +1,4 @@
-import { Check, Headphones, Info, Play, Plus, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Check, Headphones, Info, Play, Plus, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import type { Card } from '../lib/api'
@@ -14,7 +14,7 @@ import './PosterCard.css'
  * Carte d'un titre. Le lien principal ouvre la fiche ; les actions rapides (lecture, liste, pouces) apparaissent
  * au survol et au focus clavier. L'explication de la recommandation reste visible sous l'affiche quand la rangée la demande.
  */
-export function PosterCard({ card, showReason = false, rated = true }: { card: Card; showReason?: boolean; rated?: boolean }) {
+export function PosterCard({ card, showReason = false, rated = true, onRemove }: { card: Card; showReason?: boolean; rated?: boolean; onRemove?(): void }) {
   const i18n = useI18n()
   const { t, genre, duration } = i18n
   const location = useRealLocation()
@@ -60,6 +60,7 @@ export function PosterCard({ card, showReason = false, rated = true }: { card: C
                 <button className="icon-btn sm" aria-pressed={card.myRating === 1} onClick={() => rate.mutate({ titleId: title.id, value: card.myRating === 1 ? 0 : 1 })} aria-label={t('card.like', { title: title.name })}><ThumbsUp /></button>
                 <button className="icon-btn sm" aria-pressed={card.myRating === -1} onClick={() => rate.mutate({ titleId: title.id, value: card.myRating === -1 ? 0 : -1 })} aria-label={t('card.dislike', { title: title.name })}><ThumbsDown /></button>
               </>}
+              {onRemove && <button className="icon-btn sm" onClick={onRemove} aria-label={t('card.removeFromHistory', { title: title.name })}><X /></button>}
             </div>
           </div>
         </div>

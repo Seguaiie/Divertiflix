@@ -83,12 +83,19 @@ public class TitlesController(DivertiflixDbContext db, HomeService home, StreamS
 
         var start = 0;
         var hasLocalProgress = false;
-        if (profileId is { } pid && await OwnsProfile(pid))
+        if (profileId is { } pid)
         {
-            var p = await db.Progress.AsNoTracking().FirstOrDefaultAsync(p => p.ProfileId == pid && p.TitleId == id);
-            hasLocalProgress = p is not null;
-            // Reprise à la seconde près ; au-delà de 95 %, on repart du début.
-            if (p is { Fraction: > 0.01 and < 0.95 }) start = p.PositionSeconds;
+            // Contrôle parental côté interface, pas une frontière de sécurité : les profils d'un même compte ne sont pas des comptes séparés.
+            var owned = await db.Profiles.AsNoTracking().Where(p => p.Id == pid && p.UserId == User.UserId())
+                .Select(p => new { p.MaturityLimit }).FirstOrDefaultAsync(ct);
+            if (owned is not null)
+            {
+                if (MaturityRank.Exceeds(t.Maturity, owned.MaturityLimit)) return this.Err(403, "Ce contenu est restreint pour ce profil.");
+                var p = await db.Progress.AsNoTracking().FirstOrDefaultAsync(p => p.ProfileId == pid && p.TitleId == id, ct);
+                hasLocalProgress = p is not null;
+                // Reprise à la seconde près ; au-delà de 95 %, on repart du début.
+                if (p is { Fraction: > 0.01 and < 0.95 }) start = p.PositionSeconds;
+            }
         }
 
         var source = t.StreamUrl!;

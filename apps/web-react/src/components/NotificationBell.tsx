@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Film, LifeBuoy } from 'lucide-react'
+import { Bell, BellOff, BellRing, Film, LifeBuoy } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useI18n } from '../i18n'
 import { api, call } from '../lib/api'
 import { notificationText } from '../lib/notifications'
 import { usePopover } from '../hooks/usePopover'
+import { usePush } from '../hooks/usePush'
 import { keys } from '../state/queries'
+import { useToast } from '../state/toast'
 import { useUI } from '../state/ui'
 
 export function NotificationBell() {
@@ -14,13 +16,16 @@ export function NotificationBell() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { openSupport } = useUI()
+  const toast = useToast()
   const pop = usePopover()
+  const push = usePush()
   const list = useQuery({ queryKey: keys.notifications, queryFn: () => call(api.GET('/api/notifications')), refetchInterval: 120_000 })
   const read = useMutation({
     mutationFn: (ids: string[] | null) => call(api.POST('/api/notifications/read', { body: { ids } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }),
   })
   const unread = list.data?.unread ?? 0
+  const togglePush = () => void (push.subscribed ? push.unsubscribe() : push.subscribe().then(ok => { if (!ok) toast.push({ kind: 'error', text: t('notif.pushError') }) }))
 
   return (
     <div className="popover-root" ref={pop.ref}>
@@ -33,7 +38,16 @@ export function NotificationBell() {
         <div className="popover glass-panel notif" role="dialog" aria-label={t('notif.title')}>
           <header>
             <h2 className="display">{t('notif.title')}</h2>
-            {unread > 0 && <button className="link" onClick={() => read.mutate(null)}>{t('notif.markAll')}</button>}
+            <div className="row-flex">
+              {unread > 0 && <button className="link" onClick={() => read.mutate(null)}>{t('notif.markAll')}</button>}
+              {push.supported && (
+                <button className="icon-btn plain" disabled={push.busy} aria-pressed={push.subscribed}
+                  aria-label={push.subscribed ? t('notif.disablePush') : t('notif.enablePush')} title={push.subscribed ? t('notif.disablePush') : t('notif.enablePush')}
+                  onClick={togglePush}>
+                  {push.subscribed ? <BellRing /> : <BellOff />}
+                </button>
+              )}
+            </div>
           </header>
           {list.data && list.data.items.length === 0 && <p className="notif-empty">{t('notif.empty')}</p>}
           <ul>

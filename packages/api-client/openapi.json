@@ -1427,6 +1427,50 @@
         }
       }
     },
+    "/api/news/divertissement/{person}": {
+      "get": {
+        "tags": [
+          "News"
+        ],
+        "parameters": [
+          {
+            "name": "person",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "Emilien",
+                "Alexi",
+                "Abdoullah",
+                "Maxence"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/HobbyNewsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HobbyNewsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HobbyNewsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/notifications": {
       "get": {
         "tags": [
@@ -1650,6 +1694,158 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/profiles/{id}/lock": {
+      "put": {
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileLockUpdate"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileLockUpdate"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileLockUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{id}/unlock": {
+      "post": {
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUnlock"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUnlock"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUnlock"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/profiles/{id}/history": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CardDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CardDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CardDto"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1892,6 +2088,88 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/push/public-key": {
+      "get": {
+        "tags": [
+          "Push"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushPublicKeyDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushPublicKeyDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushPublicKeyDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/push/subscribe": {
+      "post": {
+        "tags": [
+          "Push"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscribeRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscribeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Push"
+        ],
+        "parameters": [
+          {
+            "name": "endpoint",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -2709,6 +2987,11 @@
           "credits": {
             "type": "string",
             "nullable": true
+          },
+          "trailerUrl": {
+            "type": "string",
+            "default": null,
+            "nullable": true
           }
         }
       },
@@ -3311,6 +3594,54 @@
           }
         }
       },
+      "HobbyNewsDto": {
+        "required": [
+          "sections",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HobbySectionDto"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HobbySectionDto": {
+        "required": [
+          "key",
+          "label",
+          "items",
+          "sources"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewsItemDto"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewsSourceDto"
+            }
+          }
+        }
+      },
       "HomeDto": {
         "required": [
           "hero",
@@ -3907,6 +4238,43 @@
           },
           "name": {
             "type": "string"
+          },
+          "hasPin": {
+            "type": "boolean",
+            "default": false
+          },
+          "maturityLimit": {
+            "type": "string",
+            "default": null,
+            "nullable": true
+          }
+        }
+      },
+      "ProfileLockUpdate": {
+        "required": [
+          "pin",
+          "maturityLimit"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": "string",
+            "nullable": true
+          },
+          "maturityLimit": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ProfileUnlock": {
+        "required": [
+          "pin"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": "string"
           }
         }
       },
@@ -3963,6 +4331,36 @@
           "durationSeconds": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "PushPublicKeyDto": {
+        "required": [
+          "publicKey"
+        ],
+        "type": "object",
+        "properties": {
+          "publicKey": {
+            "type": "string"
+          }
+        }
+      },
+      "PushSubscribeRequest": {
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
+        ],
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "p256dh": {
+            "type": "string"
+          },
+          "auth": {
+            "type": "string"
           }
         }
       },
@@ -4717,6 +5115,11 @@
           "credits": {
             "type": "string",
             "nullable": true
+          },
+          "trailerUrl": {
+            "type": "string",
+            "default": null,
+            "nullable": true
           }
         }
       },
@@ -4819,6 +5222,11 @@
             "type": "string",
             "default": null,
             "nullable": true
+          },
+          "trailerUrl": {
+            "type": "string",
+            "default": null,
+            "nullable": true
           }
         }
       },
@@ -4880,6 +5288,9 @@
     },
     {
       "name": "Profiles"
+    },
+    {
+      "name": "Push"
     },
     {
       "name": "Requests"

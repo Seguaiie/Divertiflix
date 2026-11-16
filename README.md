@@ -9,9 +9,11 @@ aucune fonction n'est factice.
 ## Ce que ça fait
 
 **Portail abonné** (React) : accueil personnalisé (à la une, reprise de lecture, « parce que vous avez regardé », tendances,
-nouveautés), films et livres audio avec filtres, fiche de titre, lecteur HLS avec reprise, lecteur audio persistant pendant la
-navigation, liste personnelle, pouces haut et bas, profils multiples, palette de commandes (Ctrl+K), assistant de recommandation,
-demande de titre, aide avec fil de discussion, notifications en direct, français et anglais.
+nouveautés), films et livres audio avec filtres, fiche de titre avec bande-annonce, lecteur HLS avec reprise, lecteur audio
+persistant pendant la navigation, liste personnelle, historique de visionnage, pouces haut et bas, profils multiples avec code et
+restriction d'âge, palette de commandes (Ctrl+K), assistant de recommandation, demande de titre, aide avec fil de discussion,
+notifications en direct et infonuagiques (Web Push), français et anglais, onglets Domingo (résultats MLB), Nicolas (nouvelles de
+l'IA) et Divertissement (centres d'intérêt de chaque membre de l'équipe).
 
 **Back-office** (Angular) : tableau de bord (compteurs, état des services, flux en direct), catalogue complet, demandes
 (approuver, télécharger, rendre disponible, refuser avec raison), billets d'aide (réponse depuis le fil), utilisateurs (rôles,
@@ -48,9 +50,9 @@ Compte administrateur de développement : `root` / `boom123$` (n'existe qu'en d�
 
 | Suite | Commande | Contenu |
 | --- | --- | --- |
-| API (xUnit) | `cd apps/api && dotnet test` | 342 tests : moteur, analyseur de requêtes, accueil, assistant, flux de travail, comptes et sessions, concurrence, synchronisations, temps réel. Base PostgreSQL jetable par classe. |
-| Portail (Vitest) | `npm test` | 159 tests : clés de traduction, client API et session, composants, hooks, pages, charte graphique. |
-| Back-office (Angular) | `cd apps/admin-angular && npx ng test --watch=false` | 96 tests : services, garde-fous de rôle, pages et fenêtres. |
+| API (xUnit) | `cd apps/api && dotnet test` | 384 tests : moteur, analyseur de requêtes, accueil, assistant, flux de travail, comptes et sessions, concurrence, synchronisations, temps réel, code et restriction d'âge des profils, notifications infonuagiques. Base PostgreSQL jetable par classe. |
+| Portail (Vitest) | `npm test` | 180 tests : clés de traduction, client API et session, composants, hooks, pages, charte graphique. |
+| Back-office (Angular) | `cd apps/admin-angular && npx ng test --watch=false` | 99 tests : services, garde-fous de rôle, pages et fenêtres. |
 | Démo hébergée (Vitest) | `cd packages/demo && npx vitest run` | 37 tests du faux serveur. |
 | Bout en bout (Playwright) | `E2E_CHROME=/chemin/chrome npm run e2e` | 14 parcours réels sur la pile complète, dont les notifications en direct entre portail et back-office. |
 

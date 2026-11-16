@@ -21,7 +21,7 @@ public class ProfilesController(DivertiflixDbContext db, CatalogCache cache, Aud
     [HttpGet]
     public async Task<List<ProfileDto>> List() =>
         await db.Profiles.AsNoTracking().Where(p => p.UserId == UserId).OrderBy(p => p.Name)
-            .Select(p => new ProfileDto(p.Id, p.Name)).ToListAsync();
+            .Select(p => new ProfileDto(p.Id, p.Name, p.PinHash != null, p.MaturityLimit)).ToListAsync();
 
     [HttpPost]
     public async Task<ActionResult<ProfileDto>> Create(ProfileUpsert req)
@@ -41,7 +41,50 @@ public class ProfilesController(DivertiflixDbContext db, CatalogCache cache, Aud
         if (p is null) return NotFound();
         p.Name = req.Name.Trim();
         await db.SaveChangesAsync();
-        return new ProfileDto(p.Id, p.Name);
+        return new ProfileDto(p.Id, p.Name, p.PinHash != null, p.MaturityLimit);
+    }
+
+    // ------------------------------------------------------------------ Code et contrôle parental
+
+    private static readonly Microsoft.AspNetCore.Identity.PasswordHasher<Profile> PinHasher = new();
+
+    /// <summary>Pose ou retire le code du profil, et règle sa restriction d'âge. Géré par le compte, pas par le profil : pas besoin de l'ancien code.</summary>
+    [HttpPut("{id:guid}/lock")]
+    public async Task<ActionResult<ProfileDto>> SetLock(Guid id, ProfileLockUpdate req)
+    {
+        var p = await db.Profiles.FirstOrDefaultAsync(p => p.Id == id && p.UserId == UserId);
+        if (p is null) return NotFound();
+        if (req.MaturityLimit is { } m && !MaturityRank.Levels.Contains(m, StringComparer.OrdinalIgnoreCase))
+            return this.Err(400, "Classification inconnue.");
+        p.PinHash = string.IsNullOrWhiteSpace(req.Pin) ? null : PinHasher.HashPassword(p, req.Pin.Trim());
+        p.MaturityLimit = string.IsNullOrWhiteSpace(req.MaturityLimit) ? null : req.MaturityLimit;
+        await db.SaveChangesAsync();
+        return new ProfileDto(p.Id, p.Name, p.PinHash != null, p.MaturityLimit);
+    }
+
+    /// <summary>Vérifie le code d'un profil avant de l'ouvrir (choix côté client, pas une session serveur).</summary>
+    [HttpPost("{id:guid}/unlock")]
+    public async Task<IActionResult> Unlock(Guid id, ProfileUnlock req)
+    {
+        var p = await db.Profiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id && p.UserId == UserId);
+        if (p is null) return NotFound();
+        if (p.PinHash is null) return this.Err(409, "Ce profil n'a pas de code.");
+        var verdict = PinHasher.VerifyHashedPassword(p, p.PinHash, req.Pin);
+        return verdict == Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed ? this.Err(403, "Code incorrect.") : NoContent();
+    }
+
+    // ------------------------------------------------------------------ Historique
+
+    /// <summary>Tout ce que le profil a déjà lancé, du plus récent au plus ancien (pas seulement les lectures en cours).</summary>
+    [HttpGet("{id:guid}/history")]
+    public async Task<ActionResult<List<CardDto>>> History(Guid id, CancellationToken ct)
+    {
+        if (!await Owns(id)) return NotFound();
+        var snap = await cache.GetAsync(db, ct);
+        var state = await ProfileState.LoadAsync(db, id, ct);
+        var cards = new HomeService.CardFactory(snap, state);
+        return state.Progress.Values.Where(p => snap.ById.ContainsKey(p.TitleId)).OrderByDescending(p => p.UpdatedAt)
+            .Take(100).Select(p => cards.Make(p.TitleId)).ToList();
     }
 
     [HttpDelete("{id:guid}")]

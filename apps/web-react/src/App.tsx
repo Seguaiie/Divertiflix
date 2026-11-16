@@ -12,8 +12,10 @@ import { RequestDialog } from './components/RequestDialog'
 import { SupportWidget } from './components/SupportWidget'
 import { TitleModal } from './components/TitleModal'
 import { BrowsePage } from './pages/BrowsePage'
+import { HistoryPage } from './pages/HistoryPage'
 import { HomePage } from './pages/HomePage'
 import { ListenPage } from './pages/ListenPage'
+import { DivertissementPage } from './pages/DivertissementPage'
 import { DomingoPage } from './pages/DomingoPage'
 import { NicolasPage } from './pages/NicolasPage'
 import { LoginPage } from './pages/LoginPage'
@@ -113,8 +115,11 @@ export function AppRoutes() {
           <Route path="/films" element={<BrowsePage kind="Movie" />} />
           <Route path="/livres-audio" element={<BrowsePage kind="Audiobook" />} />
           <Route path="/ma-liste" element={<MyListPage />} />
+          <Route path="/historique" element={<HistoryPage />} />
           <Route path="/domingo" element={<DomingoPage />} />
           <Route path="/nicolas" element={<NicolasPage />} />
+          <Route path="/divertissement" element={<Navigate to="/divertissement/emilien" replace />} />
+          <Route path="/divertissement/:person" element={<DivertissementPage />} />
           {/* Ancienne adresse (le nom s'écrivait par erreur « Nicholas ») : les liens déjà partagés mènent toujours à l'onglet. */}
           <Route path="/nicholas" element={<Navigate to="/nicolas" replace />} />
           <Route path="/ecouter/:id" element={<ListenPage />} />

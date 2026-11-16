@@ -9,6 +9,7 @@ export const keys = {
   home: (p: string) => ['home', p] as const,
   detail: (p: string, id: string) => ['detail', p, id] as const,
   watchlist: (p: string) => ['watchlist', p] as const,
+  history: (p: string) => ['history', p] as const,
   notifications: ['notifications'] as const,
   status: ['status'] as const,
   genres: (kind: string) => ['genres', kind] as const,
@@ -18,6 +19,7 @@ export const keys = {
   mlbHighlights: ['mlb', 'highlights'] as const,
   aiNews: ['news', 'ai'] as const,
   aiBenchmarks: ['news', 'ai', 'benchmarks'] as const,
+  hobby: (person: string) => ['news', 'hobby', person] as const,
   ticket: (id: string) => ['ticket', id] as const,
 }
 
@@ -46,6 +48,15 @@ export function useWatchlist() {
     queryKey: keys.watchlist(profileId ?? ''),
     enabled: !!profileId,
     queryFn: () => call(api.GET('/api/profiles/{id}/watchlist', { params: { path: { id: profileId! } } })),
+  })
+}
+
+export function useHistory() {
+  const { profileId } = useAuth()
+  return useQuery({
+    queryKey: keys.history(profileId ?? ''),
+    enabled: !!profileId,
+    queryFn: () => call(api.GET('/api/profiles/{id}/history', { params: { path: { id: profileId! } } })),
   })
 }
 
@@ -131,7 +142,7 @@ export function useClearProgress() {
   const { profileId } = useAuth()
   return useMutation({
     mutationFn: (titleId: string) => call(api.DELETE('/api/profiles/{id}/progress/{titleId}', { params: { path: { id: profileId!, titleId } } })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.home(profileId!) }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: keys.home(profileId!) }); void qc.invalidateQueries({ queryKey: keys.history(profileId!) }) },
   })
 }
 
@@ -151,6 +162,18 @@ export function useMlbHighlights() {
     queryKey: keys.mlbHighlights,
     queryFn: () => call(api.GET('/api/mlb/highlights', { params: { query: { limit: 16 } } })),
     staleTime: 5 * 60_000,
+  })
+}
+
+export type Teammate = 'Emilien' | 'Alexi' | 'Abdoullah' | 'Maxence'
+
+/** Onglet « Divertissement » : les rubriques suivies par un membre de l'équipe (mises en cache 20 min par l'API). */
+export function useHobbyNews(person: Teammate) {
+  return useQuery({
+    queryKey: keys.hobby(person),
+    queryFn: () => call(api.GET('/api/news/divertissement/{person}', { params: { path: { person } } })),
+    staleTime: 5 * 60_000,
+    refetchInterval: 20 * 60_000,
   })
 }
 

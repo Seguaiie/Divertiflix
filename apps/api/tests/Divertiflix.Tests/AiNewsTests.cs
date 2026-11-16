@@ -50,6 +50,14 @@ internal sealed class FakeFeeds : HttpMessageHandler
                 </channel></rss>
                 """),
             "www.wired.com" => new HttpResponseMessage(HttpStatusCode.InternalServerError),
+            // Onglet « Divertissement » : un article par fil, le chemin dans le titre pour distinguer les fils d'un même hôte (Reddit).
+            "www.reddit.com" or "esportsinsider.com" or "reactormag.com" or "www.thedrive.com" or "feeds.marketwatch.com"
+                or "www.habseyesontheprize.com" or "feeds.feedburner.com" or "www.bleepingcomputer.com" or "www.phoronix.com" or "forum.proxmox.com"
+                => Xml($"""
+                    <?xml version="1.0"?><rss version="2.0"><channel>
+                    <item><title>Nouvelle de {uri.Host}{uri.AbsolutePath}</title><link>https://{uri.Host}{uri.AbsolutePath}/1</link><pubDate>{Rfc(1)}</pubDate></item>
+                    </channel></rss>
+                    """),
             _ => Xml("<rss version=\"2.0\"><channel></channel></rss>"),
         };
         // Images : celle de TechCrunch est une vraie image, le « logo » du Journal du Geek un SVG (refusé par le relais).
@@ -69,7 +77,7 @@ public class NewsFactory : ApiFactory
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
-        builder.ConfigureTestServices(s => s.AddHttpClient<AiNews>().ConfigurePrimaryHttpMessageHandler(() => new FakeFeeds()));
+        builder.ConfigureTestServices(s => s.AddHttpClient<RssFeeds>().ConfigurePrimaryHttpMessageHandler(() => new FakeFeeds()));
     }
 }
 

@@ -53,6 +53,8 @@ import { fromTitle, toUpsert } from '../../core/title-form';
           <mat-form-field class="full"><mat-label>URL du fond (bandeau)</mat-label><input matInput formControlName="backdropUrl" maxlength="500" /></mat-form-field>
           <mat-form-field class="full"><mat-label>Source de lecture</mat-label><input matInput formControlName="streamUrl" maxlength="1000" />
             <mat-hint>Flux HLS (.m3u8), vidéo, audio ou lien externe. Vide : le titre n'est pas encore lisible.</mat-hint></mat-form-field>
+          <mat-form-field class="full"><mat-label>Bande-annonce</mat-label><input matInput formControlName="trailerUrl" maxlength="500" />
+            <mat-hint>Lien externe (YouTube, TMDB...). Vide : pas de bouton bande-annonce sur la fiche.</mat-hint></mat-form-field>
 
           <h3>Informations</h3>
           <mat-form-field><mat-label>Classification</mat-label>
@@ -84,7 +86,7 @@ export class TitleDialog {
       genre: [v.genre, [Validators.required, Validators.maxLength(60)]],
       year: [v.year, [Validators.required, Validators.min(1), Validators.max(2200)]],
       durationMinutes: [v.durationMinutes, [Validators.required, Validators.min(0), Validators.max(6000)]],
-      posterUrl: [v.posterUrl], backdropUrl: [v.backdropUrl], streamUrl: [v.streamUrl],
+      posterUrl: [v.posterUrl], backdropUrl: [v.backdropUrl], streamUrl: [v.streamUrl], trailerUrl: [v.trailerUrl],
       author: [v.author], narrator: [v.narrator], director: [v.director],
       rating: [v.rating as number | null, [Validators.min(0), Validators.max(10)]],
       maturity: [v.maturity], credits: [v.credits], keywords: [v.keywords], cast: [v.cast],

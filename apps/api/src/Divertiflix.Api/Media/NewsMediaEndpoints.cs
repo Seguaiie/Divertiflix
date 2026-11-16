@@ -14,13 +14,13 @@ public static class NewsMediaEndpoints
 
     public static void Map(WebApplication app)
     {
-        app.MapGet("/api/media/news/image/{id:regex(^[a-f0-9]{{24}}$)}", async Task (string id, AiNews news, HttpContext http) =>
+        app.MapGet("/api/media/news/image/{id:regex(^[a-f0-9]{{24}}$)}", async Task (string id, RssFeeds feeds, HttpContext http) =>
         {
             var ct = http.RequestAborted;
-            if (news.ImageSource(id) is not { } url) { http.Response.StatusCode = StatusCodes.Status404NotFound; return; }
+            if (feeds.ImageSource(id) is not { } url) { http.Response.StatusCode = StatusCodes.Status404NotFound; return; }
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             HttpResponseMessage res;
-            try { res = await news.SendRawAsync(req, ct); }
+            try { res = await feeds.SendRawAsync(req, ct); }
             catch (Exception ex) when (ex is HttpRequestException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
             { http.Response.StatusCode = StatusCodes.Status502BadGateway; return; }
             catch (OperationCanceledException) { return; }

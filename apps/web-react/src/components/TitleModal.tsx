@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ExternalLink, Headphones, Info, Play, Plus, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
+import { Check, Clapperboard, ExternalLink, Headphones, Info, Play, Plus, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../i18n'
@@ -89,6 +89,11 @@ export function TitleModal({ id, onClose }: { id: string; onClose(): void }) {
                 <h2 id={labelId} className="display">{title.name}</h2>
                 <div className="tm-actions">
                   <PrimaryAction card={card} onPlay={() => play(title)} />
+                  {title.trailerUrl && (
+                    <button className="icon-btn" onClick={() => window.open(title.trailerUrl!, '_blank', 'noopener,noreferrer')} aria-label={t('title.trailer')} title={t('title.trailer')}>
+                      <Clapperboard />
+                    </button>
+                  )}
                   <button className="icon-btn" aria-pressed={card.inWatchlist} onClick={() => toggle.mutate({ titleId: title.id, add: !card.inWatchlist })}
                     aria-label={card.inWatchlist ? t('card.removeFromList', { title: title.name }) : t('card.addToList', { title: title.name })} title={card.inWatchlist ? t('title.inList') : t('title.addList')}>
                     {card.inWatchlist ? <Check /> : <Plus />}

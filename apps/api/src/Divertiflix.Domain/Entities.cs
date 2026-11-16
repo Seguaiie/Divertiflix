@@ -46,6 +46,10 @@ public class Profile
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }
     public string Name { get; set; } = "";
+    /// <summary>Code à fournir pour choisir ce profil, haché (jamais le code en clair). Null : pas de code.</summary>
+    public string? PinHash { get; set; }
+    /// <summary>Classification maximale visible par ce profil ("TP", "8+", "13+", "16+", "18+"). Null : aucune restriction.</summary>
+    public string? MaturityLimit { get; set; }
     public List<WatchlistItem> Watchlist { get; set; } = [];
 }
 
@@ -60,6 +64,8 @@ public class Title
     public int DurationMinutes { get; set; }
     public string? PosterUrl { get; set; }
     public string? BackdropUrl { get; set; }
+    /// <summary>Bande-annonce : lien externe (YouTube, TMDB...) ou source lisible par le portail. Null : pas de bande-annonce.</summary>
+    public string? TrailerUrl { get; set; }
     /// <summary>
     /// Source de lecture. Trois formes : URL absolue (HLS, MP4, audio, ou page externe),
     /// ou "media:chemin" pour un fichier servi par l'API (/api/media/stream, URL signée à la lecture).
@@ -201,6 +207,17 @@ public class TicketMessage
     public bool FromStaff { get; set; }
     public string Body { get; set; } = "";
     public DateTime At { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>Abonnement Web Push (navigateur) : une ligne par appareil/navigateur ayant accepté les notifications.</summary>
+public class PushSubscription
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public string Endpoint { get; set; } = "";
+    public string P256dh { get; set; } = "";
+    public string Auth { get; set; } = "";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>Journal d'audit des écritures sensibles (demandes, billets, administration).</summary>
