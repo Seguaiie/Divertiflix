@@ -45,7 +45,7 @@ public sealed partial class AiNews(RssFeeds feeds, IMemoryCache cache)
             .OrderByDescending(i => i.PublishedAt)
             .Where(i => seen.Add(i.Url))   // même adresse dans deux fils ; les titres identiques de médias différents comptent pour la popularité
             .ToList();
-        var items = Popular(recent, Top);
+        var items = await feeds.EnsureImagesAsync(Popular(recent, Top), ct);
 
         var sources = perFeed
             .Select(p => new NewsSourceDto(p.Feed.Name, p.Feed.Language, items.Count(i => i.Feed == p.Feed.Name), p.Ok))

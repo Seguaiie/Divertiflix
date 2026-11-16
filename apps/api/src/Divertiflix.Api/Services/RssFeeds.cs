@@ -26,6 +26,9 @@ public sealed partial class RssFeeds(HttpClient http, IMemoryCache cache, ILogge
     [GeneratedRegex(@"\s+")] private static partial Regex Spaces();
     [GeneratedRegex("<img[^>]+src=[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase)] private static partial Regex FirstImage();
     [GeneratedRegex(@"([+-]\d{2})(\d{2})$")] private static partial Regex NumericZone();
+    [GeneratedRegex(@"<meta\s[^>]*>", RegexOptions.IgnoreCase)] private static partial Regex MetaTag();
+    [GeneratedRegex("""(?:property|name)\s*=\s*["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["']""", RegexOptions.IgnoreCase)] private static partial Regex OgImageAttr();
+    [GeneratedRegex("""content\s*=\s*["']([^"']+)["']""", RegexOptions.IgnoreCase)] private static partial Regex ContentAttr();
 
     /// <summary>Lit un fil ; lève si le réseau ou le XML échoue (l'appelant décide quoi faire d'un fil en panne).</summary>
     public async Task<List<NewsItemDto>> ReadAsync(Feed feed, CancellationToken ct)
@@ -134,6 +137,57 @@ public sealed partial class RssFeeds(HttpClient http, IMemoryCache cache, ILogge
         // « Wed, 04 Nov 2026 … » : le jour de la semaine gêne parfois l'analyse.
         var comma = s.IndexOf(',');
         return comma > 0 && DateTimeOffset.TryParse(s[(comma + 1)..], CultureInfo.InvariantCulture, styles, out d) ? d.UtcDateTime : null;
+    }
+
+    /// <summary>
+    /// Pour chaque article sans image trouvée dans le fil, va chercher l'image de prévisualisation (og:image / twitter:image) sur la
+    /// page de l'article lui-même. Un seul coup par adresse (mise en cache 24 h, trouvée ou non) : les mêmes articles revus au
+    /// prochain rafraîchissement ne refont pas la requête. Une page qui ne répond pas, trop lente ou sans balise reste sans image.
+    /// </summary>
+    public async Task<List<NewsItemDto>> EnsureImagesAsync(IEnumerable<NewsItemDto> items, CancellationToken ct)
+    {
+        var list = items.ToList();
+        var filled = await Task.WhenAll(list.Select(async i =>
+        {
+            if (i.ImageUrl is not null) return i;
+            var found = await PageImageAsync(i.Url, ct);
+            return found is null ? i : i with { ImageUrl = ImageUrl(found) };
+        }));
+        return filled.ToList();
+    }
+
+    private const string PageImagePrefix = "news:og:";
+
+    private async Task<string?> PageImageAsync(string articleUrl, CancellationToken ct)
+    {
+        if (cache.TryGetValue(PageImagePrefix + articleUrl, out string? hit)) return hit is { Length: > 0 } ? hit : null;
+        string? found = null;
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            using var res = await http.GetAsync(articleUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            var type = res.Content.Headers.ContentType?.MediaType;
+            if (res.IsSuccessStatusCode && (type is null || type.Contains("html", StringComparison.Ordinal)))
+            {
+                await using var stream = await res.Content.ReadAsStreamAsync(cts.Token);
+                using var reader = new StreamReader(stream);
+                // Les balises <meta og:...> sont dans <head> : pas besoin de lire la page entière.
+                var buffer = new char[65536];
+                var read = await reader.ReadAsync(buffer, cts.Token);
+                var head = new string(buffer, 0, read);
+                var image = MetaTag().Matches(head).Select(m => m.Value).FirstOrDefault(tag => OgImageAttr().IsMatch(tag));
+                if (image is not null && ContentAttr().Match(image) is { Success: true } m)
+                {
+                    var decoded = WebUtility.HtmlDecode(m.Groups[1].Value);
+                    if (IsWeb(decoded)) found = decoded;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
+        { log.LogDebug(ex, "Image de prévisualisation introuvable pour {Url}.", articleUrl); }
+        cache.Set(PageImagePrefix + articleUrl, found ?? "", TimeSpan.FromHours(24));
+        return found;
     }
 
     /// <summary>Lit plusieurs fils en parallèle ; un fil en panne ou trop lent n'empêche jamais les autres.</summary>

@@ -60,7 +60,7 @@ public sealed class HobbyNews(RssFeeds feeds, IMemoryCache cache)
         var byUrl = (await feeds.ReadAllAsync(categories.SelectMany(c => c.Feeds), ct)).ToDictionary(p => p.Feed.Url);
 
         var now = DateTime.UtcNow;
-        var sections = categories.Select(c =>
+        var sections = await Task.WhenAll(categories.Select(async c =>
         {
             var seen = new HashSet<string>();
             var items = c.Feeds.SelectMany(f => byUrl[f.Url].Items)
@@ -69,11 +69,12 @@ public sealed class HobbyNews(RssFeeds feeds, IMemoryCache cache)
                 .Where(i => seen.Add(i.Url))
                 .Take(PerSection)
                 .ToList();
+            items = await feeds.EnsureImagesAsync(items, ct);
             var sources = c.Feeds.Select(f => new NewsSourceDto(f.Name, f.Language, items.Count(i => i.Feed == f.Name), byUrl[f.Url].Ok)).ToList();
             return new HobbySectionDto(c.Key, c.Label, items, sources);
-        }).ToList();
+        }));
 
-        var result = new HobbyNewsDto(sections, now);
+        var result = new HobbyNewsDto(sections.ToList(), now);
         cache.Set(cacheKey, result, Fresh);
         return result;
     }

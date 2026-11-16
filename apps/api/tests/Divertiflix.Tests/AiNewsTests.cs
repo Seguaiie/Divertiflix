@@ -15,10 +15,14 @@ internal sealed class FakeFeeds : HttpMessageHandler
     private static string Iso(double hoursAgo) => DateTime.UtcNow.AddHours(-hoursAgo).ToString("yyyy-MM-ddTHH:mm:ss") + "+00:00";
 
     private static HttpResponseMessage Xml(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/rss+xml") };
+    private static HttpResponseMessage Html(string body) => new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "text/html") };
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
     {
         var uri = request.RequestUri!;
+        // Pas d'image dans le fil : la page de l'article, elle, a une balise og:image (attributs dans l'autre sens, pour vérifier que l'ordre n'importe pas).
+        if (uri.Host == "www.theverge.com" && uri.AbsolutePath == "/b1")
+            return Task.FromResult(Html("""<html><head><meta content="https://www.theverge.com/img/b1-cover.jpg" property="og:image"></head></html>"""));
         var res = uri.Host switch
         {
             "techcrunch.com" => Xml($"""
@@ -99,6 +103,7 @@ public class AiNewsTests(NewsFactory f) : IClassFixture<NewsFactory>
         Assert.Equal("Le Devoir", gn.Source);   // média d'origine, retiré de la fin du titre
         Assert.Equal("fr", gn.Language);
         Assert.Null(gn.Summary);                // le résumé de Google Actualités n'est qu'une liste de liens
+        Assert.Null(gn.ImageUrl);                // sa page n'a pas de og:image : reste sans image, rien d'inventé
 
         var tc = news.Items[0];
         Assert.Equal("TechCrunch", tc.Source);   // l'article gardé pour le sujet : celui qui a une image et un résumé
@@ -107,6 +112,9 @@ public class AiNewsTests(NewsFactory f) : IClassFixture<NewsFactory>
         Assert.StartsWith("/api/media/news/image/", tc.ImageUrl);
 
         Assert.Equal("Folding.", news.Items[2].Summary);   // résumé Atom encodé en HTML
+        // Aucune image dans le fil : allée chercher sur la page de l'article (og:image), puis relayée comme les autres.
+        Assert.StartsWith("/api/media/news/image/", news.Items[2].ImageUrl);
+        Assert.Equal(HttpStatusCode.OK, (await f.CreateClient().GetAsync(news.Items[2].ImageUrl)).StatusCode);
 
         // Au plus 25 articles, les plus populaires.
         Assert.True(news.Items.Count <= AiNews.Top);
